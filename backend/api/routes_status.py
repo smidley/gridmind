@@ -39,6 +39,18 @@ async def site_config():
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
 
 
+@router.get("/site/info")
+async def site_info_raw():
+    """Get full raw site info from Tesla (for debugging and battery details)."""
+    if not tesla_client.is_authenticated:
+        raise HTTPException(status_code=401, detail="Not authenticated with Tesla")
+    try:
+        from tesla.commands import get_site_info
+        return await get_site_info()
+    except TeslaAPIError as e:
+        raise HTTPException(status_code=e.status_code or 500, detail=str(e))
+
+
 @router.get("/site/list")
 async def list_sites():
     """List available energy sites on the Tesla account."""

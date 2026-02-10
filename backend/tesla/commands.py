@@ -60,12 +60,49 @@ async def get_site_info() -> dict:
 async def get_site_config() -> dict:
     """Get site operational configuration."""
     info = await get_site_info()
+    components = info.get("components", {})
+
+    # Determine battery type and capacity from gateway/battery info
+    gateways = components.get("gateways", [])
+    batteries = components.get("batteries", [])
+    battery_count = info.get("battery_count", 0)
+
+    # Identify the gateway (main unit) name
+    gateway_name = ""
+    for gw in gateways:
+        if gw.get("part_name"):
+            gateway_name = gw["part_name"]
+            break
+
+    # Build battery description
+    # Powerwall 3 = 13.5 kWh per unit
+    PW3_CAPACITY_KWH = 13.5
+    total_capacity_kwh = battery_count * PW3_CAPACITY_KWH
+
+    # Count expansions (batteries that aren't the gateway)
+    gateway_serial = gateways[0]["serial_number"] if gateways else ""
+    expansions = [b for b in batteries if b.get("serial_number") != gateway_serial]
+
+    if expansions:
+        battery_description = f"{gateway_name} + {len(expansions)} Expansion"
+        if len(expansions) > 1:
+            battery_description += "s"
+    else:
+        battery_description = gateway_name or "Powerwall"
+
+    # Nameplate power (watts)
+    nameplate_power = info.get("nameplate_power", 0)
+
     return {
         "operation_mode": info.get("default_real_mode", "self_consumption"),
         "backup_reserve_percent": info.get("backup_reserve_percent", 0),
-        "storm_mode_enabled": info.get("storm_mode_enabled", False),
+        "storm_mode_enabled": components.get("storm_mode_capable", False) and info.get("user_settings", {}).get("storm_mode_enabled", False),
         "site_name": info.get("site_name", ""),
-        "battery_count": info.get("battery_count", 0),
+        "battery_count": battery_count,
+        "battery_description": battery_description,
+        "total_capacity_kwh": total_capacity_kwh,
+        "nameplate_power_kw": round(nameplate_power / 1000, 1) if nameplate_power else 0,
+        "firmware_version": gateways[0].get("firmware_version", "") if gateways else "",
     }
 
 

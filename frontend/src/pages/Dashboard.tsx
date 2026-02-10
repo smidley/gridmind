@@ -31,6 +31,7 @@ export default function Dashboard() {
   const { data: forecast } = useApi('/history/forecast')
   const { data: setupStatus } = useApi<any>('/settings/setup/status')
   const { data: todayTotals } = useApi<any>('/history/today')
+  const { data: siteConfig } = useApi<any>('/site/config')
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -127,6 +128,8 @@ export default function Dashboard() {
               soc={status.battery_soc}
               power={status.battery_power}
               reserve={status.backup_reserve}
+              description={siteConfig?.battery_description}
+              capacityKwh={siteConfig?.total_capacity_kwh}
             />
           </div>
 

@@ -65,7 +65,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-400 transition-colors"
             >
               <Sun className="w-3.5 h-3.5" />
-              <span>GridMind v0.2.1</span>
+              <span>GridMind v0.2.2</span>
             </a>
           </div>
         </nav>
