@@ -9,6 +9,14 @@ RUN npm run build
 # Stage 2: Python backend + built frontend
 FROM python:3.12-slim
 
+# OCI metadata labels
+LABEL org.opencontainers.image.title="GridMind"
+LABEL org.opencontainers.image.description="Personal Tesla Powerwall 3 automation and monitoring app"
+LABEL org.opencontainers.image.url="https://github.com/smidley/gridmind"
+LABEL org.opencontainers.image.source="https://github.com/smidley/gridmind"
+LABEL org.opencontainers.image.vendor="smidley"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 # Install dependencies
