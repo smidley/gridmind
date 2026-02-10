@@ -21,12 +21,14 @@ export default function BatteryGauge({ soc, power, reserve }: Props) {
 
       {/* Battery visual */}
       <div className="relative w-full h-10 bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
-        {/* Reserve line */}
-        <div
-          className="absolute top-0 bottom-0 w-0.5 bg-red-500/60 z-10"
-          style={{ left: `${reserve}%` }}
-          title={`Reserve: ${reserve}%`}
-        />
+        {/* Reserve line - only show if reserve > 0 */}
+        {reserve > 0 && (
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500/60 z-10"
+            style={{ left: `${reserve}%` }}
+            title={`Reserve: ${reserve}%`}
+          />
+        )}
         {/* Fill */}
         <div
           className={`h-full transition-all duration-1000 ${getColor()}`}
