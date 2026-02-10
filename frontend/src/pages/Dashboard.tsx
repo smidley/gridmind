@@ -30,14 +30,11 @@ export default function Dashboard() {
   const { data: polledStatus } = useApi<PowerwallStatus>('/status')
   const { data: forecast } = useApi('/history/forecast')
   const { data: setupStatus } = useApi<any>('/settings/setup/status')
-  const { data: dailyData } = useApi<any>('/history/daily?days=1')
+  const { data: todayTotals } = useApi<any>('/history/today')
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
   const status = liveStatus || validPolled
-
-  // Get today's summary (last entry in the daily array)
-  const today = dailyData?.summaries?.[dailyData.summaries.length - 1]
 
   return (
     <div className="p-6 space-y-6">
@@ -96,7 +93,7 @@ export default function Dashboard() {
                 <span className="card-header mb-0">Generated</span>
               </div>
               <div className="stat-value text-amber-400">
-                {today ? formatEnergy(today.solar_generated_kwh) : '—'}
+                {todayTotals ? formatEnergy(todayTotals.solar_generated_kwh) : '—'}
               </div>
               <div className="stat-label">Solar today</div>
             </div>
@@ -108,7 +105,7 @@ export default function Dashboard() {
                 <span className="card-header mb-0">Exported</span>
               </div>
               <div className="stat-value text-emerald-400">
-                {today ? formatEnergy(today.grid_exported_kwh) : '—'}
+                {todayTotals ? formatEnergy(todayTotals.grid_exported_kwh) : '—'}
               </div>
               <div className="stat-label">To grid today</div>
             </div>
@@ -120,7 +117,7 @@ export default function Dashboard() {
                 <span className="card-header mb-0">Consumed</span>
               </div>
               <div className="stat-value text-cyan-400">
-                {today ? formatEnergy(today.home_consumed_kwh) : '—'}
+                {todayTotals ? formatEnergy(todayTotals.home_consumed_kwh) : '—'}
               </div>
               <div className="stat-label">Home today</div>
             </div>
@@ -160,11 +157,11 @@ export default function Dashboard() {
                 <span className="font-medium">{status.backup_reserve}%</span>
               </div>
 
-              {today && (
+              {todayTotals && todayTotals.grid_imported_kwh > 0 && (
                 <div className="flex items-center gap-2">
                   <ArrowDownToLine className="w-3.5 h-3.5 text-slate-500" />
                   <span className="text-slate-400">Imported:</span>
-                  <span className="font-medium">{formatEnergy(today.grid_imported_kwh)}</span>
+                  <span className="font-medium">{formatEnergy(todayTotals.grid_imported_kwh)}</span>
                 </div>
               )}
 

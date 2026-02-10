@@ -92,6 +92,54 @@ async def get_daily_summary(
     }
 
 
+@router.get("/today")
+async def get_today_totals(db: AsyncSession = Depends(get_db)):
+    """Compute today's energy totals directly from readings (real-time, no caching)."""
+    from datetime import date
+
+    start_of_day = datetime.combine(date.today(), datetime.min.time())
+
+    result = await db.execute(
+        select(EnergyReading)
+        .where(EnergyReading.timestamp >= start_of_day)
+        .order_by(EnergyReading.timestamp)
+    )
+    readings = result.scalars().all()
+
+    if not readings:
+        return {
+            "solar_generated_kwh": 0,
+            "grid_imported_kwh": 0,
+            "grid_exported_kwh": 0,
+            "home_consumed_kwh": 0,
+            "battery_charged_kwh": 0,
+            "battery_discharged_kwh": 0,
+            "reading_count": 0,
+        }
+
+    # Calculate energy from power readings
+    # Estimate interval between readings dynamically
+    total_seconds = (readings[-1].timestamp - readings[0].timestamp).total_seconds() if len(readings) > 1 else 30
+    avg_interval_hours = (total_seconds / max(len(readings) - 1, 1)) / 3600
+
+    solar_kwh = sum(max(r.solar_power or 0, 0) for r in readings) * avg_interval_hours / 1000
+    grid_import_kwh = sum(max(r.grid_power or 0, 0) for r in readings) * avg_interval_hours / 1000
+    grid_export_kwh = sum(abs(min(r.grid_power or 0, 0)) for r in readings) * avg_interval_hours / 1000
+    home_kwh = sum(max(r.home_power or 0, 0) for r in readings) * avg_interval_hours / 1000
+    battery_charged_kwh = sum(max(r.battery_power or 0, 0) for r in readings) * avg_interval_hours / 1000
+    battery_discharged_kwh = sum(abs(min(r.battery_power or 0, 0)) for r in readings) * avg_interval_hours / 1000
+
+    return {
+        "solar_generated_kwh": round(solar_kwh, 2),
+        "grid_imported_kwh": round(grid_import_kwh, 2),
+        "grid_exported_kwh": round(grid_export_kwh, 2),
+        "home_consumed_kwh": round(home_kwh, 2),
+        "battery_charged_kwh": round(battery_charged_kwh, 2),
+        "battery_discharged_kwh": round(battery_discharged_kwh, 2),
+        "reading_count": len(readings),
+    }
+
+
 @router.get("/forecast")
 async def solar_forecast():
     """Get solar generation forecast for today and tomorrow."""

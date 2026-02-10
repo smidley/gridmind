@@ -15,7 +15,7 @@ import { useApi } from '../hooks/useApi'
 
 export default function HistoryPage() {
   const [hours, setHours] = useState(24)
-  const { data: readings, loading } = useApi<any>(`/history/readings?hours=${hours}&resolution=5`, [hours])
+  const { data: readings, loading } = useApi<any>(`/history/readings?hours=${hours}&resolution=5`)
   const { data: daily } = useApi<any>('/history/daily?days=14')
 
   const chartData = readings?.readings?.map((r: any) => ({
