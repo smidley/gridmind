@@ -10,16 +10,18 @@ import {
   WifiOff,
   Shield,
   Settings,
+  ArrowDownToLine,
+  ArrowUpFromLine,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi } from '../hooks/useApi'
 import PowerFlowDiagram from '../components/PowerFlowDiagram'
 import BatteryGauge from '../components/BatteryGauge'
 
-function formatPower(watts: number): string {
-  const abs = Math.abs(watts)
-  if (abs >= 1000) return `${(abs / 1000).toFixed(1)} kW`
-  return `${Math.round(abs)} W`
+function formatEnergy(kwh: number): string {
+  if (kwh >= 100) return `${Math.round(kwh)} kWh`
+  if (kwh >= 10) return `${kwh.toFixed(1)} kWh`
+  return `${kwh.toFixed(2)} kWh`
 }
 
 export default function Dashboard() {
@@ -28,10 +30,14 @@ export default function Dashboard() {
   const { data: polledStatus } = useApi<PowerwallStatus>('/status')
   const { data: forecast } = useApi('/history/forecast')
   const { data: setupStatus } = useApi<any>('/settings/setup/status')
+  const { data: dailyData } = useApi<any>('/history/daily?days=1')
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
   const status = liveStatus || validPolled
+
+  // Get today's summary (last entry in the daily array)
+  const today = dailyData?.summaries?.[dailyData.summaries.length - 1]
 
   return (
     <div className="p-6 space-y-6">
@@ -81,44 +87,42 @@ export default function Dashboard() {
             <PowerFlowDiagram status={status} />
           </div>
 
-          {/* Stats Grid */}
+          {/* Daily Totals + Battery */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Solar */}
+            {/* Solar Generated Today */}
             <div className="card">
               <div className="flex items-center gap-2 mb-2">
                 <Sun className="w-4 h-4 text-amber-400" />
-                <span className="card-header mb-0">Solar</span>
+                <span className="card-header mb-0">Generated</span>
               </div>
-              <div className="stat-value text-amber-400">{formatPower(status.solar_power)}</div>
-              <div className="stat-label">Generating</div>
+              <div className="stat-value text-amber-400">
+                {today ? formatEnergy(today.solar_generated_kwh) : '—'}
+              </div>
+              <div className="stat-label">Solar today</div>
             </div>
 
-            {/* Grid */}
+            {/* Grid Exported Today */}
             <div className="card">
               <div className="flex items-center gap-2 mb-2">
-                <Zap className="w-4 h-4 text-slate-400" />
-                <span className="card-header mb-0">Grid</span>
+                <ArrowUpFromLine className="w-4 h-4 text-emerald-400" />
+                <span className="card-header mb-0">Exported</span>
               </div>
-              <div className={`stat-value ${
-                status.grid_power > 50 ? 'text-red-400' :
-                status.grid_power < -50 ? 'text-green-400' : 'text-slate-500'
-              }`}>
-                {formatPower(status.grid_power)}
+              <div className="stat-value text-emerald-400">
+                {today ? formatEnergy(today.grid_exported_kwh) : '—'}
               </div>
-              <div className="stat-label">
-                {status.grid_power > 50 ? 'Importing' :
-                 status.grid_power < -50 ? 'Exporting' : 'Idle'}
-              </div>
+              <div className="stat-label">To grid today</div>
             </div>
 
-            {/* Home */}
+            {/* Home Consumed Today */}
             <div className="card">
               <div className="flex items-center gap-2 mb-2">
                 <Home className="w-4 h-4 text-cyan-400" />
-                <span className="card-header mb-0">Home</span>
+                <span className="card-header mb-0">Consumed</span>
               </div>
-              <div className="stat-value text-cyan-400">{formatPower(status.home_power)}</div>
-              <div className="stat-label">Consuming</div>
+              <div className="stat-value text-cyan-400">
+                {today ? formatEnergy(today.home_consumed_kwh) : '—'}
+              </div>
+              <div className="stat-label">Home today</div>
             </div>
 
             {/* Battery */}
@@ -155,6 +159,14 @@ export default function Dashboard() {
                 <span className="text-slate-400">Reserve:</span>
                 <span className="font-medium">{status.backup_reserve}%</span>
               </div>
+
+              {today && (
+                <div className="flex items-center gap-2">
+                  <ArrowDownToLine className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="text-slate-400">Imported:</span>
+                  <span className="font-medium">{formatEnergy(today.grid_imported_kwh)}</span>
+                </div>
+              )}
 
               {status.storm_mode && (
                 <div className="flex items-center gap-2">

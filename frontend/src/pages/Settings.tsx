@@ -406,30 +406,43 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Step C: Register + Authenticate */}
+            {/* Step C: Register with Fleet API */}
+            {publicKey && (
+              <div className={`rounded-lg border p-4 ${connectSuccess.includes('registered') || connectSuccess.includes('Registered') ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-blue-500/20 text-blue-400">3</div>
+                  <h4 className="text-sm font-semibold">Register with Tesla Fleet API</h4>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-400">Enter the domain hosting your public key and register. You can re-register at any time.</p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      className="input flex-1 text-sm"
+                      placeholder="e.g., username.github.io"
+                      value={regDomain}
+                      onChange={(e) => setRegDomain(e.target.value)}
+                    />
+                    <button onClick={handleRegister} disabled={!!connectLoading || !regDomain.trim()} className="btn-primary text-sm">
+                      {connectLoading === 'register' ? 'Registering...' : 'Register'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step D: Authenticate */}
             {publicKey && (
               <div className={`rounded-lg border p-4 ${authStatus?.authenticated ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${authStatus?.authenticated ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                    {authStatus?.authenticated ? <Check className="w-3.5 h-3.5" /> : '3'}
+                    {authStatus?.authenticated ? <Check className="w-3.5 h-3.5" /> : '4'}
                   </div>
-                  <h4 className="text-sm font-semibold">Register & Authenticate</h4>
+                  <h4 className="text-sm font-semibold">Authenticate with Tesla</h4>
                 </div>
                 {!authStatus?.authenticated ? (
-                  <div className="space-y-3">
-                    <p className="text-xs text-slate-400">Enter the domain hosting your public key, register with Tesla, then authenticate.</p>
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        className="input flex-1 text-sm"
-                        placeholder="e.g., username.github.io"
-                        value={regDomain}
-                        onChange={(e) => setRegDomain(e.target.value)}
-                      />
-                      <button onClick={handleRegister} disabled={!!connectLoading || !regDomain.trim()} className="btn-primary text-sm">
-                        {connectLoading === 'register' ? 'Registering...' : 'Register'}
-                      </button>
-                    </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-2">Complete registration above first, then authenticate.</p>
                     {authStatus?.auth_url && (
                       <a href={authStatus.auth_url} className="btn-success text-sm inline-flex items-center gap-2">
                         <ExternalLink className="w-4 h-4" /> Authenticate with Tesla
@@ -442,11 +455,11 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Step D: Discover Site */}
+            {/* Step E: Discover Site */}
             {authStatus?.authenticated && !authStatus?.energy_site_id && (
               <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-blue-500/20 text-blue-400">4</div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-blue-500/20 text-blue-400">5</div>
                   <h4 className="text-sm font-semibold">Discover Powerwall</h4>
                 </div>
                 <p className="text-xs text-slate-400 mb-2">Find your Powerwall energy site on your Tesla account.</p>

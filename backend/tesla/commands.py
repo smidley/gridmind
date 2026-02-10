@@ -9,10 +9,33 @@ from tesla.models import PowerwallStatus
 logger = logging.getLogger(__name__)
 
 
+# Cache site config to avoid hitting site_info on every poll
+_cached_site_config: dict = {}
+_config_cache_time: float = 0
+CONFIG_CACHE_TTL = 300  # Refresh site config every 5 minutes
+
+
 async def get_live_status() -> PowerwallStatus:
     """Get current live status from the Powerwall."""
+    global _cached_site_config, _config_cache_time
+    import time
+
     data = await tesla_client.get(tesla_client._site_url("/live_status"))
     response = data.get("response", {})
+
+    # Get operation mode from site_info (live_status doesn't return it accurately)
+    now = time.time()
+    if not _cached_site_config or (now - _config_cache_time) > CONFIG_CACHE_TTL:
+        try:
+            site_data = await tesla_client.get(tesla_client._site_url("/site_info"))
+            _cached_site_config = site_data.get("response", {})
+            _config_cache_time = now
+        except Exception:
+            pass  # Use cached or fallback
+
+    operation_mode = _cached_site_config.get("default_real_mode", response.get("default_real_mode", "self_consumption"))
+    backup_reserve = _cached_site_config.get("backup_reserve_percent", response.get("backup_reserve_percent", 0))
+    storm_mode = _cached_site_config.get("storm_mode_enabled", response.get("storm_mode_active", False))
 
     return PowerwallStatus(
         timestamp=datetime.utcnow(),
@@ -22,9 +45,9 @@ async def get_live_status() -> PowerwallStatus:
         grid_power=response.get("grid_power", 0),
         home_power=response.get("load_power", 0),
         grid_status="connected" if response.get("grid_status", "") == "Active" else "islanded",
-        operation_mode=response.get("default_real_mode", "self_consumption"),
-        backup_reserve=response.get("backup_reserve_percent", 0),
-        storm_mode=response.get("storm_mode_active", False),
+        operation_mode=operation_mode,
+        backup_reserve=backup_reserve,
+        storm_mode=storm_mode,
     )
 
 
