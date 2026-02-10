@@ -62,9 +62,10 @@ async def auth_status():
         energy_site_id=tesla_client.energy_site_id,
     )
 
-    if not tesla_client.is_authenticated:
-        if setup_store.get_tesla_client_id():
-            result.auth_url = tesla_client.get_auth_url()
+    # Always include the auth URL if credentials are configured
+    # (needed for re-authentication to update scopes)
+    if setup_store.get_tesla_client_id():
+        result.auth_url = tesla_client.get_auth_url()
 
     return result.model_dump()
 

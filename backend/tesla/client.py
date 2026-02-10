@@ -30,7 +30,7 @@ class TeslaAPIError(Exception):
 class TeslaFleetClient:
     """Client for Tesla Fleet API with automatic token refresh."""
 
-    SCOPES = "openid energy_device_data energy_cmds offline_access"
+    SCOPES = "openid energy_device_data energy_cmds vehicle_device_data vehicle_charging_cmds offline_access"
 
     def __init__(self):
         self._access_token: Optional[str] = None

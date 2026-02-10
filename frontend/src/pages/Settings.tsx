@@ -322,13 +322,23 @@ export default function SettingsPage() {
 
         {/* Fully connected */}
         {authStatus?.authenticated && authStatus?.energy_site_id ? (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <Check className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div>
-              <p className="font-medium text-emerald-400">Connected to Tesla</p>
-              <p className="text-sm text-slate-500">Site ID: {authStatus.energy_site_id}</p>
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <Check className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-emerald-400">Connected to Tesla</p>
+                <p className="text-sm text-slate-500">Site ID: {authStatus.energy_site_id}</p>
+              </div>
+              {authStatus.auth_url && (
+                <a
+                  href={authStatus.auth_url}
+                  className="text-xs text-slate-500 hover:text-blue-400 transition-colors underline underline-offset-2"
+                >
+                  Re-authenticate
+                </a>
+              )}
             </div>
           </div>
         ) : !setupStatus?.has_credentials ? (
