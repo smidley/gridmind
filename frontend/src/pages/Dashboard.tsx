@@ -29,7 +29,9 @@ export default function Dashboard() {
   const { data: forecast } = useApi('/history/forecast')
   const { data: setupStatus } = useApi<any>('/settings/setup/status')
 
-  const status = liveStatus || polledStatus
+  // Only use polledStatus if it has actual Powerwall data (not an error response)
+  const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
+  const status = liveStatus || validPolled
 
   return (
     <div className="p-6 space-y-6">

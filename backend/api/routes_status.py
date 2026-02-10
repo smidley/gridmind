@@ -23,7 +23,7 @@ async def current_status():
                 return status.model_dump()
             except Exception:
                 pass
-        return {"error": "No data available. Complete Tesla setup first."}
+        return None
     return status.model_dump()
 
 

@@ -34,6 +34,13 @@ export default function SettingsPage() {
   const [locationError, setLocationError] = useState('')
   const [locationSuccess, setLocationSuccess] = useState('')
 
+  // Tesla registration + site discovery
+  const [connectLoading, setConnectLoading] = useState('')
+  const [connectError, setConnectError] = useState('')
+  const [connectSuccess, setConnectSuccess] = useState('')
+  const [regDomain, setRegDomain] = useState(setupData?.fleet_api_domain || '')
+  const [publicKey, setPublicKey] = useState('')
+
   // Manual controls
   const [reserve, setReserve] = useState(20)
   const [mode, setMode] = useState('self_consumption')
@@ -45,8 +52,16 @@ export default function SettingsPage() {
       if (setupData.tesla_client_id) setClientId(setupData.tesla_client_id)
       if (setupData.tesla_redirect_uri) setRedirectUri(setupData.tesla_redirect_uri)
       if (setupData.address) setAddress(setupData.address)
+      if (setupData.fleet_api_domain) setRegDomain(setupData.fleet_api_domain)
     }
   }, [setupData])
+
+  // Try to load existing public key on mount
+  useEffect(() => {
+    apiFetch('/settings/setup/public-key').then(data => {
+      if (data?.public_key) setPublicKey(data.public_key)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (siteConfig) {
@@ -117,6 +132,55 @@ export default function SettingsPage() {
       setLocationError(e.message)
     }
     setLocationSaving(false)
+  }
+
+  const handleGenerateKeys = async () => {
+    setConnectLoading('keygen')
+    setConnectError('')
+    setConnectSuccess('')
+    try {
+      const result = await apiFetch('/settings/setup/generate-keys', { method: 'POST' })
+      setPublicKey(result.public_key)
+      setConnectSuccess(result.message)
+    } catch (e: any) {
+      setConnectError(e.message)
+    }
+    setConnectLoading('')
+  }
+
+  const handleRegister = async () => {
+    if (!regDomain.trim()) {
+      setConnectError('Enter the domain where your public key is hosted.')
+      return
+    }
+    setConnectLoading('register')
+    setConnectError('')
+    setConnectSuccess('')
+    try {
+      const result = await apiFetch('/settings/setup/register', {
+        method: 'POST',
+        body: JSON.stringify({ domain: regDomain.trim() }),
+      })
+      setConnectSuccess(result.message || 'App registered! Now click "Discover Site".')
+    } catch (e: any) {
+      setConnectError(e.message)
+    }
+    setConnectLoading('')
+  }
+
+  const handleDiscoverSite = async () => {
+    setConnectLoading('discover')
+    setConnectError('')
+    setConnectSuccess('')
+    try {
+      const result = await apiFetch('/settings/setup/discover-site', { method: 'POST' })
+      setConnectSuccess(`Site discovered! ID: ${result.energy_site_id}`)
+      refetchAuth()
+      refetchConfig()
+    } catch (e: any) {
+      setConnectError(e.message)
+    }
+    setConnectLoading('')
   }
 
   const handleSetMode = async (newMode: string) => {
@@ -238,49 +302,159 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-4.5 h-4.5 text-blue-400" />
           <h3 className="font-semibold">Tesla Connection</h3>
-          {authStatus?.authenticated && (
+          {authStatus?.authenticated && authStatus?.energy_site_id && (
             <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1">
               <Check className="w-3 h-3" /> Connected
             </span>
           )}
         </div>
 
-        {authStatus?.authenticated ? (
+        {connectError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-3 text-sm text-red-400">
+            {connectError}
+          </div>
+        )}
+        {connectSuccess && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 mb-3 text-sm text-emerald-400">
+            {connectSuccess}
+          </div>
+        )}
+
+        {/* Fully connected */}
+        {authStatus?.authenticated && authStatus?.energy_site_id ? (
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
               <Check className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
               <p className="font-medium text-emerald-400">Connected to Tesla</p>
-              <p className="text-sm text-slate-500">
-                Site ID: {authStatus.energy_site_id || 'Auto-detecting...'}
-              </p>
+              <p className="text-sm text-slate-500">Site ID: {authStatus.energy_site_id}</p>
             </div>
           </div>
-        ) : setupStatus?.has_credentials ? (
-          <div>
-            <p className="text-sm text-slate-400 mb-3">
-              Credentials are configured. Click below to authorize GridMind with your Tesla account.
-            </p>
-            {authStatus?.auth_url ? (
-              <a href={authStatus.auth_url} className="btn-primary inline-flex items-center gap-2">
-                <ExternalLink className="w-4 h-4" />
-                Connect Tesla Account
-              </a>
-            ) : (
-              <button onClick={refetchAuth} className="btn-secondary">
-                Refresh Auth Status
-              </button>
-            )}
-          </div>
-        ) : (
+        ) : !setupStatus?.has_credentials ? (
+          /* No credentials yet */
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 text-slate-500" />
             </div>
-            <p className="text-sm text-slate-500">
-              Enter your Tesla API credentials above first.
-            </p>
+            <p className="text-sm text-slate-500">Enter your Tesla API credentials above first.</p>
+          </div>
+        ) : (
+          /* Step-by-step setup */
+          <div className="space-y-4">
+
+            {/* Step A: Generate Keys */}
+            <div className={`rounded-lg border p-4 ${publicKey ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${publicKey ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                  {publicKey ? <Check className="w-3.5 h-3.5" /> : '1'}
+                </div>
+                <h4 className="text-sm font-semibold">Generate Key Pair</h4>
+              </div>
+              {!publicKey ? (
+                <div>
+                  <p className="text-xs text-slate-400 mb-2">Tesla requires an EC key pair. GridMind will generate one for you.</p>
+                  <button onClick={handleGenerateKeys} disabled={!!connectLoading} className="btn-primary text-sm">
+                    {connectLoading === 'keygen' ? 'Generating...' : 'Generate Keys'}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-emerald-400">Key pair ready.</p>
+              )}
+            </div>
+
+            {/* Step B: Host Public Key */}
+            {publicKey && (
+              <div className={`rounded-lg border p-4 ${authStatus?.authenticated ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${authStatus?.authenticated ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                    {authStatus?.authenticated ? <Check className="w-3.5 h-3.5" /> : '2'}
+                  </div>
+                  <h4 className="text-sm font-semibold">Host Public Key</h4>
+                </div>
+                {!authStatus?.authenticated ? (
+                  <div>
+                    <p className="text-xs text-slate-400 mb-2">
+                      Copy the public key below and host it on a GitHub Pages site (or any HTTPS domain) at:
+                    </p>
+                    <code className="block bg-slate-900 p-2 rounded text-xs text-blue-400 mb-2 break-all">
+                      https://YOUR-DOMAIN/.well-known/appspecific/com.tesla.3p.public-key.pem
+                    </code>
+                    <details className="mb-3">
+                      <summary className="text-xs text-blue-400 cursor-pointer hover:underline">Quick guide: GitHub Pages (free, 2 minutes)</summary>
+                      <ol className="text-xs text-slate-400 mt-2 ml-4 space-y-1 list-decimal">
+                        <li>Go to your GitHub Pages repo (e.g., <code className="text-slate-300">username.github.io</code>)</li>
+                        <li>Create a file at <code className="text-slate-300">.well-known/appspecific/com.tesla.3p.public-key.pem</code></li>
+                        <li>Paste the public key content below into that file</li>
+                        <li>Add an empty <code className="text-slate-300">.nojekyll</code> file in the repo root (so GitHub serves dotfiles)</li>
+                        <li>Verify it's live at <code className="text-slate-300">https://username.github.io/.well-known/appspecific/com.tesla.3p.public-key.pem</code></li>
+                      </ol>
+                    </details>
+                    <div className="relative">
+                      <pre className="bg-slate-900 p-3 rounded text-xs text-slate-300 font-mono overflow-x-auto">{publicKey}</pre>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(publicKey); setConnectSuccess('Public key copied to clipboard!'); setTimeout(() => setConnectSuccess(''), 2000) }}
+                        className="absolute top-2 right-2 text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-emerald-400">Public key hosted.</p>
+                )}
+              </div>
+            )}
+
+            {/* Step C: Register + Authenticate */}
+            {publicKey && (
+              <div className={`rounded-lg border p-4 ${authStatus?.authenticated ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${authStatus?.authenticated ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                    {authStatus?.authenticated ? <Check className="w-3.5 h-3.5" /> : '3'}
+                  </div>
+                  <h4 className="text-sm font-semibold">Register & Authenticate</h4>
+                </div>
+                {!authStatus?.authenticated ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-400">Enter the domain hosting your public key, register with Tesla, then authenticate.</p>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        className="input flex-1 text-sm"
+                        placeholder="e.g., username.github.io"
+                        value={regDomain}
+                        onChange={(e) => setRegDomain(e.target.value)}
+                      />
+                      <button onClick={handleRegister} disabled={!!connectLoading || !regDomain.trim()} className="btn-primary text-sm">
+                        {connectLoading === 'register' ? 'Registering...' : 'Register'}
+                      </button>
+                    </div>
+                    {authStatus?.auth_url && (
+                      <a href={authStatus.auth_url} className="btn-success text-sm inline-flex items-center gap-2">
+                        <ExternalLink className="w-4 h-4" /> Authenticate with Tesla
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-emerald-400">Authenticated with Tesla.</p>
+                )}
+              </div>
+            )}
+
+            {/* Step D: Discover Site */}
+            {authStatus?.authenticated && !authStatus?.energy_site_id && (
+              <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-blue-500/20 text-blue-400">4</div>
+                  <h4 className="text-sm font-semibold">Discover Powerwall</h4>
+                </div>
+                <p className="text-xs text-slate-400 mb-2">Find your Powerwall energy site on your Tesla account.</p>
+                <button onClick={handleDiscoverSite} disabled={!!connectLoading} className="btn-primary text-sm">
+                  {connectLoading === 'discover' ? 'Discovering...' : 'Discover Site'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

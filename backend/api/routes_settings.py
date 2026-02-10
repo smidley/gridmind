@@ -124,6 +124,169 @@ async def save_location(req: LocationCoordsRequest):
     }
 
 
+@router.post("/setup/generate-keys")
+async def generate_keys():
+    """Generate an EC key pair for Tesla Fleet API registration.
+
+    The public key must be hosted at a publicly accessible URL.
+    The private key is stored locally in the GridMind data directory.
+    """
+    import subprocess
+    import os
+
+    data_dir = settings.data_dir
+    private_key_path = os.path.join(data_dir, "private-key.pem")
+    public_key_path = os.path.join(data_dir, "public-key.pem")
+
+    # Check if keys already exist
+    if os.path.exists(private_key_path) and os.path.exists(public_key_path):
+        with open(public_key_path, "r") as f:
+            public_key = f.read()
+        return {
+            "exists": True,
+            "public_key": public_key,
+            "message": "Keys already exist. Public key shown below.",
+        }
+
+    # Generate new key pair
+    try:
+        os.makedirs(data_dir, exist_ok=True)
+
+        # Generate private key
+        subprocess.run(
+            ["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", private_key_path],
+            check=True, capture_output=True,
+        )
+
+        # Extract public key
+        subprocess.run(
+            ["openssl", "ec", "-in", private_key_path, "-pubout", "-out", public_key_path],
+            check=True, capture_output=True,
+        )
+
+        with open(public_key_path, "r") as f:
+            public_key = f.read()
+
+        return {
+            "exists": False,
+            "public_key": public_key,
+            "message": "Key pair generated! Host the public key below at your domain.",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Key generation failed: {e}")
+
+
+@router.get("/setup/public-key")
+async def get_public_key():
+    """Get the generated public key content."""
+    import os
+
+    public_key_path = os.path.join(settings.data_dir, "public-key.pem")
+    if not os.path.exists(public_key_path):
+        raise HTTPException(status_code=404, detail="No public key found. Generate keys first.")
+
+    with open(public_key_path, "r") as f:
+        return {"public_key": f.read()}
+
+
+class RegisterRequest(BaseModel):
+    domain: str  # e.g., "smidley.github.io"
+
+
+@router.post("/setup/register")
+async def register_fleet_api(req: RegisterRequest):
+    """Register the app with Tesla's Fleet API regional endpoint.
+
+    This is a one-time step required before making API calls.
+    The domain must be an internet-accessible domain that hosts your
+    public key at /.well-known/appspecific/com.tesla.3p.public-key.pem
+    """
+    import httpx
+    from config import settings as app_settings
+
+    client_id = setup_store.get_tesla_client_id()
+    client_secret = setup_store.get_tesla_client_secret()
+    domain = req.domain.strip().lower()
+
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=400, detail="Tesla credentials not configured.")
+    if not domain:
+        raise HTTPException(status_code=400, detail="Domain is required.")
+
+    # Remove protocol prefix if user included it
+    domain = domain.replace("https://", "").replace("http://", "").rstrip("/")
+
+    # Save the domain for reference
+    setup_store.set("fleet_api_domain", domain)
+
+    # Step 1: Get a partner token via client credentials grant
+    try:
+        async with httpx.AsyncClient() as client:
+            token_resp = await client.post(
+                f"{app_settings.tesla_auth_url}/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "scope": "openid energy_device_data energy_cmds",
+                    "audience": app_settings.tesla_api_base_url,
+                },
+            )
+
+        if token_resp.status_code != 200:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to get partner token: {token_resp.text}",
+            )
+
+        partner_token = token_resp.json().get("access_token")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Partner token request failed: {e}")
+
+    # Step 2: Register with the regional Fleet API endpoint
+    try:
+        async with httpx.AsyncClient() as client:
+            register_resp = await client.post(
+                f"{app_settings.tesla_api_base_url}/api/1/partner_accounts",
+                headers={
+                    "Authorization": f"Bearer {partner_token}",
+                    "Content-Type": "application/json",
+                },
+                json={"domain": domain},
+            )
+
+        if register_resp.status_code >= 400:
+            detail = register_resp.text
+            # 409 means already registered, which is fine
+            if register_resp.status_code == 409:
+                return {"success": True, "message": "App is already registered with Tesla Fleet API."}
+            raise HTTPException(
+                status_code=400,
+                detail=f"Registration failed ({register_resp.status_code}): {detail}",
+            )
+
+        return {"success": True, "message": "Successfully registered with Tesla Fleet API!"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Registration request failed: {e}")
+
+
+@router.post("/setup/discover-site")
+async def discover_site():
+    """Manually trigger energy site auto-discovery."""
+    if not tesla_client.is_authenticated:
+        raise HTTPException(status_code=401, detail="Not authenticated with Tesla.")
+
+    try:
+        site_id = await tesla_client.auto_discover_site()
+        return {"success": True, "energy_site_id": site_id}
+    except TeslaAPIError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # --- Powerwall Control ---
 
 

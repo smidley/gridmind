@@ -58,10 +58,15 @@ export default function App() {
           </div>
 
           <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-2 text-xs text-slate-600">
+            <a
+              href="https://github.com/smidley/gridmind"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-400 transition-colors"
+            >
               <Sun className="w-3.5 h-3.5" />
               <span>GridMind v0.1.0</span>
-            </div>
+            </a>
           </div>
         </nav>
 

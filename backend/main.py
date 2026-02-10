@@ -126,12 +126,80 @@ async def health():
     }
 
 
+# --- OAuth callback (must be at /auth/callback, not /api/auth/callback) ---
+
+@app.get("/auth/callback")
+async def auth_callback_redirect(code: str = "", state: str = ""):
+    """Handle the OAuth redirect from Tesla (browser GET redirect)."""
+    from fastapi.responses import HTMLResponse
+    from tesla.client import tesla_client, TeslaAuthError, TeslaAPIError
+
+    if not code:
+        return HTMLResponse(
+            content='<html><body style="font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f172a;color:white;"><div style="text-align:center;"><h1>Error</h1><p>No authorization code received.</p><p><a href="/settings" style="color:#60a5fa;">Back to Settings</a></p></div></body></html>',
+            status_code=400,
+        )
+
+    try:
+        await tesla_client.exchange_code(code)
+        try:
+            await tesla_client.auto_discover_site()
+        except TeslaAPIError:
+            pass
+
+        return HTMLResponse(
+            content="""
+            <!DOCTYPE html>
+            <html>
+            <head><title>GridMind - Auth Success</title></head>
+            <body style="font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #0f172a; color: white;">
+                <div style="text-align: center;">
+                    <h1 style="color: #fbbf24;">&#9889; Authentication Successful!</h1>
+                    <p style="color: #94a3b8;">GridMind is now connected to your Tesla account.</p>
+                    <p style="margin-top: 24px;"><a href="/settings" style="color: #0f172a; background: #3b82f6; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Return to Settings</a></p>
+                </div>
+            </body>
+            </html>
+            """,
+            status_code=200,
+        )
+    except TeslaAuthError as e:
+        return HTMLResponse(
+            content=f'<html><body style="font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f172a;color:white;"><div style="text-align:center;"><h1 style="color:#ef4444;">Authentication Failed</h1><p style="color:#94a3b8;">{str(e)}</p><p><a href="/settings" style="color:#60a5fa;">Back to Settings</a></p></div></body></html>',
+            status_code=400,
+        )
+
+
 # Serve frontend static files (in production, built React app)
-# This is mounted last so API routes take priority
+# Mounted under /assets so API routes and the SPA catch-all take priority
 import os
+from fastapi.responses import FileResponse
+
 frontend_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.isdir(frontend_dist):
-    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+    # Serve static assets (JS, CSS, images) directly
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    # Serve other static files (favicon, etc.)
+    @app.get("/favicon.svg")
+    async def favicon():
+        path = os.path.join(frontend_dist, "favicon.svg")
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="image/svg+xml")
+
+    # SPA catch-all: serve index.html for any unmatched route
+    # This must be registered LAST so API routes take priority
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        """Serve the React SPA for any non-API route."""
+        # Don't intercept API or WebSocket paths
+        if full_path.startswith("api/") or full_path.startswith("ws"):
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        index_path = os.path.join(frontend_dist, "index.html")
+        return FileResponse(index_path, media_type="text/html")
 
 
 if __name__ == "__main__":
