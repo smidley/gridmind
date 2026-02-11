@@ -12,6 +12,7 @@ import {
   Settings,
   ArrowDownToLine,
   ArrowUpFromLine,
+  DollarSign,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi } from '../hooks/useApi'
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const { data: todayTotals } = useApi<any>('/history/today')
   const { data: siteConfig } = useApi<any>('/site/config')
   const { data: tariff } = useApi<any>('/site/tariff')
+  const { data: valueData } = useApi<any>('/history/value')
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -178,6 +180,16 @@ export default function Dashboard() {
                   <ArrowDownToLine className="w-3.5 h-3.5 text-slate-500" />
                   <span className="text-slate-400">Imported:</span>
                   <span className="font-medium">{formatEnergy(todayTotals.grid_imported_kwh)}</span>
+                </div>
+              )}
+
+              {valueData && !valueData.error && (
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="text-slate-400">Today:</span>
+                  <span className={`font-medium ${valueData.net_value >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {valueData.net_value >= 0 ? '+' : '-'}${Math.abs(valueData.net_value).toFixed(2)}
+                  </span>
                 </div>
               )}
 

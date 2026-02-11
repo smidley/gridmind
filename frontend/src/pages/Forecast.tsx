@@ -12,7 +12,7 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts'
-import { Sun, Cloud, CloudSun, RefreshCw, Sunrise, Sunset } from 'lucide-react'
+import { Sun, Cloud, CloudSun, RefreshCw, DollarSign } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 
 function ConditionIcon({ condition, className }: { condition: string; className?: string }) {
@@ -30,6 +30,8 @@ function formatHour(hour: number): string {
 
 export default function ForecastPage() {
   const { data: forecast, loading, refetch } = useApi<any>('/history/forecast')
+  const { data: valueData } = useApi<any>('/history/value')
+  const { data: tariff } = useApi<any>('/site/tariff')
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -117,6 +119,12 @@ export default function ForecastPage() {
                   <span>Cloud: {today.avg_cloud_cover.toFixed(0)}%</span>
                   <span className="capitalize">{today.condition.replace('_', ' ')}</span>
                 </div>
+                {valueData && !valueData.error && (
+                  <div className="flex items-center gap-1.5 mt-3 text-sm font-medium text-emerald-400">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    Actual value: +${valueData.net_value.toFixed(2)}
+                  </div>
+                )}
               </div>
             )}
 
@@ -147,6 +155,13 @@ export default function ForecastPage() {
                     {tomorrow.estimated_kwh >= today.estimated_kwh ? '+' : ''}
                     {(tomorrow.estimated_kwh - today.estimated_kwh).toFixed(1)} kWh vs today
                     ({tomorrow.estimated_kwh >= today.estimated_kwh ? 'more' : 'less'} sun)
+                  </div>
+                )}
+                {valueData && !valueData.error && today && today.estimated_kwh > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2 text-sm font-medium text-blue-400">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    Potential: ~${((valueData.net_value / today.estimated_kwh) * tomorrow.estimated_kwh).toFixed(2)}
+                    <span className="text-xs text-slate-500 font-normal">(estimated)</span>
                   </div>
                 )}
               </div>
