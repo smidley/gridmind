@@ -23,6 +23,10 @@ scheduler = AsyncIOScheduler()
 def setup_scheduler():
     """Configure and start the automation scheduler."""
 
+    # Restore GridMind Optimize state from persistent storage
+    from automation.optimizer import init as optimizer_init
+    optimizer_init()
+
     # Core data collection - every 30 seconds
     scheduler.add_job(
         collect_data,

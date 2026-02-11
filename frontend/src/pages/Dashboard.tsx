@@ -215,46 +215,43 @@ export default function Dashboard() {
             const isComplete = enabled && phase === 'complete'
             const isWaiting = enabled && !isDumping && !isHolding && !isComplete
 
-            const borderColor = isDumping ? 'rgba(245,158,11,0.5)' : isHolding ? 'rgba(59,130,246,0.5)' : enabled ? 'rgba(16,185,129,0.4)' : 'transparent'
-            const glowColor = isDumping ? 'rgba(245,158,11,0.15)' : isHolding ? 'rgba(59,130,246,0.12)' : enabled ? 'rgba(16,185,129,0.1)' : 'transparent'
+            const solidColor = isDumping ? '#f59e0b' : isHolding ? '#3b82f6' : '#10b981'
+            const glowColor = isDumping ? 'rgba(245,158,11,0.12)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
 
             return (
-            <div className="card overflow-hidden relative" style={{
-              borderColor: enabled ? borderColor : undefined,
-              boxShadow: enabled ? `0 0 20px ${glowColor}, 0 0 40px ${glowColor}` : undefined,
+            <div className="relative p-[2px] rounded-xl overflow-hidden" style={{
+              boxShadow: enabled ? `0 0 15px ${glowColor}, 0 0 30px ${glowColor}` : undefined,
             }}>
-              {/* Animated border glow */}
-              {enabled && (isDumping || isHolding) && (
+              {/* Rotating conic gradient border */}
+              {enabled && (
                 <style>{`
-                  @keyframes borderGlow {
-                    0%, 100% { box-shadow: 0 0 15px ${glowColor}, 0 0 30px ${glowColor}; }
-                    50% { box-shadow: 0 0 25px ${glowColor}, 0 0 50px ${glowColor}, 0 0 80px ${glowColor}; }
-                  }
-                  @keyframes optimizeSweep {
-                    0% { transform: translateX(-100%); }
-                    100% { transform: translateX(200%); }
+                  @keyframes rotateBorder {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
                   }
                 `}</style>
               )}
-
-              {/* Pulsing glow overlay */}
-              {enabled && (isDumping || isHolding) && (
-                <div className="absolute inset-0 rounded-xl pointer-events-none" style={{
-                  animation: 'borderGlow 3s ease-in-out infinite',
-                }} />
-              )}
-
-              {/* Sweep animation during dumping */}
-              {isDumping && (
-                <div className="absolute inset-0 overflow-hidden rounded-xl">
-                  <div className="absolute top-0 bottom-0 w-1/3"
+              {enabled && (
+                <div className="absolute inset-0 rounded-xl overflow-hidden">
+                  <div
+                    className="absolute"
                     style={{
-                      background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.08), transparent)',
-                      animation: 'optimizeSweep 2s ease-in-out infinite',
+                      top: '-50%',
+                      left: '-50%',
+                      width: '200%',
+                      height: '200%',
+                      background: `conic-gradient(from 0deg, transparent 0%, ${solidColor} 10%, transparent 20%, transparent 100%)`,
+                      animation: `rotateBorder ${isDumping ? '2s' : isHolding ? '4s' : '6s'} linear infinite`,
                     }}
                   />
                 </div>
               )}
+
+              {/* Card inner with background to mask the rotating gradient */}
+              <div className={`card relative overflow-hidden ${!enabled ? '' : ''}`} style={{
+                margin: 0,
+                border: 'none',
+              }}>
 
               <div className="relative flex items-center gap-5">
                 {/* Left: icon + title */}
@@ -315,7 +312,7 @@ export default function Dashboard() {
                       {isDumping ? 'Dumping'
                         : isHolding ? 'Holding'
                         : isComplete ? 'Complete'
-                        : 'Waiting'}
+                        : 'Waiting for Peak'}
                     </div>
                   ) : (
                     <div className="px-4 py-2 rounded-lg font-bold text-sm uppercase tracking-wider bg-slate-200/60 text-slate-400 dark:bg-slate-800 dark:text-slate-600">
@@ -324,6 +321,7 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+            </div>
             </div>
             )
           })()}

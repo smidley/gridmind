@@ -56,6 +56,19 @@ def get_state() -> dict:
     }
 
 
+def init():
+    """Restore optimizer state from persistent storage on startup."""
+    if setup_store.get("gridmind_optimize_enabled"):
+        _state["enabled"] = True
+        _state["phase"] = "idle"
+        _state["peak_start_hour"] = int(setup_store.get("gridmind_optimize_peak_start") or 17)
+        _state["peak_end_hour"] = int(setup_store.get("gridmind_optimize_peak_end") or 21)
+        _state["buffer_minutes"] = int(setup_store.get("gridmind_optimize_buffer") or 15)
+        _state["min_reserve_pct"] = int(setup_store.get("gridmind_optimize_min_reserve") or 5)
+        logger.info("GridMind Optimize restored from config: enabled, peak %d:00-%d:00",
+                     _state["peak_start_hour"], _state["peak_end_hour"])
+
+
 def enable(peak_start: int = 17, peak_end: int = 21, buffer: int = 15, min_reserve: int = 5):
     """Enable GridMind Optimize mode."""
     _state["enabled"] = True
@@ -64,7 +77,12 @@ def enable(peak_start: int = 17, peak_end: int = 21, buffer: int = 15, min_reser
     _state["peak_end_hour"] = peak_end
     _state["buffer_minutes"] = buffer
     _state["min_reserve_pct"] = min_reserve
+    # Persist all settings
     setup_store.set("gridmind_optimize_enabled", True)
+    setup_store.set("gridmind_optimize_peak_start", peak_start)
+    setup_store.set("gridmind_optimize_peak_end", peak_end)
+    setup_store.set("gridmind_optimize_buffer", buffer)
+    setup_store.set("gridmind_optimize_min_reserve", min_reserve)
     logger.info("GridMind Optimize enabled: peak %d:00-%d:00, buffer %dm", peak_start, peak_end, buffer)
 
 
