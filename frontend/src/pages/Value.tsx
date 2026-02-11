@@ -8,6 +8,7 @@ import {
   LineChart, Line, ReferenceArea,
 } from 'recharts'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import MoneyGoal from '../components/MoneyGoal'
 
 function formatMoney(amount: number): string {
   return `$${Math.abs(amount).toFixed(2)}`
@@ -73,6 +74,7 @@ function HourlyTooltip({ active, payload, label }: any) {
 export default function ValuePage() {
   const { data: value, loading } = useAutoRefresh<any>('/history/value', 30000)
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
+  const { data: forecast } = useAutoRefresh<any>('/history/forecast', 60000)
 
   // Build hourly chart data
   const hourlyChart = value?.hourly_breakdown?.map((h: any) => ({
@@ -140,6 +142,47 @@ export default function ValuePage() {
               <span className="text-slate-600"> (export credits - import costs)</span>
             </p>
           </div>
+
+          {/* Value Goals */}
+          {forecast?.today && todayTotals && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Value Goal - estimate target from forecast scaled by current $/kWh */}
+              {(() => {
+                const forecastKwh = forecast.today.estimated_kwh
+                const actualKwh = todayTotals.solar_generated_kwh
+                // Estimate daily value target: scale current net value by forecast/actual ratio
+                // Or use a simpler approach: forecast * average export rate
+                const avgRate = actualKwh > 0 ? (value.export_credits + value.solar_savings) / actualKwh : 0.20
+                const valueTarget = forecastKwh * avgRate - value.import_costs
+                return (
+                  <div className="card">
+                    <MoneyGoal
+                      actual={value.net_value}
+                      target={Math.max(valueTarget, 1)}
+                      label="Net Value Goal"
+                    />
+                  </div>
+                )
+              })()}
+
+              {/* Export Credits Goal */}
+              {(() => {
+                const forecastKwh = forecast.today.estimated_kwh
+                const actualKwh = todayTotals.solar_generated_kwh
+                const avgExportRate = todayTotals.grid_exported_kwh > 0 ? value.export_credits / todayTotals.grid_exported_kwh : 0.15
+                const exportTarget = (forecastKwh * 0.6) * avgExportRate // Assume ~60% gets exported
+                return exportTarget > 0 ? (
+                  <div className="card">
+                    <MoneyGoal
+                      actual={value.export_credits}
+                      target={Math.max(exportTarget, 1)}
+                      label="Export Credits Goal"
+                    />
+                  </div>
+                ) : null
+              })()}
+            </div>
+          )}
 
           {/* Net Grid Credit */}
           {todayTotals && (
