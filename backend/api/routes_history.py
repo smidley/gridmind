@@ -312,6 +312,10 @@ async def get_energy_value(
     total_solar_self_use_savings = 0.0
     period_breakdown = {}
 
+    # Hourly breakdown: accumulate per hour
+    hourly_data: dict[int, dict] = {}
+    display_map = {"OFF_PEAK": "Off-Peak", "ON_PEAK": "Peak", "PARTIAL_PEAK": "Mid-Peak"}
+
     for entry in time_series:
         # Parse timestamp
         ts_str = entry.get("timestamp", "")
@@ -337,20 +341,51 @@ async def get_energy_value(
 
         export_value = exported * sell_rate
         import_cost = imported * buy_rate
-        self_use_savings = solar_self * buy_rate  # What you would have paid
+        self_use_savings = solar_self * buy_rate
 
         total_export_value += export_value
         total_import_cost += import_cost
         total_solar_self_use_savings += self_use_savings
 
         # Period breakdown
-        display = {"OFF_PEAK": "Off-Peak", "ON_PEAK": "Peak", "PARTIAL_PEAK": "Mid-Peak"}.get(period_name, period_name)
+        display = display_map.get(period_name, period_name)
         if display not in period_breakdown:
             period_breakdown[display] = {"exported_kwh": 0, "imported_kwh": 0, "export_value": 0, "import_cost": 0}
         period_breakdown[display]["exported_kwh"] += exported
         period_breakdown[display]["imported_kwh"] += imported
         period_breakdown[display]["export_value"] += export_value
         period_breakdown[display]["import_cost"] += import_cost
+
+        # Hourly breakdown
+        if hour not in hourly_data:
+            hourly_data[hour] = {
+                "hour": hour,
+                "export_value": 0.0,
+                "import_cost": 0.0,
+                "exported_kwh": 0.0,
+                "imported_kwh": 0.0,
+                "period": display,
+                "sell_rate": sell_rate,
+                "buy_rate": buy_rate,
+            }
+        hourly_data[hour]["export_value"] += export_value
+        hourly_data[hour]["import_cost"] += import_cost
+        hourly_data[hour]["exported_kwh"] += exported
+        hourly_data[hour]["imported_kwh"] += imported
+
+    # Build sorted hourly breakdown with net value
+    hourly_breakdown = []
+    for h in range(24):
+        entry = hourly_data.get(h, {
+            "hour": h, "export_value": 0, "import_cost": 0,
+            "exported_kwh": 0, "imported_kwh": 0, "period": "Off-Peak",
+            "sell_rate": 0, "buy_rate": 0,
+        })
+        entry["net"] = round(entry["export_value"] - entry["import_cost"], 4)
+        # Round for output
+        for k in ["export_value", "import_cost", "exported_kwh", "imported_kwh"]:
+            entry[k] = round(entry[k], 4)
+        hourly_breakdown.append(entry)
 
     # Net Value = Export Credits - Import Costs (actual grid cash flow)
     net_value = total_export_value - total_import_cost
@@ -363,6 +398,7 @@ async def get_energy_value(
         "import_costs": round(total_import_cost, 2),
         "solar_savings": round(total_solar_self_use_savings, 2),
         "net_value": round(net_value, 2),
+        "hourly_breakdown": hourly_breakdown,
         "period_breakdown": {
             k: {kk: round(vv, 2) for kk, vv in v.items()}
             for k, v in period_breakdown.items()
