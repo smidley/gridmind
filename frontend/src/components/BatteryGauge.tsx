@@ -10,12 +10,19 @@ interface Props {
 export default function BatteryGauge({ soc, power, reserve, description, capacityKwh, maxPowerKw }: Props) {
   const charging = power > 50
   const discharging = power < -50
+  const active = charging || discharging
 
   const getColor = () => {
     if (soc <= 10) return 'bg-red-500'
     if (soc <= 20) return 'bg-orange-500'
     if (soc <= 50) return 'bg-amber-500'
     return 'bg-emerald-500'
+  }
+
+  const getFlowColor = () => {
+    if (charging) return '#34d399'   // emerald for charging
+    if (discharging) return '#60a5fa' // blue for discharging
+    return 'transparent'
   }
 
   // Calculate available energy
@@ -33,13 +40,40 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
 
       {/* Battery visual */}
       <div className="relative w-full h-10 bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
-        {/* Fill bar (bottom layer) */}
+        {/* Animated flow CSS */}
+        {active && (
+          <style>{`
+            @keyframes batteryFlowRight {
+              0% { background-position: 0% 0; }
+              100% { background-position: 200% 0; }
+            }
+            @keyframes batteryFlowLeft {
+              0% { background-position: 200% 0; }
+              100% { background-position: 0% 0; }
+            }
+          `}</style>
+        )}
+
+        {/* Fill bar */}
         <div
           className={`absolute top-0 bottom-0 left-0 transition-all duration-1000 ${getColor()}`}
           style={{ width: `${soc}%` }}
         />
 
-        {/* Reserve hatched overlay (on top of fill) */}
+        {/* Animated flow overlay on the fill area */}
+        {active && (
+          <div
+            className="absolute top-0 bottom-0 left-0"
+            style={{
+              width: `${soc}%`,
+              background: `repeating-linear-gradient(${charging ? '90deg' : '270deg'}, transparent, transparent 10px, ${getFlowColor()}44 10px, ${getFlowColor()}44 20px, transparent 20px, transparent 30px)`,
+              backgroundSize: '200% 100%',
+              animation: `${charging ? 'batteryFlowRight' : 'batteryFlowLeft'} 1.2s linear infinite`,
+            }}
+          />
+        )}
+
+        {/* Reserve hatched overlay */}
         {reserve > 0 && (
           <svg
             className="absolute top-0 left-0 h-full"
