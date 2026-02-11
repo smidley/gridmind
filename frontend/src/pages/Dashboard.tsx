@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi } from '../hooks/useApi'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import PowerFlowDiagram from '../components/PowerFlowDiagram'
 import BatteryGauge from '../components/BatteryGauge'
 
@@ -31,10 +32,10 @@ export default function Dashboard() {
   const { data: polledStatus } = useApi<PowerwallStatus>('/status')
   const { data: forecast } = useApi('/history/forecast')
   const { data: setupStatus } = useApi<any>('/settings/setup/status')
-  const { data: todayTotals } = useApi<any>('/history/today')
+  const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: siteConfig } = useApi<any>('/site/config')
-  const { data: tariff } = useApi<any>('/site/tariff')
-  const { data: valueData } = useApi<any>('/history/value')
+  const { data: tariff } = useAutoRefresh<any>('/site/tariff', 60000)
+  const { data: valueData } = useAutoRefresh<any>('/history/value', 30000)
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null

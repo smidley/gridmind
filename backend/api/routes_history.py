@@ -1,5 +1,7 @@
 """API routes for historical energy data and charts."""
 
+import time
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -11,7 +13,33 @@ from services.weather import get_forecast_summary
 from tesla.client import tesla_client, TeslaAPIError
 from tesla.commands import get_energy_history
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/history", tags=["history"])
+
+# --- Tesla Energy Data Cache ---
+# Cache Tesla API responses to avoid rate limiting while allowing fast frontend polling
+
+_cache: dict = {}
+_cache_times: dict = {}
+CACHE_TTL = 120  # 2 minutes
+
+
+async def _get_cached(key: str, fetch_fn, ttl: int = CACHE_TTL):
+    """Return cached data or fetch fresh if stale."""
+    now = time.time()
+    if key in _cache and (now - _cache_times.get(key, 0)) < ttl:
+        return _cache[key]
+    try:
+        data = await fetch_fn()
+        _cache[key] = data
+        _cache_times[key] = now
+        return data
+    except Exception as e:
+        # Return stale cache if available, otherwise raise
+        if key in _cache:
+            logger.warning("Using stale cache for %s: %s", key, e)
+            return _cache[key]
+        raise
 
 
 @router.get("/readings")
@@ -94,13 +122,45 @@ async def get_daily_summary(
     }
 
 
+async def _fetch_today_totals():
+    """Fetch today's totals from Tesla (internal, used by cache)."""
+    data = await get_energy_history(period="day", kind="energy")
+    time_series = data.get("time_series", [])
+
+    solar_kwh = 0.0
+    grid_import_kwh = 0.0
+    grid_export_kwh = 0.0
+    home_kwh = 0.0
+    battery_charged_kwh = 0.0
+    battery_discharged_kwh = 0.0
+
+    for entry in time_series:
+        solar_kwh += max(entry.get("solar_energy_exported", 0), 0) / 1000
+        home_kwh += max(entry.get("consumer_energy_imported_from_grid", 0) +
+                      entry.get("consumer_energy_imported_from_solar", 0) +
+                      entry.get("consumer_energy_imported_from_battery", 0), 0) / 1000
+        grid_from = entry.get("grid_energy_imported", 0)
+        grid_to = entry.get("grid_energy_exported_from_solar", 0) + entry.get("grid_energy_exported_from_battery", 0)
+        grid_import_kwh += max(grid_from, 0) / 1000
+        grid_export_kwh += max(grid_to, 0) / 1000
+        battery_charged_kwh += max(entry.get("battery_energy_imported_from_grid", 0) +
+                                  entry.get("battery_energy_imported_from_solar", 0), 0) / 1000
+        battery_discharged_kwh += max(entry.get("battery_energy_exported", 0), 0) / 1000
+
+    return {
+        "solar_generated_kwh": round(solar_kwh, 2),
+        "grid_imported_kwh": round(grid_import_kwh, 2),
+        "grid_exported_kwh": round(grid_export_kwh, 2),
+        "home_consumed_kwh": round(home_kwh, 2),
+        "battery_charged_kwh": round(battery_charged_kwh, 2),
+        "battery_discharged_kwh": round(battery_discharged_kwh, 2),
+        "source": "tesla",
+    }
+
+
 @router.get("/today")
 async def get_today_totals():
-    """Get today's energy totals from the Powerwall via Tesla's energy history API.
-
-    This returns actual data from the Powerwall covering the full day from midnight,
-    regardless of when GridMind started collecting.
-    """
+    """Get today's energy totals (cached, refreshes every 2 minutes from Tesla)."""
     if not tesla_client.is_authenticated:
         return {
             "solar_generated_kwh": 0,
@@ -113,45 +173,8 @@ async def get_today_totals():
         }
 
     try:
-        data = await get_energy_history(period="day", kind="energy")
-        time_series = data.get("time_series", [])
-
-        # Sum up all intervals for today
-        solar_kwh = 0.0
-        grid_import_kwh = 0.0
-        grid_export_kwh = 0.0
-        home_kwh = 0.0
-        battery_charged_kwh = 0.0
-        battery_discharged_kwh = 0.0
-
-        for entry in time_series:
-            solar_kwh += max(entry.get("solar_energy_exported", 0), 0) / 1000
-            home_kwh += max(entry.get("consumer_energy_imported_from_grid", 0) +
-                          entry.get("consumer_energy_imported_from_solar", 0) +
-                          entry.get("consumer_energy_imported_from_battery", 0), 0) / 1000
-
-            grid_from = entry.get("grid_energy_imported", 0)
-            grid_to = entry.get("grid_energy_exported_from_solar", 0) + entry.get("grid_energy_exported_from_battery", 0)
-            grid_import_kwh += max(grid_from, 0) / 1000
-            grid_export_kwh += max(grid_to, 0) / 1000
-
-            battery_charged_kwh += max(entry.get("battery_energy_imported_from_grid", 0) +
-                                      entry.get("battery_energy_imported_from_solar", 0), 0) / 1000
-            battery_discharged_kwh += max(entry.get("battery_energy_exported", 0), 0) / 1000
-
-        return {
-            "solar_generated_kwh": round(solar_kwh, 2),
-            "grid_imported_kwh": round(grid_import_kwh, 2),
-            "grid_exported_kwh": round(grid_export_kwh, 2),
-            "home_consumed_kwh": round(home_kwh, 2),
-            "battery_charged_kwh": round(battery_charged_kwh, 2),
-            "battery_discharged_kwh": round(battery_discharged_kwh, 2),
-            "source": "tesla",
-        }
-    except TeslaAPIError as e:
-        # Fallback to local readings if Tesla API fails
-        return await _compute_today_from_readings()
-    except Exception as e:
+        return await _get_cached("today_totals", _fetch_today_totals)
+    except Exception:
         return await _compute_today_from_readings()
 
 
@@ -329,8 +352,8 @@ async def get_energy_value(
         period_breakdown[display]["export_value"] += export_value
         period_breakdown[display]["import_cost"] += import_cost
 
-    # Round values
-    net_value = total_export_value + total_solar_self_use_savings - total_import_cost
+    # Net Value = Export Credits - Import Costs (actual grid cash flow)
+    net_value = total_export_value - total_import_cost
 
     return {
         "period": "today",

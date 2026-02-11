@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 function formatMoney(amount: number): string {
   return `$${Math.abs(amount).toFixed(2)}`
@@ -19,8 +20,8 @@ const TOU_COLORS: Record<string, string> = {
 }
 
 export default function ValuePage() {
-  const { data: value, loading } = useApi<any>('/history/value')
-  const { data: todayTotals } = useApi<any>('/history/today')
+  const { data: value, loading } = useAutoRefresh<any>('/history/value', 30000)
+  const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
 
   // Build chart data from period breakdown
   const periodData = value?.period_breakdown
@@ -79,7 +80,8 @@ export default function ValuePage() {
               {value.net_value >= 0 ? '+' : '-'}{formatMoney(value.net_value)}
             </div>
             <p className="text-sm text-slate-500 mt-2">
-              {value.net_value >= 0 ? 'You earned more than you spent on electricity today' : 'Grid imports exceeded export credits today'}
+              {value.net_value >= 0 ? 'Export credits exceed import costs' : 'Import costs exceed export credits'}
+              <span className="text-slate-600"> (export credits - import costs)</span>
             </p>
           </div>
 
