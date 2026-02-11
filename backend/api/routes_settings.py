@@ -383,9 +383,14 @@ async def toggle_off_grid(req: OffGridRequest):
 
     try:
         if req.enabled:
-            # Save current settings before going off-grid
-            setup_store.set("pre_offgrid_mode", setup_store.get("last_known_mode") or "autonomous")
-            setup_store.set("pre_offgrid_reserve", setup_store.get("last_known_reserve") or 20)
+            # Get actual current settings from Tesla before modifying
+            from tesla.commands import get_site_config
+            current_config = await get_site_config()
+            pre_mode = current_config.get("operation_mode", "autonomous")
+            pre_reserve = current_config.get("backup_reserve_percent", 20)
+
+            setup_store.set("pre_offgrid_mode", pre_mode)
+            setup_store.set("pre_offgrid_reserve", pre_reserve)
             setup_store.set("offgrid_active", True)
 
             # Go off-grid: self-powered, no grid interaction
@@ -396,19 +401,22 @@ async def toggle_off_grid(req: OffGridRequest):
             )
             await set_backup_reserve(0)
 
-            return {"success": True, "offgrid": True, "message": "Off-grid mode activated. Grid interaction disabled."}
+            return {"success": True, "offgrid": True, "message": f"Off-grid mode activated. Saved previous state: {pre_mode} with {pre_reserve}% reserve."}
         else:
             # Restore previous settings
             prev_mode = setup_store.get("pre_offgrid_mode") or "autonomous"
             prev_reserve = float(setup_store.get("pre_offgrid_reserve") or 20)
-            setup_store.set("offgrid_active", False)
 
+            # Restore in order: mode first, then export rule, then reserve
             await set_operation_mode(prev_mode)
             await set_grid_import_export(
                 disallow_charge_from_grid_with_solar_installed=False,
                 customer_preferred_export_rule="pv_only",
             )
             await set_backup_reserve(prev_reserve)
+
+            # Mark as inactive only after all commands succeed
+            setup_store.set("offgrid_active", False)
 
             return {"success": True, "offgrid": False, "message": f"Off-grid mode deactivated. Restored to {prev_mode} with {prev_reserve}% reserve."}
     except (TeslaAPIError, ValueError) as e:
