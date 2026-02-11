@@ -219,38 +219,39 @@ export default function Dashboard() {
             const glowColor = isDumping ? 'rgba(245,158,11,0.12)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
 
             return (
-            <div className="relative p-[2px] rounded-xl overflow-hidden" style={{
-              boxShadow: enabled ? `0 0 15px ${glowColor}, 0 0 30px ${glowColor}` : undefined,
+            <div className="relative rounded-xl" style={{
+              padding: enabled ? '2px' : 0,
+              boxShadow: enabled ? `0 0 12px ${glowColor}, 0 0 24px ${glowColor}` : undefined,
             }}>
               {/* Rotating conic gradient border */}
               {enabled && (
+                <>
                 <style>{`
                   @keyframes rotateBorder {
                     0% { transform: rotate(0deg); }
                     100% { transform: rotate(360deg); }
                   }
                 `}</style>
-              )}
-              {enabled && (
                 <div className="absolute inset-0 rounded-xl overflow-hidden">
                   <div
-                    className="absolute"
                     style={{
-                      top: '-50%',
-                      left: '-50%',
-                      width: '200%',
-                      height: '200%',
-                      background: `conic-gradient(from 0deg, transparent 0%, ${solidColor} 10%, transparent 20%, transparent 100%)`,
+                      position: 'absolute',
+                      top: '-150%',
+                      left: '-150%',
+                      width: '400%',
+                      height: '400%',
+                      background: `conic-gradient(from 0deg, transparent 0%, transparent 35%, ${solidColor} 45%, ${solidColor}88 50%, ${solidColor} 55%, transparent 65%, transparent 100%)`,
                       animation: `rotateBorder ${isDumping ? '2s' : isHolding ? '4s' : '6s'} linear infinite`,
+                      transformOrigin: 'center center',
                     }}
                   />
                 </div>
+                </>
               )}
 
-              {/* Card inner with background to mask the rotating gradient */}
-              <div className={`card relative overflow-hidden ${!enabled ? '' : ''}`} style={{
-                margin: 0,
-                border: 'none',
+              {/* Card inner - opaque background covers the gradient except at the 2px border */}
+              <div className="relative rounded-xl p-5 bg-slate-100 dark:bg-slate-900 overflow-hidden" style={{
+                border: enabled ? 'none' : undefined,
               }}>
 
               <div className="relative flex items-center gap-5">
