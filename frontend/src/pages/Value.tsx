@@ -39,6 +39,35 @@ export default function ValuePage() {
             </p>
           </div>
 
+          {/* Net Grid Credit */}
+          {todayTotals && (
+            <div className="card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-400 uppercase tracking-wider mb-1">Net Grid Credit</p>
+                  <div className={`text-3xl font-bold tabular-nums ${
+                    todayTotals.grid_exported_kwh - todayTotals.grid_imported_kwh >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {todayTotals.grid_exported_kwh - todayTotals.grid_imported_kwh >= 0 ? '+' : ''}
+                    {(todayTotals.grid_exported_kwh - todayTotals.grid_imported_kwh).toFixed(1)} kWh
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {todayTotals.grid_exported_kwh.toFixed(1)} kWh exported - {todayTotals.grid_imported_kwh.toFixed(1)} kWh imported
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className={`text-2xl font-bold tabular-nums ${
+                    value.export_credits - value.import_costs >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {value.export_credits - value.import_costs >= 0 ? '+' : '-'}
+                    {formatMoney(value.export_credits - value.import_costs)}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">Net grid value</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Value Breakdown Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Export Credits */}
