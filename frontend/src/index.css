@@ -4,18 +4,18 @@
 
 @layer base {
   body {
-    @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white border border-slate-200 rounded-xl p-5 shadow-sm
+    @apply bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm
            dark:bg-slate-900 dark:border-slate-800 dark:shadow-none;
   }
 
   .card-header {
-    @apply text-sm font-medium text-slate-500 uppercase tracking-wider mb-3
+    @apply text-sm font-medium text-slate-400 uppercase tracking-wider mb-3
            dark:text-slate-400;
   }
 

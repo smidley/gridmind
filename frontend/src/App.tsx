@@ -100,7 +100,7 @@ export default function App() {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950">
+        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/forecast" element={<ForecastPage />} />

@@ -268,31 +268,40 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
       {/* Particle canvas */}
       <ParticleCanvas paths={flowPaths} nodePositions={nodePositions} />
 
+      {/* Shared tile size */}
+      {(() => {
+        const tileW = 130
+        const tileH = 110
+        const tileBase = `flex flex-col items-center justify-center rounded-xl border transition-all duration-500`
+        const tileInactive = 'border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-900/95'
+        const tileStyle = { width: tileW, height: tileH }
+
+        return (<>
       {/* Solar - top center */}
       <div className="absolute z-10" style={{ left: '50%', top: '12%', transform: 'translate(-50%, -50%)' }}>
-        <div className={`flex flex-col items-center rounded-xl border px-8 py-4 min-w-[120px] transition-all duration-500 ${
-          solarActive ? 'border-amber-500/40 bg-amber-950/80 shadow-lg shadow-amber-500/20' : 'border-slate-800 bg-slate-900/95'
-        }`}>
-          <Sun className={`w-6 h-6 mb-1 ${solarActive ? 'text-amber-400' : 'text-slate-600'}`} />
-          <span className={`text-xl font-bold tabular-nums ${solarActive ? 'text-amber-400' : 'text-slate-600'}`}>
+        <div className={`${tileBase} ${
+          solarActive ? 'border-amber-400/40 bg-amber-50 shadow-lg shadow-amber-500/10 dark:bg-amber-950/80 dark:shadow-amber-500/20' : tileInactive
+        }`} style={tileStyle}>
+          <Sun className={`w-6 h-6 mb-1 ${solarActive ? 'text-amber-500 dark:text-amber-400' : 'text-slate-400 dark:text-slate-600'}`} />
+          <span className={`text-xl font-bold tabular-nums ${solarActive ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-600'}`}>
             {formatPower(status.solar_power)}
           </span>
-          <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">Solar</span>
-          {solarActive && <span className="text-[9px] text-amber-400/70">Generating</span>}
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5">Solar</span>
+          {solarActive && <span className="text-[9px] text-amber-500/70 dark:text-amber-400/70">Generating</span>}
         </div>
       </div>
 
       {/* Battery - center */}
       <div className="absolute z-10" style={{ left: '50%', top: '48%', transform: 'translate(-50%, -50%)' }}>
-        <div className={`flex flex-col items-center rounded-xl border px-8 py-4 min-w-[120px] transition-all duration-500 ${
-          batteryCharging || batteryDischarging ? 'border-blue-500/40 bg-blue-950/80 shadow-lg shadow-blue-500/20' : 'border-slate-800 bg-slate-900/95'
-        }`}>
-          <Battery className={`w-6 h-6 mb-1 ${status.battery_soc > 20 ? 'text-blue-400' : 'text-red-400'}`} />
-          <span className={`text-xl font-bold tabular-nums ${status.battery_soc > 20 ? 'text-blue-400' : 'text-red-400'}`}>
+        <div className={`${tileBase} ${
+          batteryCharging || batteryDischarging ? 'border-blue-400/40 bg-blue-50 shadow-lg shadow-blue-500/10 dark:bg-blue-950/80 dark:shadow-blue-500/20' : tileInactive
+        }`} style={tileStyle}>
+          <Battery className={`w-6 h-6 mb-1 ${status.battery_soc > 20 ? 'text-blue-500 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`} />
+          <span className={`text-xl font-bold tabular-nums ${status.battery_soc > 20 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
             {status.battery_soc.toFixed(0)}%
           </span>
-          <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">Battery</span>
-          <span className={`text-[9px] ${batteryCharging || batteryDischarging ? 'text-blue-400/70' : 'text-slate-600'}`}>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5">Battery</span>
+          <span className={`text-[9px] ${batteryCharging || batteryDischarging ? 'text-blue-500/70 dark:text-blue-400/70' : 'text-slate-400 dark:text-slate-600'}`}>
             {batteryCharging ? `Charging ${formatPower(status.battery_power)}`
               : batteryDischarging ? `Discharging ${formatPower(status.battery_power)}`
               : 'Idle'}
@@ -302,34 +311,34 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
 
       {/* Home - bottom left */}
       <div className="absolute z-10" style={{ left: '22%', top: '84%', transform: 'translate(-50%, -50%)' }}>
-        <div className={`flex flex-col items-center rounded-xl border px-8 py-4 min-w-[120px] transition-all duration-500 ${
-          homeActive ? 'border-cyan-500/40 bg-cyan-950/80 shadow-lg shadow-cyan-500/20' : 'border-slate-800 bg-slate-900/95'
-        }`}>
-          <Home className={`w-6 h-6 mb-1 ${homeActive ? 'text-cyan-400' : 'text-slate-600'}`} />
-          <span className={`text-xl font-bold tabular-nums ${homeActive ? 'text-cyan-400' : 'text-slate-600'}`}>
+        <div className={`${tileBase} ${
+          homeActive ? 'border-cyan-400/40 bg-cyan-50 shadow-lg shadow-cyan-500/10 dark:bg-cyan-950/80 dark:shadow-cyan-500/20' : tileInactive
+        }`} style={tileStyle}>
+          <Home className={`w-6 h-6 mb-1 ${homeActive ? 'text-cyan-500 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-600'}`} />
+          <span className={`text-xl font-bold tabular-nums ${homeActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400 dark:text-slate-600'}`}>
             {formatPower(status.home_power)}
           </span>
-          <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">Home</span>
-          {homeActive && <span className="text-[9px] text-cyan-400/70">Consuming</span>}
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5">Home</span>
+          {homeActive && <span className="text-[9px] text-cyan-500/70 dark:text-cyan-400/70">Consuming</span>}
         </div>
       </div>
 
       {/* Grid - bottom right */}
       <div className="absolute z-10" style={{ left: '78%', top: '84%', transform: 'translate(-50%, -50%)' }}>
-        <div className={`flex flex-col items-center rounded-xl border px-8 py-4 min-w-[120px] transition-all duration-500 ${
-          gridImporting ? 'border-red-500/40 bg-red-950/80 shadow-lg shadow-red-500/20'
-          : gridExporting ? 'border-emerald-500/40 bg-emerald-950/80 shadow-lg shadow-emerald-500/20'
-          : 'border-slate-800 bg-slate-900/95'
-        }`}>
-          <Zap className={`w-6 h-6 mb-1 ${gridImporting ? 'text-red-400' : gridExporting ? 'text-emerald-400' : 'text-slate-600'}`} />
+        <div className={`${tileBase} ${
+          gridImporting ? 'border-red-400/40 bg-red-50 shadow-lg shadow-red-500/10 dark:bg-red-950/80 dark:shadow-red-500/20'
+          : gridExporting ? 'border-emerald-400/40 bg-emerald-50 shadow-lg shadow-emerald-500/10 dark:bg-emerald-950/80 dark:shadow-emerald-500/20'
+          : tileInactive
+        }`} style={tileStyle}>
+          <Zap className={`w-6 h-6 mb-1 ${gridImporting ? 'text-red-500 dark:text-red-400' : gridExporting ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-600'}`} />
           <span className={`text-xl font-bold tabular-nums ${
-            gridImporting ? 'text-red-400' : gridExporting ? 'text-emerald-400' : 'text-slate-600'
+            gridImporting ? 'text-red-600 dark:text-red-400' : gridExporting ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-600'
           }`}>
             {formatPower(status.grid_power)}
           </span>
-          <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">Grid</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5">Grid</span>
           <span className={`text-[9px] ${
-            gridImporting ? 'text-red-400/70' : gridExporting ? 'text-emerald-400/70' : 'text-slate-600'
+            gridImporting ? 'text-red-500/70 dark:text-red-400/70' : gridExporting ? 'text-emerald-500/70 dark:text-emerald-400/70' : 'text-slate-400 dark:text-slate-600'
           }`}>
             {gridImporting ? 'Importing' : gridExporting ? 'Exporting' : 'Idle'}
           </span>
@@ -347,6 +356,8 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
           )}
         </div>
       </div>
+        </>)
+      })()}
     </div>
   )
 }
