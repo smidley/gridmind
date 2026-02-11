@@ -83,13 +83,35 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
 
         const key = `${path.fromKey}-${path.toKey}`
 
-        // Draw faint track
+        // Draw track line
         ctx.beginPath()
         ctx.moveTo(fromX, fromY)
         ctx.lineTo(toX, toY)
         ctx.strokeStyle = path.active ? 'rgba(51, 65, 85, 0.4)' : 'rgba(30, 41, 59, 0.3)'
         ctx.lineWidth = 1.5
         ctx.stroke()
+
+        // Subtle color glow on active paths
+        if (path.active) {
+          const colorMatch = path.color.match(/(\d+),\s*(\d+),\s*(\d+)/)
+          if (colorMatch) {
+            const cr = colorMatch[1], cg = colorMatch[2], cb = colorMatch[3]
+            // Soft wide glow
+            ctx.beginPath()
+            ctx.moveTo(fromX, fromY)
+            ctx.lineTo(toX, toY)
+            ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.08)`
+            ctx.lineWidth = 12
+            ctx.stroke()
+            // Tighter glow
+            ctx.beginPath()
+            ctx.moveTo(fromX, fromY)
+            ctx.lineTo(toX, toY)
+            ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.15)`
+            ctx.lineWidth = 4
+            ctx.stroke()
+          }
+        }
 
         if (!path.active) {
           particlesRef.current.set(key, [])
