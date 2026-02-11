@@ -808,17 +808,32 @@ export default function SettingsPage() {
 
       {/* GridMind Optimize */}
       {authStatus?.authenticated && (
-        <div className={`card ${optimizeEnabled ? 'border-blue-500/40 dark:border-blue-500/40' : ''}`}>
+        <div className={`card transition-all ${
+          optimizeEnabled
+            ? 'border-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-950/20 dark:border-emerald-500/40 ring-1 ring-emerald-500/20'
+            : ''
+        }`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Activity className="w-4.5 h-4.5 text-blue-500" />
+              <Activity className={`w-4.5 h-4.5 ${optimizeEnabled ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'}`} />
               <h3 className="font-semibold">GridMind Optimize</h3>
+              {!optimizeEnabled && (
+                <span className="text-[10px] bg-slate-200/60 text-slate-500 dark:bg-slate-800 dark:text-slate-500 px-1.5 py-0.5 rounded font-medium">OFF</span>
+              )}
             </div>
             {optimizeEnabled && (
-              <span className="text-xs bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
-                {optimizeStatus?.phase === 'dumping' ? 'Dumping' :
-                 optimizeStatus?.phase === 'peak_hold' ? 'Holding' :
-                 optimizeStatus?.phase === 'complete' ? 'Complete' : 'Active'}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                optimizeStatus?.phase === 'dumping'
+                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
+                  : optimizeStatus?.phase === 'peak_hold'
+                  ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                  : optimizeStatus?.phase === 'complete'
+                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+              }`}>
+                {optimizeStatus?.phase === 'dumping' ? 'Dumping to Grid' :
+                 optimizeStatus?.phase === 'peak_hold' ? 'Holding Battery' :
+                 optimizeStatus?.phase === 'complete' ? 'Peak Complete' : 'Enabled — Waiting for Peak'}
               </span>
             )}
           </div>
@@ -829,7 +844,7 @@ export default function SettingsPage() {
           </p>
 
           {optimizeEnabled && optimizeStatus?.last_calculation && (
-            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 mb-3 text-xs space-y-1">
+            <div className="bg-emerald-50/50 dark:bg-slate-800/50 border border-emerald-200/30 dark:border-slate-700/50 rounded-lg p-3 mb-3 text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-slate-500">Phase</span>
                 <span className="font-medium text-slate-700 dark:text-slate-300 capitalize">{optimizeStatus.phase}</span>
@@ -895,7 +910,10 @@ export default function SettingsPage() {
           <button
             onClick={handleToggleOptimize}
             disabled={saving === 'optimize'}
-            className={optimizeEnabled ? 'btn-danger w-full' : 'btn-primary w-full'}
+            className={`w-full ${optimizeEnabled
+              ? 'btn bg-slate-200/80 hover:bg-slate-300/80 text-slate-600 border border-slate-300/40 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300 dark:border-transparent'
+              : 'btn bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500'
+            }`}
           >
             {saving === 'optimize' ? 'Switching...' :
               optimizeEnabled ? 'Disable GridMind Optimize' :
