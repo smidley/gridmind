@@ -14,6 +14,8 @@ import {
 } from 'recharts'
 import { Sun, Cloud, CloudSun, RefreshCw, DollarSign } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import SolarGoal from '../components/SolarGoal'
 
 function ConditionIcon({ condition, className }: { condition: string; className?: string }) {
   if (condition === 'sunny') return <Sun className={className} />
@@ -33,6 +35,7 @@ export default function ForecastPage() {
   const { data: valueData } = useApi<any>('/history/value')
   const { data: tariff } = useApi<any>('/site/tariff')
   const { data: vsActual } = useApi<any>('/history/forecast/vs-actual')
+  const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -113,17 +116,27 @@ export default function ForecastPage() {
                     }`}
                   />
                 </div>
-                <div className="stat-value text-amber-400">{today.estimated_kwh} kWh</div>
-                <div className="stat-label">Estimated generation</div>
-                <div className="flex gap-4 mt-3 text-sm text-slate-400">
+                {todayTotals ? (
+                  <SolarGoal
+                    actual={todayTotals.solar_generated_kwh}
+                    forecast={today.estimated_kwh}
+                    label="Today's Goal"
+                  />
+                ) : (
+                  <>
+                    <div className="stat-value text-amber-400">{today.estimated_kwh} kWh</div>
+                    <div className="stat-label">Estimated generation</div>
+                  </>
+                )}
+                <div className="flex gap-4 mt-3 text-xs text-slate-500">
                   <span>Peak: {(today.peak_watts / 1000).toFixed(1)} kW</span>
                   <span>Cloud: {today.avg_cloud_cover.toFixed(0)}%</span>
                   <span className="capitalize">{today.condition.replace('_', ' ')}</span>
                 </div>
                 {valueData && !valueData.error && (
-                  <div className="flex items-center gap-1.5 mt-3 text-sm font-medium text-emerald-400">
+                  <div className="flex items-center gap-1.5 mt-2 text-sm font-medium text-emerald-400">
                     <DollarSign className="w-3.5 h-3.5" />
-                    Actual value: +${valueData.net_value.toFixed(2)}
+                    Value: +${valueData.net_value.toFixed(2)}
                   </div>
                 )}
               </div>

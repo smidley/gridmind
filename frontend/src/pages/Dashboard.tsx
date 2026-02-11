@@ -19,6 +19,7 @@ import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import PowerFlowDiagram from '../components/PowerFlowDiagram'
 import BatteryGauge from '../components/BatteryGauge'
+import SolarGoal from '../components/SolarGoal'
 
 function formatEnergy(kwh: number): string {
   if (kwh >= 100) return `${Math.round(kwh)} kWh`
@@ -203,18 +204,22 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Solar Forecast */}
-          {forecast?.today && (
+          {/* Solar Goal + Tomorrow Forecast */}
+          {forecast?.today && todayTotals && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="card">
-                <div className="card-header">Today's Solar Forecast</div>
-                <div className="stat-value text-amber-400">
-                  {forecast.today.estimated_kwh} kWh
-                </div>
-                <div className="stat-label">
-                  {forecast.today.condition === 'sunny' ? 'Sunny' :
-                   forecast.today.condition === 'partly_cloudy' ? 'Partly Cloudy' : 'Cloudy'}
-                  {' '} - Peak {(forecast.today.peak_watts / 1000).toFixed(1)} kW
+                <SolarGoal
+                  actual={todayTotals.solar_generated_kwh}
+                  forecast={forecast.today.estimated_kwh}
+                  label="Today's Solar Goal"
+                />
+                <div className="flex gap-3 mt-3 text-xs text-slate-500">
+                  <span>{forecast.today.condition === 'sunny' ? 'Sunny' :
+                   forecast.today.condition === 'partly_cloudy' ? 'Partly Cloudy' : 'Cloudy'}</span>
+                  <span>Peak: {(forecast.today.peak_watts / 1000).toFixed(1)} kW</span>
+                  {forecast.today.remaining_sunlight_hours != null && forecast.today.remaining_sunlight_hours > 0 && (
+                    <span>{forecast.today.remaining_sunlight_hours}h sun left</span>
+                  )}
                 </div>
               </div>
 
@@ -229,6 +234,14 @@ export default function Dashboard() {
                      forecast.tomorrow.condition === 'partly_cloudy' ? 'Partly Cloudy' : 'Cloudy'}
                     {' '} - Peak {(forecast.tomorrow.peak_watts / 1000).toFixed(1)} kW
                   </div>
+                  {forecast.today && (
+                    <div className={`text-sm font-medium mt-2 ${
+                      forecast.tomorrow.estimated_kwh >= forecast.today.estimated_kwh ? 'text-emerald-400' : 'text-amber-400'
+                    }`}>
+                      {forecast.tomorrow.estimated_kwh >= forecast.today.estimated_kwh ? '+' : ''}
+                      {(forecast.tomorrow.estimated_kwh - forecast.today.estimated_kwh).toFixed(1)} kWh vs today
+                    </div>
+                  )}
                 </div>
               )}
             </div>
