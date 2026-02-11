@@ -416,10 +416,13 @@ async def solar_forecast():
 async def forecast_vs_actual(db: AsyncSession = Depends(get_db)):
     """Get today's forecast overlaid with actual solar production by hour.
 
-    Returns hourly data with both predicted and actual watts for comparison.
+    Uses Tesla's energy history (power time series) for actual data,
+    covering the full day regardless of when GridMind started.
+    Falls back to local readings if Tesla API is unavailable.
     """
     from services import setup_store
     from zoneinfo import ZoneInfo
+    from tesla.commands import get_energy_history
 
     user_tz_name = setup_store.get_timezone()
     try:
@@ -439,27 +442,67 @@ async def forecast_vs_actual(db: AsyncSession = Depends(get_db)):
     )
     forecast_entries = result.scalars().all()
 
-    # Get actual readings for today, averaged by hour
-    start_of_day = datetime.combine(local_now.date(), datetime.min.time())
-    result = await db.execute(
-        select(EnergyReading)
-        .where(EnergyReading.timestamp >= start_of_day)
-        .order_by(EnergyReading.timestamp)
-    )
-    readings = result.scalars().all()
+    # Get actual hourly solar from Tesla energy history (power, not energy)
+    actual_by_hour: dict[int, float] = {}
+    actual_total_kwh = 0.0
 
-    # Average actual solar power by hour
-    actual_by_hour: dict[int, list[float]] = {}
-    for r in readings:
-        # Convert UTC timestamp to local hour
+    if tesla_client.is_authenticated:
         try:
-            local_time = r.timestamp.replace(tzinfo=ZoneInfo("UTC")).astimezone(user_tz)
-            h = local_time.hour
-        except Exception:
-            h = r.timestamp.hour
-        if h not in actual_by_hour:
-            actual_by_hour[h] = []
-        actual_by_hour[h].append(r.solar_power or 0)
+            async def _fetch_power_history():
+                return await get_energy_history(period="day", kind="power")
+
+            data = await _get_cached("power_history_day", _fetch_power_history)
+            time_series = data.get("time_series", [])
+
+            for entry in time_series:
+                ts_str = entry.get("timestamp", "")
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    ts_local = ts.astimezone(user_tz)
+                except Exception:
+                    continue
+
+                h = ts_local.hour
+                solar_w = max(entry.get("solar_power", 0), 0)
+
+                # Tesla power history returns average watts per interval
+                # Keep the highest reading per hour (intervals are usually 5-15 min)
+                if h not in actual_by_hour or solar_w > actual_by_hour[h]:
+                    actual_by_hour[h] = solar_w
+
+            # Also get energy totals for the actual kWh
+            try:
+                today_data = await _get_cached("today_totals", _fetch_today_totals)
+                actual_total_kwh = today_data.get("solar_generated_kwh", 0)
+            except Exception:
+                pass
+
+        except Exception as e:
+            logger.warning("Could not fetch Tesla power history: %s", e)
+
+    # Fallback to local readings if no Tesla data
+    if not actual_by_hour:
+        start_of_day = datetime.combine(local_now.date(), datetime.min.time())
+        result = await db.execute(
+            select(EnergyReading)
+            .where(EnergyReading.timestamp >= start_of_day)
+            .order_by(EnergyReading.timestamp)
+        )
+        readings = result.scalars().all()
+
+        hour_readings: dict[int, list[float]] = {}
+        for r in readings:
+            try:
+                lt = r.timestamp.replace(tzinfo=ZoneInfo("UTC")).astimezone(user_tz)
+                h = lt.hour
+            except Exception:
+                h = r.timestamp.hour
+            if h not in hour_readings:
+                hour_readings[h] = []
+            hour_readings[h].append(r.solar_power or 0)
+
+        for h, vals in hour_readings.items():
+            actual_by_hour[h] = round(sum(vals) / len(vals), 1)
 
     # Build combined hourly data
     hourly = []
@@ -470,8 +513,10 @@ async def forecast_vs_actual(db: AsyncSession = Depends(get_db)):
                 forecast_w = fe.estimated_generation_w
                 break
 
-        actual_readings = actual_by_hour.get(h, [])
-        actual_w = round(sum(actual_readings) / len(actual_readings), 1) if actual_readings else None
+        actual_w = round(actual_by_hour[h], 1) if h in actual_by_hour else None
+        # Only show actual for past hours (up to current hour)
+        if h > local_now.hour:
+            actual_w = None
 
         hourly.append({
             "hour": h,
@@ -479,15 +524,13 @@ async def forecast_vs_actual(db: AsyncSession = Depends(get_db)):
             "actual_w": actual_w,
         })
 
-    # Totals
-    forecast_total = sum(h["forecast_w"] for h in hourly) / 1000  # Wh to kWh
-    actual_total = sum((h["actual_w"] or 0) for h in hourly if h["actual_w"] is not None) / 1000
+    forecast_total = sum(h["forecast_w"] for h in hourly) / 1000
 
     return {
         "date": today_str,
         "hourly": hourly,
         "forecast_total_kwh": round(forecast_total, 2),
-        "actual_total_kwh": round(actual_total, 2),
+        "actual_total_kwh": round(actual_total_kwh, 2),
         "current_hour": local_now.hour,
     }
 

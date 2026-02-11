@@ -822,16 +822,20 @@ export default function SettingsPage() {
               <p className="font-medium">{siteConfig.battery_description || `${siteConfig.battery_count} units`}</p>
             </div>
             <div>
-              <span className="text-slate-500">Capacity</span>
-              <p className="font-medium">{siteConfig.total_capacity_kwh ? `${siteConfig.total_capacity_kwh} kWh / ${siteConfig.nameplate_power_kw} kW` : 'N/A'}</p>
+              <span className="text-slate-500">Storage Capacity</span>
+              <p className="font-medium">{siteConfig.total_capacity_kwh ? `${siteConfig.total_capacity_kwh} kWh` : 'N/A'}</p>
             </div>
             <div>
-              <span className="text-slate-500">Storm Mode</span>
+              <span className="text-slate-500">Max Power Output</span>
+              <p className="font-medium">{siteConfig.nameplate_power_kw ? `${siteConfig.nameplate_power_kw} kW` : 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Storm Watch Mode</span>
               <p className="font-medium">{siteConfig.storm_mode_enabled ? 'Enabled' : 'Disabled'}</p>
             </div>
             {siteConfig.firmware_version && (
               <div>
-                <span className="text-slate-500">Firmware</span>
+                <span className="text-slate-500">Powerwall Firmware</span>
                 <p className="font-medium font-mono text-xs mt-0.5">{siteConfig.firmware_version}</p>
               </div>
             )}
