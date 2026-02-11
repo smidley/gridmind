@@ -4,9 +4,10 @@ interface Props {
   reserve: number
   description?: string
   capacityKwh?: number
+  maxPowerKw?: number
 }
 
-export default function BatteryGauge({ soc, power, reserve, description, capacityKwh }: Props) {
+export default function BatteryGauge({ soc, power, reserve, description, capacityKwh, maxPowerKw }: Props) {
   const charging = power > 50
   const discharging = power < -50
 
@@ -93,6 +94,11 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
           </span>
         ) : null}
       </div>
+      {maxPowerKw ? (
+        <div className="text-xs text-slate-600 mt-0.5">
+          Max output: {maxPowerKw} kW
+        </div>
+      ) : null}
     </div>
   )
 }

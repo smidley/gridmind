@@ -130,6 +130,7 @@ export default function Dashboard() {
               reserve={status.backup_reserve}
               description={siteConfig?.battery_description}
               capacityKwh={siteConfig?.total_capacity_kwh}
+              maxPowerKw={siteConfig?.nameplate_power_kw}
             />
           </div>
 
