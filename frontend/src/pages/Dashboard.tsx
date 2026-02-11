@@ -254,15 +254,9 @@ export default function Dashboard() {
                       : optimizeStatus.phase === 'complete'
                       ? 'Peak period finished · Normal operation restored'
                       : `Peak window: ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`
-                    : 'Smart peak export strategy · Enable in Settings'}
+                    : 'Smart peak export strategy'}
                 </p>
               </div>
-
-              {!optimizeStatus.enabled && (
-                <button onClick={() => navigate('/settings')} className="btn-secondary text-xs shrink-0">
-                  Enable
-                </button>
-              )}
             </div>
           )}
 
