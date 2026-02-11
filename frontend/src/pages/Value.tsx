@@ -98,18 +98,28 @@ export default function ValuePage() {
   ].filter(d => d.value > 0.01) : []
 
   // Find TOU period boundaries for reference areas
-  const touBands: { start: number; end: number; period: string }[] = []
+  // Use the label strings from hourlyChart for x1/x2
+  const touBands: { startLabel: string; endLabel: string; period: string }[] = []
   if (hourlyChart.length > 0) {
-    let current = { start: 0, end: 0, period: hourlyChart[0].period }
+    let currentStart = 0
+    let currentPeriod = hourlyChart[0].period
     for (let i = 1; i < hourlyChart.length; i++) {
-      if (hourlyChart[i].period === current.period) {
-        current.end = i
-      } else {
-        touBands.push({ ...current })
-        current = { start: i, end: i, period: hourlyChart[i].period }
+      if (hourlyChart[i].period !== currentPeriod) {
+        touBands.push({
+          startLabel: hourlyChart[currentStart].label,
+          endLabel: hourlyChart[i].label, // extend to the start of the next period (no gap)
+          period: currentPeriod,
+        })
+        currentStart = i
+        currentPeriod = hourlyChart[i].period
       }
     }
-    touBands.push({ ...current })
+    // Last band extends to the last data point
+    touBands.push({
+      startLabel: hourlyChart[currentStart].label,
+      endLabel: hourlyChart[hourlyChart.length - 1].label,
+      period: currentPeriod,
+    })
   }
 
   return (
@@ -279,8 +289,8 @@ export default function ValuePage() {
                   {touBands.map((band, i) => (
                     <ReferenceArea
                       key={i}
-                      x1={formatHour(band.start)}
-                      x2={formatHour(band.end)}
+                      x1={band.startLabel}
+                      x2={band.endLabel}
                       fill={TOU_BG[band.period] || 'transparent'}
                       fillOpacity={1}
                     />
