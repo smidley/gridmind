@@ -235,7 +235,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
   // Node positions as fractions of the container (0-1)
   const nodePositions: Record<string, { x: number; y: number }> = {
     solar:   { x: 0.5,  y: 0.12 },
-    battery: { x: 0.5,  y: 0.48 },
+    battery: { x: 0.5,  y: 0.52 },
     home:    { x: 0.22, y: 0.84 },
     grid:    { x: 0.78, y: 0.84 },
   }
@@ -292,7 +292,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
       </div>
 
       {/* Battery - center */}
-      <div className="absolute z-10" style={{ left: '50%', top: '48%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
         <div className={`${tileBase} ${
           batteryCharging || batteryDischarging ? 'border-blue-400/40 bg-blue-50 shadow-lg shadow-blue-500/10 dark:bg-blue-950/80 dark:shadow-blue-500/20' : tileInactive
         }`} style={tileStyle}>
