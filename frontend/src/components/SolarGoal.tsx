@@ -19,11 +19,11 @@ export default function SolarGoal({ actual, forecast, label = "Solar Goal" }: Pr
 
   // Color based on achievement
   const getColor = () => {
-    if (pct >= 100) return { stroke: '#10b981', text: 'text-emerald-400', bg: 'text-emerald-400/20' }
-    if (pct >= 80) return { stroke: '#84cc16', text: 'text-lime-400', bg: 'text-lime-400/20' }
-    if (pct >= 60) return { stroke: '#eab308', text: 'text-yellow-400', bg: 'text-yellow-400/20' }
-    if (pct >= 40) return { stroke: '#f59e0b', text: 'text-amber-400', bg: 'text-amber-400/20' }
-    return { stroke: '#f97316', text: 'text-orange-400', bg: 'text-orange-400/20' }
+    if (pct >= 100) return { stroke: '#10b981', text: 'text-emerald-600 dark:text-emerald-400' }
+    if (pct >= 80) return { stroke: '#84cc16', text: 'text-lime-600 dark:text-lime-400' }
+    if (pct >= 60) return { stroke: '#eab308', text: 'text-yellow-600 dark:text-yellow-400' }
+    if (pct >= 40) return { stroke: '#f59e0b', text: 'text-amber-600 dark:text-amber-400' }
+    return { stroke: '#f97316', text: 'text-orange-600 dark:text-orange-400' }
   }
 
   const color = getColor()
@@ -39,7 +39,7 @@ export default function SolarGoal({ actual, forecast, label = "Solar Goal" }: Pr
             fill="none"
             stroke="currentColor"
             strokeWidth="8"
-            className="text-slate-800"
+            className="text-slate-200 dark:text-slate-800"
           />
           {/* Progress arc */}
           <circle
@@ -58,7 +58,7 @@ export default function SolarGoal({ actual, forecast, label = "Solar Goal" }: Pr
           <span className={`text-xl font-bold tabular-nums ${color.text}`}>
             {pct.toFixed(0)}%
           </span>
-          <span className="text-[9px] text-slate-500 uppercase tracking-wider">
+          <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">
             {achieved ? 'Exceeded' : 'of goal'}
           </span>
         </div>
@@ -66,11 +66,11 @@ export default function SolarGoal({ actual, forecast, label = "Solar Goal" }: Pr
 
       {/* Details */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{label}</p>
-        <p className="text-lg font-bold tabular-nums text-slate-200">
-          {actual.toFixed(1)} <span className="text-sm text-slate-500 font-normal">/ {forecast.toFixed(1)} kWh</span>
+        <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">{label}</p>
+        <p className="text-lg font-bold tabular-nums text-slate-800 dark:text-slate-200">
+          {actual.toFixed(1)} <span className="text-sm text-slate-400 dark:text-slate-500 font-normal">/ {forecast.toFixed(1)} kWh</span>
         </p>
-        <p className={`text-sm font-medium mt-1 ${diff >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <p className={`text-sm font-medium mt-1 ${diff >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
           {diff >= 0 ? '+' : ''}{diff.toFixed(1)} kWh {diff >= 0 ? 'ahead' : 'behind'} forecast
         </p>
       </div>
