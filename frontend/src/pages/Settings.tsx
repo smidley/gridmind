@@ -668,17 +668,21 @@ export default function SettingsPage() {
           <div>
             <label className="block text-sm text-slate-400 mb-1">
               Panel Azimuth (degrees)
-              <span className="text-slate-600 ml-1">- 0=South, -90=East, 90=West</span>
             </label>
-            <input
-              type="number"
-              step="1"
-              min="-180"
-              max="180"
-              className="input w-full"
+            <select
+              className="select w-full"
               value={solarAzimuth}
               onChange={(e) => setSolarAzimuth(Number(e.target.value))}
-            />
+            >
+              <option value="0">South (0°) - most common</option>
+              <option value="-45">South-East (-45°)</option>
+              <option value="45">South-West (45°)</option>
+              <option value="-90">East (-90°)</option>
+              <option value="90">West (90°)</option>
+              <option value="-135">North-East (-135°)</option>
+              <option value="135">North-West (135°)</option>
+              <option value="180">North (180°)</option>
+            </select>
           </div>
 
           <div>

@@ -43,8 +43,14 @@ async def fetch_solar_forecast() -> list[dict]:
 
     solar_config = _get_solar_config()
 
-    # Build hourly variables - use tilted irradiance if tilt/azimuth configured
-    hourly_vars = ["shortwave_radiation", "direct_normal_irradiance", "cloud_cover", "temperature_2m"]
+    # Build hourly variables - request both GHI and Global Tilted Irradiance (GTI)
+    # GTI accounts for panel tilt and azimuth, giving more accurate results
+    hourly_vars = [
+        "shortwave_radiation",
+        "global_tilted_irradiance",
+        "cloud_cover",
+        "temperature_2m",
+    ]
 
     params = {
         "latitude": latitude,
@@ -53,7 +59,7 @@ async def fetch_solar_forecast() -> list[dict]:
         "daily": "sunrise,sunset",
         "timezone": timezone,
         "forecast_days": 2,
-        # Request tilted irradiance for the panel configuration
+        # These parameters control global_tilted_irradiance calculation
         "tilt": solar_config["tilt"],
         "azimuth": solar_config["azimuth"],
     }
@@ -132,11 +138,10 @@ async def fetch_solar_forecast() -> list[dict]:
 async def _save_forecasts(forecasts: list[dict]):
     """Save forecast data to database, replacing old entries."""
     async with async_session() as session:
-        # Remove old forecasts
-        today = date.today().isoformat()
-        await session.execute(
-            delete(SolarForecast).where(SolarForecast.date >= today)
-        )
+        # Remove ALL existing forecasts to avoid duplicates
+        # (we always store the full 2-day window fresh)
+        await session.execute(delete(SolarForecast))
+        await session.flush()
 
         for f in forecasts:
             entry = SolarForecast(
