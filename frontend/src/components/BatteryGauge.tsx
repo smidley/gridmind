@@ -61,25 +61,61 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
           style={{ width: `${soc}%` }}
         />
 
-        {/* Reserve zone: parallel lines in the bar color over a darkened area */}
-        {reserve > 0 && soc > 0 && (
-          <div
-            className="absolute top-0 bottom-0 left-0 overflow-hidden"
-            style={{ width: `${Math.min(reserve, soc)}%` }}
-          >
-            {/* Darken the reserve portion */}
-            <div className="absolute inset-0 bg-black/40" />
-            {/* Parallel vertical lines in the current bar color */}
-            <svg className="absolute inset-0 w-full h-full">
-              <defs>
-                <pattern id="reserveLines" patternUnits="userSpaceOnUse" width="6" height="6">
-                  <line x1="3" y1="0" x2="3" y2="6" stroke={barColor.hex} strokeWidth="1.5" strokeOpacity="0.5" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#reserveLines)" />
-            </svg>
-          </div>
-        )}
+        {/* Reserve zone: diagonal lines colored by their position in the reserve range */}
+        {reserve > 0 && soc > 0 && (() => {
+          // Build reserve segments with colors matching their SOC range
+          const segments: { start: number; end: number; color: string }[] = []
+          const tiers = [
+            { max: 10, color: '#ef4444' },  // red
+            { max: 20, color: '#f97316' },  // orange
+            { max: 50, color: '#eab308' },  // yellow
+            { max: 70, color: '#84cc16' },  // lime
+            { max: 90, color: '#10b981' },  // emerald
+            { max: 100, color: '#3b82f6' }, // blue
+          ]
+          let pos = 0
+          for (const tier of tiers) {
+            if (pos >= reserve) break
+            const segEnd = Math.min(tier.max, reserve)
+            if (segEnd > pos) {
+              segments.push({ start: pos, end: segEnd, color: tier.color })
+            }
+            pos = segEnd
+          }
+
+          const cappedReserve = Math.min(reserve, soc)
+          return (
+            <div
+              className="absolute top-0 bottom-0 left-0 overflow-hidden"
+              style={{ width: `${cappedReserve}%` }}
+            >
+              <div className="absolute inset-0 bg-black/40" />
+              <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  {segments.map((seg, i) => (
+                    <pattern key={i} id={`reserveTilt${i}`} patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">
+                      <line x1="0" y1="0" x2="0" y2="7" stroke={seg.color} strokeWidth="2" strokeOpacity="0.55" />
+                    </pattern>
+                  ))}
+                </defs>
+                {segments.map((seg, i) => {
+                  const xStart = (seg.start / cappedReserve) * 100
+                  const xWidth = ((seg.end - seg.start) / cappedReserve) * 100
+                  return (
+                    <rect
+                      key={i}
+                      x={`${xStart}%`}
+                      y="0"
+                      width={`${xWidth}%`}
+                      height="100%"
+                      fill={`url(#reserveTilt${i})`}
+                    />
+                  )
+                })}
+              </svg>
+            </div>
+          )
+        })()}
 
         {/* Reserve boundary */}
         {reserve > 0 && (
@@ -112,7 +148,27 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
         </div>
       </div>
 
-      <div className="flex justify-between mt-3 text-sm">
+      {/* Reserve indicator below bar */}
+      {reserve > 0 && (
+        <div className="relative w-full h-4 mt-0.5">
+          {/* Bracket line from 0 to reserve% */}
+          <div
+            className="absolute top-0 h-1.5 border-l border-r border-b border-slate-500/50 rounded-b-sm"
+            style={{ left: 0, width: `${reserve}%` }}
+          />
+          {/* Label */}
+          <div
+            className="absolute top-2 flex justify-center"
+            style={{ left: 0, width: `${reserve}%` }}
+          >
+            <span className="text-[9px] text-slate-500 leading-none">
+              Reserve {reserve}%
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className={`flex justify-between ${reserve > 0 ? 'mt-1' : 'mt-3'} text-sm`}>
         <span className={
           charging ? 'text-emerald-400' : discharging ? 'text-blue-400' : 'text-slate-400'
         }>
@@ -127,17 +183,14 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
         </span>
       </div>
 
-      <div className="flex justify-between mt-1 text-xs text-slate-500">
-        <span>Reserve: {reserve}%</span>
-        {capacityKwh ? (
-          <span>
-            {availableKwh !== null ? `${availableKwh.toFixed(1)}` : '—'} / {capacityKwh} kWh
-            {usableKwh !== null && usableKwh > 0 && (
-              <span className="text-slate-600"> ({usableKwh.toFixed(1)} usable)</span>
-            )}
-          </span>
-        ) : null}
-      </div>
+      {capacityKwh ? (
+        <div className="text-xs text-slate-500 mt-1">
+          {availableKwh !== null ? `${availableKwh.toFixed(1)}` : '—'} / {capacityKwh} kWh
+          {usableKwh !== null && usableKwh > 0 && (
+            <span className="text-slate-600"> ({usableKwh.toFixed(1)} usable)</span>
+          )}
+        </div>
+      ) : null}
       {maxPowerKw ? (
         <div className="text-xs text-slate-600 mt-0.5">
           Max output: {maxPowerKw} kW
