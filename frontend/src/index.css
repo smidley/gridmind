@@ -4,17 +4,19 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
+    @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-slate-900 border border-slate-800 rounded-xl p-5;
+    @apply bg-white border border-slate-200 rounded-xl p-5 shadow-sm
+           dark:bg-slate-900 dark:border-slate-800 dark:shadow-none;
   }
 
   .card-header {
-    @apply text-sm font-medium text-slate-400 uppercase tracking-wider mb-3;
+    @apply text-sm font-medium text-slate-500 uppercase tracking-wider mb-3
+           dark:text-slate-400;
   }
 
   .btn {
@@ -26,11 +28,13 @@
   }
 
   .btn-secondary {
-    @apply btn bg-slate-700 hover:bg-slate-600 text-slate-200;
+    @apply btn bg-slate-100 hover:bg-slate-200 text-slate-700
+           dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200;
   }
 
   .btn-danger {
-    @apply btn bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-600/30;
+    @apply btn bg-red-600/20 hover:bg-red-600/30 text-red-600 border border-red-600/30
+           dark:text-red-400;
   }
 
   .btn-success {
@@ -38,9 +42,11 @@
   }
 
   .input {
-    @apply bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100
+    @apply bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900
            focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
-           placeholder:text-slate-500;
+           placeholder:text-slate-400
+           dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100
+           dark:placeholder:text-slate-500;
   }
 
   .select {
@@ -52,6 +58,6 @@
   }
 
   .stat-label {
-    @apply text-sm text-slate-400 mt-1;
+    @apply text-sm text-slate-500 mt-1 dark:text-slate-400;
   }
 }
