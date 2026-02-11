@@ -818,13 +818,23 @@ export default function SettingsPage() {
               <p className="font-medium">{siteConfig.site_name || 'N/A'}</p>
             </div>
             <div>
-              <span className="text-slate-500">Battery Count</span>
-              <p className="font-medium">{siteConfig.battery_count || 'N/A'}</p>
+              <span className="text-slate-500">Battery</span>
+              <p className="font-medium">{siteConfig.battery_description || `${siteConfig.battery_count} units`}</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Capacity</span>
+              <p className="font-medium">{siteConfig.total_capacity_kwh ? `${siteConfig.total_capacity_kwh} kWh / ${siteConfig.nameplate_power_kw} kW` : 'N/A'}</p>
             </div>
             <div>
               <span className="text-slate-500">Storm Mode</span>
               <p className="font-medium">{siteConfig.storm_mode_enabled ? 'Enabled' : 'Disabled'}</p>
             </div>
+            {siteConfig.firmware_version && (
+              <div>
+                <span className="text-slate-500">Firmware</span>
+                <p className="font-medium font-mono text-xs mt-0.5">{siteConfig.firmware_version}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

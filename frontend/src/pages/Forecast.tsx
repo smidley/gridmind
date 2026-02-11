@@ -32,6 +32,7 @@ export default function ForecastPage() {
   const { data: forecast, loading, refetch } = useApi<any>('/history/forecast')
   const { data: valueData } = useApi<any>('/history/value')
   const { data: tariff } = useApi<any>('/site/tariff')
+  const { data: vsActual } = useApi<any>('/history/forecast/vs-actual')
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -167,6 +168,76 @@ export default function ForecastPage() {
               </div>
             )}
           </div>
+
+          {/* Forecast vs Actual Overlay */}
+          {vsActual?.hourly && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-1">
+                <div className="card-header mb-0">Today: Forecast vs Actual</div>
+                <div className="flex gap-4 text-xs text-slate-500">
+                  <span>Forecast: <span className="text-amber-400">{vsActual.forecast_total_kwh} kWh</span></span>
+                  <span>Actual: <span className="text-emerald-400">{vsActual.actual_total_kwh} kWh</span></span>
+                  {vsActual.forecast_total_kwh > 0 && (
+                    <span className={vsActual.actual_total_kwh >= vsActual.forecast_total_kwh ? 'text-emerald-400' : 'text-amber-400'}>
+                      {((vsActual.actual_total_kwh / vsActual.forecast_total_kwh) * 100).toFixed(0)}% of forecast
+                    </span>
+                  )}
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={vsActual.hourly.map((h: any) => ({
+                  hour: formatHour(h.hour),
+                  forecast: Math.round(h.forecast_w),
+                  actual: h.actual_w !== null ? Math.round(h.actual_w) : undefined,
+                }))}>
+                  <defs>
+                    <linearGradient id="forecastFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#fbbf24" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="actualFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(1)}kW`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
+                    formatter={(v: number, name: string) => [
+                      `${(v / 1000).toFixed(2)} kW`,
+                      name === 'forecast' ? 'Forecast' : 'Actual'
+                    ]}
+                  />
+                  <Legend
+                    formatter={(val) => <span className="text-slate-300 text-xs">{val === 'forecast' ? 'Forecast' : 'Actual'}</span>}
+                  />
+                  {/* Forecast as dashed area */}
+                  <Area
+                    type="monotone"
+                    dataKey="forecast"
+                    stroke="#fbbf24"
+                    fill="url(#forecastFill)"
+                    strokeWidth={1.5}
+                    strokeDasharray="6 3"
+                    dot={false}
+                  />
+                  {/* Actual as solid area */}
+                  <Area
+                    type="monotone"
+                    dataKey="actual"
+                    stroke="#34d399"
+                    fill="url(#actualFill)"
+                    strokeWidth={2.5}
+                    dot={false}
+                    connectNulls={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
           {/* Today's Hourly Chart */}
           {todayChart.length > 0 && (

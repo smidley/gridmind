@@ -412,6 +412,86 @@ async def solar_forecast():
     return await get_forecast_summary()
 
 
+@router.get("/forecast/vs-actual")
+async def forecast_vs_actual(db: AsyncSession = Depends(get_db)):
+    """Get today's forecast overlaid with actual solar production by hour.
+
+    Returns hourly data with both predicted and actual watts for comparison.
+    """
+    from services import setup_store
+    from zoneinfo import ZoneInfo
+
+    user_tz_name = setup_store.get_timezone()
+    try:
+        user_tz = ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = ZoneInfo("America/New_York")
+
+    local_now = datetime.now(user_tz)
+    today_str = local_now.strftime("%Y-%m-%d")
+
+    # Get forecast data for today
+    from database import SolarForecast
+    result = await db.execute(
+        select(SolarForecast)
+        .where(SolarForecast.date == today_str)
+        .order_by(SolarForecast.hour)
+    )
+    forecast_entries = result.scalars().all()
+
+    # Get actual readings for today, averaged by hour
+    start_of_day = datetime.combine(local_now.date(), datetime.min.time())
+    result = await db.execute(
+        select(EnergyReading)
+        .where(EnergyReading.timestamp >= start_of_day)
+        .order_by(EnergyReading.timestamp)
+    )
+    readings = result.scalars().all()
+
+    # Average actual solar power by hour
+    actual_by_hour: dict[int, list[float]] = {}
+    for r in readings:
+        # Convert UTC timestamp to local hour
+        try:
+            local_time = r.timestamp.replace(tzinfo=ZoneInfo("UTC")).astimezone(user_tz)
+            h = local_time.hour
+        except Exception:
+            h = r.timestamp.hour
+        if h not in actual_by_hour:
+            actual_by_hour[h] = []
+        actual_by_hour[h].append(r.solar_power or 0)
+
+    # Build combined hourly data
+    hourly = []
+    for h in range(24):
+        forecast_w = 0
+        for fe in forecast_entries:
+            if fe.hour == h:
+                forecast_w = fe.estimated_generation_w
+                break
+
+        actual_readings = actual_by_hour.get(h, [])
+        actual_w = round(sum(actual_readings) / len(actual_readings), 1) if actual_readings else None
+
+        hourly.append({
+            "hour": h,
+            "forecast_w": round(forecast_w, 1),
+            "actual_w": actual_w,
+        })
+
+    # Totals
+    forecast_total = sum(h["forecast_w"] for h in hourly) / 1000  # Wh to kWh
+    actual_total = sum((h["actual_w"] or 0) for h in hourly if h["actual_w"] is not None) / 1000
+
+    return {
+        "date": today_str,
+        "hourly": hourly,
+        "forecast_total_kwh": round(forecast_total, 2),
+        "actual_total_kwh": round(actual_total, 2),
+        "current_hour": local_now.hour,
+    }
+
+
 @router.post("/forecast/refresh")
 async def refresh_forecast():
     """Manually trigger a solar forecast refresh."""
