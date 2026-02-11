@@ -906,23 +906,30 @@ export default function SettingsPage() {
 
       {/* Off-Grid Mode */}
       {authStatus?.authenticated && (
-        <div className={`card ${offgridActive ? 'border-amber-500/40 dark:border-amber-500/40' : ''}`}>
+        <div className={`card ${
+          offgridActive
+            ? 'border-red-500/50 bg-red-50/50 dark:bg-red-950/30 dark:border-red-500/40'
+            : 'border-red-300/30 dark:border-red-900/30'
+        }`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Shield className="w-4.5 h-4.5 text-amber-500" />
-              <h3 className="font-semibold">Off-Grid Mode</h3>
+              <AlertTriangle className="w-4.5 h-4.5 text-red-500" />
+              <h3 className="font-semibold text-red-700 dark:text-red-400">Off-Grid Mode</h3>
             </div>
             {offgridActive && (
-              <span className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">Active</span>
+              <span className="text-xs bg-red-500/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full font-medium animate-pulse">Active</span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mb-3">
-            Simulate off-grid operation. Disables all grid interaction -- solar and battery power your home exclusively.
+          <p className="text-xs text-red-600/70 dark:text-red-400/60 mb-3">
+            Disconnects from the grid. Solar and battery power your home exclusively. Use with caution.
           </p>
           <button
             onClick={handleToggleOffgrid}
             disabled={saving === 'offgrid'}
-            className={offgridActive ? 'btn-danger w-full' : 'btn-secondary w-full'}
+            className={`w-full ${offgridActive
+              ? 'btn bg-red-600 hover:bg-red-700 text-white'
+              : 'btn bg-red-100 hover:bg-red-200 text-red-700 border border-red-300/50 dark:bg-red-600/20 dark:hover:bg-red-600/30 dark:text-red-400 dark:border-red-600/30'
+            }`}
           >
             {saving === 'offgrid' ? 'Switching...' : offgridActive ? 'Disable Off-Grid Mode' : 'Enable Off-Grid Mode'}
           </button>
