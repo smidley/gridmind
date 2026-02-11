@@ -10,12 +10,12 @@
 
 @layer components {
   .card {
-    @apply bg-slate-200/50 border border-slate-300/40 rounded-xl p-5
+    @apply bg-slate-200/40 border border-slate-300/30 rounded-xl p-5
            dark:bg-slate-900 dark:border-slate-800 dark:shadow-none;
   }
 
   .card-header {
-    @apply text-sm font-medium text-slate-400 uppercase tracking-wider mb-3
+    @apply text-sm font-medium text-slate-500 uppercase tracking-wider mb-3
            dark:text-slate-400;
   }
 
@@ -24,26 +24,26 @@
   }
 
   .btn-primary {
-    @apply btn bg-blue-600 hover:bg-blue-500 text-white;
+    @apply btn bg-blue-600 hover:bg-blue-700 text-white;
   }
 
   .btn-secondary {
-    @apply btn bg-slate-100 hover:bg-slate-200 text-slate-700
-           dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200;
+    @apply btn bg-slate-200/70 hover:bg-slate-300/70 text-slate-600 border border-slate-300/50
+           dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 dark:border-transparent;
   }
 
   .btn-danger {
-    @apply btn bg-red-600/20 hover:bg-red-600/30 text-red-600 border border-red-600/30
-           dark:text-red-400;
+    @apply btn bg-red-100 hover:bg-red-200 text-red-700 border border-red-200
+           dark:bg-red-600/20 dark:hover:bg-red-600/30 dark:text-red-400 dark:border-red-600/30;
   }
 
   .btn-success {
-    @apply btn bg-emerald-600 hover:bg-emerald-500 text-white;
+    @apply btn bg-emerald-600 hover:bg-emerald-700 text-white;
   }
 
   .input {
-    @apply bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800
-           focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
+    @apply bg-slate-100 border border-slate-300/60 rounded-lg px-3 py-2 text-slate-700
+           focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400
            placeholder:text-slate-400
            dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100
            dark:placeholder:text-slate-500;
@@ -64,11 +64,11 @@
 
 /* Recharts tooltip theme override */
 .recharts-default-tooltip {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  background-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
   color: #334155 !important;
   border-radius: 8px !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06) !important;
 }
 
 .dark .recharts-default-tooltip {
