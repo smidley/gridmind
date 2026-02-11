@@ -199,3 +199,11 @@ async def _compute_today_from_readings():
 async def solar_forecast():
     """Get solar generation forecast for today and tomorrow."""
     return await get_forecast_summary()
+
+
+@router.post("/forecast/refresh")
+async def refresh_forecast():
+    """Manually trigger a solar forecast refresh."""
+    from services.weather import fetch_solar_forecast
+    forecasts = await fetch_solar_forecast()
+    return {"refreshed": True, "hours": len(forecasts)}
