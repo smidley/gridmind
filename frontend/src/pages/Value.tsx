@@ -38,12 +38,12 @@ function PieTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
   const { name, value, payload: item } = payload[0]
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs shadow-lg">
+    <div className="bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-700 rounded-lg px-3 py-2 text-xs shadow-lg">
       <div className="flex items-center gap-2">
         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-        <span className="text-slate-300">{name}</span>
+        <span className="text-slate-600 dark:text-slate-300">{name}</span>
       </div>
-      <div className="text-white font-medium mt-0.5">${value.toFixed(2)}</div>
+      <div className="text-slate-900 dark:text-white font-medium mt-0.5">${value.toFixed(2)}</div>
     </div>
   )
 }
@@ -54,8 +54,8 @@ function HourlyTooltip({ active, payload, label }: any) {
   const data = payload[0]?.payload
   if (!data) return null
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs shadow-lg">
-      <div className="text-slate-400 mb-1">{label} - <span style={{ color: TOU_COLORS[data.period] || '#64748b' }}>{data.period}</span></div>
+    <div className="bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-700 rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="text-slate-500 dark:text-slate-400 mb-1">{label} - <span style={{ color: TOU_COLORS[data.period] || '#64748b' }}>{data.period}</span></div>
       {data.net >= 0 ? (
         <div className="text-emerald-400 font-medium">+${data.net.toFixed(2)} net</div>
       ) : (
@@ -289,7 +289,7 @@ export default function ValuePage() {
                   <YAxis stroke="#475569" fontSize={10} tickLine={false}
                     tickFormatter={(v) => `$${v.toFixed(2)}`} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                     formatter={(v: number) => [`$${v.toFixed(2)}`, 'Cumulative']}
                     labelFormatter={(l) => {
                       const d = cumulativeChart.find((c: any) => c.label === l)

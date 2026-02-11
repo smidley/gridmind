@@ -82,8 +82,6 @@ export default function HistoryPage() {
               <YAxis stroke="#475569" fontSize={11} tickLine={false} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#0f172a',
-                  border: '1px solid #1e293b',
                   borderRadius: '8px',
                   fontSize: '12px',
                 }}
@@ -115,8 +113,6 @@ export default function HistoryPage() {
               <YAxis stroke="#475569" fontSize={11} tickLine={false} domain={[0, 100]} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#0f172a',
-                  border: '1px solid #1e293b',
                   borderRadius: '8px',
                   fontSize: '12px',
                 }}
@@ -139,8 +135,6 @@ export default function HistoryPage() {
               <Tooltip
                 cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                 contentStyle={{
-                  backgroundColor: '#0f172a',
-                  border: '1px solid #1e293b',
                   borderRadius: '8px',
                   fontSize: '12px',
                 }}

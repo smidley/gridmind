@@ -272,10 +272,8 @@ export default function ForecastPage() {
                     tickFormatter={(v) => `${v.toFixed(1)}kW`} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
-                      border: '1px solid #1e293b',
-                      borderRadius: '8px',
-                      fontSize: '12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
                     }}
                     formatter={(value: number) => [`${value.toFixed(2)} kW`, 'Forecast']}
                   />
@@ -306,10 +304,8 @@ export default function ForecastPage() {
                   <YAxis stroke="#475569" fontSize={11} tickLine={false} domain={[0, 100]} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
-                      border: '1px solid #1e293b',
-                      borderRadius: '8px',
-                      fontSize: '12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
                     }}
                     formatter={(value: number) => [`${value}%`, '']}
                   />

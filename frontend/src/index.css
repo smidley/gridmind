@@ -61,3 +61,19 @@
     @apply text-sm text-slate-500 mt-1 dark:text-slate-400;
   }
 }
+
+/* Recharts tooltip theme override */
+.recharts-default-tooltip {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dark .recharts-default-tooltip {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
