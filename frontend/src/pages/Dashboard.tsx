@@ -98,6 +98,17 @@ export default function Dashboard() {
                 {todayTotals ? formatEnergy(todayTotals.solar_generated_kwh) : '—'}
               </div>
               <div className="stat-label">Solar today</div>
+              {forecast?.today && forecast.today.remaining_sunlight_hours !== null && forecast.today.remaining_sunlight_hours > 0 && (
+                <div className="text-xs text-slate-500 mt-1.5 space-y-0.5">
+                  <div>{forecast.today.remaining_sunlight_hours}h sunlight remaining</div>
+                  {forecast.today.remaining_kwh !== null && (
+                    <div>~{forecast.today.remaining_kwh} kWh potential remaining</div>
+                  )}
+                </div>
+              )}
+              {forecast?.today && (forecast.today.remaining_sunlight_hours === 0 || forecast.today.remaining_sunlight_hours === null) && (
+                <div className="text-xs text-slate-600 mt-1.5">Sun has set</div>
+              )}
             </div>
 
             {/* Grid Exported Today */}

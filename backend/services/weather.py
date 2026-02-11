@@ -36,6 +36,7 @@ async def fetch_solar_forecast() -> list[dict]:
         "latitude": latitude,
         "longitude": longitude,
         "hourly": "shortwave_radiation,direct_normal_irradiance,cloud_cover,temperature_2m",
+        "daily": "sunrise,sunset",
         "timezone": timezone,
         "forecast_days": 2,
     }
@@ -61,9 +62,12 @@ async def fetch_solar_forecast() -> list[dict]:
         clouds = cloud_cover[i] if i < len(cloud_cover) else 0
 
         # Estimate solar generation from irradiance
-        # This is a rough estimate - user should calibrate based on their system
-        # Assuming ~10kW system with ~15% overall efficiency
-        estimated_watts = irradiance * 10 * 0.15  # Rough estimate
+        # Uses the user's configured solar capacity (kW) if set, otherwise defaults to 5kW
+        # Standard Test Conditions (STC) irradiance is 1000 W/m²
+        # Real-world factor ~0.75-0.85 accounts for temperature, inverter, wiring losses
+        solar_capacity_kw = float(setup_store.get("solar_capacity_kw") or 5.0)
+        system_factor = float(setup_store.get("solar_efficiency_factor") or 0.80)
+        estimated_watts = (irradiance / 1000) * solar_capacity_kw * 1000 * system_factor
 
         forecasts.append({
             "date": dt.strftime("%Y-%m-%d"),
@@ -72,6 +76,22 @@ async def fetch_solar_forecast() -> list[dict]:
             "estimated_generation_w": round(estimated_watts, 1),
             "cloud_cover_pct": clouds,
         })
+
+    # Store sunrise/sunset data
+    daily_data = data.get("daily", {})
+    daily_dates = daily_data.get("time", [])
+    sunrises = daily_data.get("sunrise", [])
+    sunsets = daily_data.get("sunset", [])
+
+    sun_times = {}
+    for i, d_str in enumerate(daily_dates):
+        sun_times[d_str] = {
+            "sunrise": sunrises[i] if i < len(sunrises) else None,
+            "sunset": sunsets[i] if i < len(sunsets) else None,
+        }
+
+    # Save sun times to setup store for quick access
+    setup_store.set("sun_times", sun_times)
 
     # Store in database
     await _save_forecasts(forecasts)
@@ -104,8 +124,17 @@ async def _save_forecasts(forecasts: list[dict]):
 
 async def get_forecast_summary() -> dict:
     """Get a summary of today's and tomorrow's solar forecast."""
-    today = date.today().isoformat()
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    # Use user's timezone for "today" calculation, not UTC
+    from zoneinfo import ZoneInfo
+    user_tz_name = setup_store.get_timezone()
+    try:
+        user_tz = ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = ZoneInfo("America/New_York")
+
+    local_now = datetime.now(user_tz)
+    today = local_now.strftime("%Y-%m-%d")
+    tomorrow = (local_now + timedelta(days=1)).strftime("%Y-%m-%d")
 
     async with async_session() as session:
         result = await session.execute(
@@ -118,7 +147,11 @@ async def get_forecast_summary() -> dict:
     if not entries:
         return {"today": None, "tomorrow": None}
 
-    def summarize_day(day_entries):
+    # Get sun times from store
+    sun_times = setup_store.get("sun_times") or {}
+    now = local_now
+
+    def summarize_day(day_entries, day_date_str):
         if not day_entries:
             return None
         total_kwh = sum(e.estimated_generation_w for e in day_entries) / 1000  # Wh to kWh
@@ -133,11 +166,39 @@ async def get_forecast_summary() -> dict:
         else:
             condition = "cloudy"
 
-        return {
+        # Sunrise/sunset
+        day_sun = sun_times.get(day_date_str, {})
+        sunrise = day_sun.get("sunrise")
+        sunset = day_sun.get("sunset")
+
+        # Calculate remaining sunlight and energy (only for today)
+        remaining_kwh = None
+        remaining_sunlight_hours = None
+        if day_date_str == today:
+            # Sum generation from current hour onwards
+            remaining_entries = [e for e in day_entries if e.hour >= now.hour]
+            remaining_kwh = round(sum(e.estimated_generation_w for e in remaining_entries) / 1000, 2)
+
+            # Calculate remaining sunlight from sunset
+            if sunset:
+                try:
+                    sunset_dt = datetime.fromisoformat(sunset)
+                    if not sunset_dt.tzinfo:
+                        sunset_dt = sunset_dt.replace(tzinfo=user_tz)
+                    remaining_seconds = (sunset_dt - now).total_seconds()
+                    remaining_sunlight_hours = round(max(remaining_seconds / 3600, 0), 1)
+                except Exception:
+                    pass
+
+        result = {
             "estimated_kwh": round(total_kwh, 2),
             "peak_watts": round(peak_w, 0),
             "avg_cloud_cover": round(avg_cloud, 1),
             "condition": condition,
+            "sunrise": sunrise,
+            "sunset": sunset,
+            "remaining_kwh": remaining_kwh,
+            "remaining_sunlight_hours": remaining_sunlight_hours,
             "hourly": [
                 {
                     "hour": e.hour,
@@ -147,11 +208,12 @@ async def get_forecast_summary() -> dict:
                 for e in day_entries
             ],
         }
+        return result
 
     today_entries = [e for e in entries if e.date == today]
     tomorrow_entries = [e for e in entries if e.date == tomorrow]
 
     return {
-        "today": summarize_day(today_entries),
-        "tomorrow": summarize_day(tomorrow_entries),
+        "today": summarize_day(today_entries, today),
+        "tomorrow": summarize_day(tomorrow_entries, tomorrow),
     }

@@ -124,6 +124,19 @@ async def save_location(req: LocationCoordsRequest):
     }
 
 
+class SolarCapacityRequest(BaseModel):
+    capacity_kw: float  # Total panel capacity in kW
+
+
+@router.post("/setup/solar-capacity")
+async def save_solar_capacity(req: SolarCapacityRequest):
+    """Save the solar panel system capacity for forecast calibration."""
+    if req.capacity_kw <= 0:
+        raise HTTPException(status_code=400, detail="Capacity must be greater than 0.")
+    setup_store.set("solar_capacity_kw", req.capacity_kw)
+    return {"success": True, "solar_capacity_kw": req.capacity_kw}
+
+
 @router.post("/setup/generate-keys")
 async def generate_keys():
     """Generate an EC key pair for Tesla Fleet API registration.
