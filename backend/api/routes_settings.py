@@ -388,9 +388,11 @@ async def toggle_off_grid(req: OffGridRequest):
             current_config = await get_site_config()
             pre_mode = current_config.get("operation_mode", "autonomous")
             pre_reserve = current_config.get("backup_reserve_percent", 20)
+            pre_export = current_config.get("export_rule", "battery_ok")
 
             setup_store.set("pre_offgrid_mode", pre_mode)
             setup_store.set("pre_offgrid_reserve", pre_reserve)
+            setup_store.set("pre_offgrid_export", pre_export)
             setup_store.set("offgrid_active", True)
 
             # Go off-grid: self-powered, no grid interaction
@@ -406,12 +408,13 @@ async def toggle_off_grid(req: OffGridRequest):
             # Restore previous settings
             prev_mode = setup_store.get("pre_offgrid_mode") or "autonomous"
             prev_reserve = float(setup_store.get("pre_offgrid_reserve") or 20)
+            prev_export = setup_store.get("pre_offgrid_export") or "battery_ok"
 
             # Restore in order: mode first, then export rule, then reserve
             await set_operation_mode(prev_mode)
             await set_grid_import_export(
                 disallow_charge_from_grid_with_solar_installed=False,
-                customer_preferred_export_rule="pv_only",
+                customer_preferred_export_rule=prev_export,
             )
             await set_backup_reserve(prev_reserve)
 

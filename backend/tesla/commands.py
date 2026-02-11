@@ -103,6 +103,8 @@ async def get_site_config() -> dict:
         "total_capacity_kwh": total_capacity_kwh,
         "nameplate_power_kw": round(nameplate_power / 1000, 1) if nameplate_power else 0,
         "firmware_version": gateways[0].get("firmware_version", "") if gateways else "",
+        "export_rule": components.get("customer_preferred_export_rule", "pv_only"),
+        "grid_charging_disabled": components.get("disallow_charge_from_grid_with_solar_installed", False),
     }
 
 

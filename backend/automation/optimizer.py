@@ -160,13 +160,21 @@ async def evaluate():
 
 async def _start_peak_hold(status):
     """Peak hours started -- switch to self-powered to hold battery."""
-    from tesla.commands import set_operation_mode, set_backup_reserve, set_grid_import_export
+    from tesla.commands import set_operation_mode, set_backup_reserve, set_grid_import_export, get_site_config
 
     logger.info("GridMind Optimize: Peak started, entering hold phase")
 
-    # Save current settings
-    _state["pre_optimize_mode"] = status.operation_mode
-    _state["pre_optimize_reserve"] = status.backup_reserve
+    # Save current settings from Tesla (not cached values)
+    try:
+        config = await get_site_config()
+        _state["pre_optimize_mode"] = config.get("operation_mode", "autonomous")
+        _state["pre_optimize_reserve"] = config.get("backup_reserve_percent", 20)
+        _state["pre_optimize_export"] = config.get("export_rule", "battery_ok")
+    except Exception:
+        _state["pre_optimize_mode"] = status.operation_mode
+        _state["pre_optimize_reserve"] = status.backup_reserve
+        _state["pre_optimize_export"] = "battery_ok"
+
     _state["phase"] = "peak_hold"
 
     try:
@@ -296,13 +304,14 @@ async def _end_peak():
 
     prev_mode = _state.get("pre_optimize_mode") or "autonomous"
     prev_reserve = _state.get("pre_optimize_reserve") or 20
+    prev_export = _state.get("pre_optimize_export") or "battery_ok"
 
     try:
         await set_operation_mode(prev_mode)
         await set_backup_reserve(prev_reserve)
         await set_grid_import_export(
             disallow_charge_from_grid_with_solar_installed=False,
-            customer_preferred_export_rule="pv_only",
+            customer_preferred_export_rule=prev_export,
         )
         await send_notification(
             "GridMind Optimize: Peak Ended",
