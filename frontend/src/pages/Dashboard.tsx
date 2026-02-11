@@ -37,6 +37,7 @@ export default function Dashboard() {
   const { data: siteConfig } = useApi<any>('/site/config')
   const { data: tariff } = useAutoRefresh<any>('/site/tariff', 60000)
   const { data: valueData } = useAutoRefresh<any>('/history/value', 30000)
+  const { data: optimizeStatus } = useAutoRefresh<any>('/settings/optimize/status', 30000)
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -191,6 +192,18 @@ export default function Dashboard() {
                   <span className="text-slate-400">Today:</span>
                   <span className={`font-medium ${valueData.net_value >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {valueData.net_value >= 0 ? '+' : '-'}${Math.abs(valueData.net_value).toFixed(2)}
+                  </span>
+                </div>
+              )}
+
+              {optimizeStatus?.enabled && (
+                <div className="flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="font-medium text-blue-600 dark:text-blue-400">
+                    GridMind Optimize
+                    {optimizeStatus.phase === 'peak_hold' ? ' (Holding)' :
+                     optimizeStatus.phase === 'dumping' ? ` (Dumping${optimizeStatus.estimated_finish ? ` until ${optimizeStatus.estimated_finish}` : ''})` :
+                     optimizeStatus.phase === 'complete' ? ' (Complete)' : ''}
                   </span>
                 </div>
               )}

@@ -10,6 +10,8 @@ import {
   Search,
   Loader2,
   Sun,
+  Activity,
+  Zap,
 } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 
@@ -54,6 +56,14 @@ export default function SettingsPage() {
   const [regDomain, setRegDomain] = useState(setupData?.fleet_api_domain || '')
   const [publicKey, setPublicKey] = useState('')
 
+  // GridMind Optimize
+  const { data: optimizeStatus, refetch: refetchOptimize } = useApi<any>('/settings/optimize/status')
+  const [optimizeEnabled, setOptimizeEnabled] = useState(false)
+  const [optimizePeakStart, setOptimizePeakStart] = useState(17)
+  const [optimizePeakEnd, setOptimizePeakEnd] = useState(21)
+  const [optimizeBuffer, setOptimizeBuffer] = useState(15)
+  const [optimizeMinReserve, setOptimizeMinReserve] = useState(5)
+
   // Off-grid mode
   const { data: offgridStatus } = useApi<any>('/settings/offgrid/status')
   const [offgridActive, setOffgridActive] = useState(false)
@@ -79,6 +89,16 @@ export default function SettingsPage() {
       if (data?.public_key) setPublicKey(data.public_key)
     }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (optimizeStatus) {
+      setOptimizeEnabled(optimizeStatus.enabled)
+      if (optimizeStatus.peak_start_hour) setOptimizePeakStart(optimizeStatus.peak_start_hour)
+      if (optimizeStatus.peak_end_hour) setOptimizePeakEnd(optimizeStatus.peak_end_hour)
+      if (optimizeStatus.buffer_minutes) setOptimizeBuffer(optimizeStatus.buffer_minutes)
+      if (optimizeStatus.min_reserve_pct) setOptimizeMinReserve(optimizeStatus.min_reserve_pct)
+    }
+  }, [optimizeStatus])
 
   useEffect(() => {
     if (offgridStatus) setOffgridActive(offgridStatus.active)
@@ -213,6 +233,27 @@ export default function SettingsPage() {
       setConnectError(e.message)
     }
     setConnectLoading('')
+  }
+
+  const handleToggleOptimize = async () => {
+    setSaving('optimize')
+    try {
+      const result = await apiFetch('/settings/optimize', {
+        method: 'POST',
+        body: JSON.stringify({
+          enabled: !optimizeEnabled,
+          peak_start: optimizePeakStart,
+          peak_end: optimizePeakEnd,
+          buffer_minutes: optimizeBuffer,
+          min_reserve: optimizeMinReserve,
+        }),
+      })
+      setOptimizeEnabled(result.enabled)
+      refetchOptimize()
+    } catch (e: any) {
+      alert(`Failed: ${e.message}`)
+    }
+    setSaving('')
   }
 
   const handleToggleOffgrid = async () => {
@@ -764,6 +805,104 @@ export default function SettingsPage() {
           {solarSaving ? 'Saving & Refreshing Forecast...' : 'Save Solar Configuration'}
         </button>
       </div>
+
+      {/* GridMind Optimize */}
+      {authStatus?.authenticated && (
+        <div className={`card ${optimizeEnabled ? 'border-blue-500/40 dark:border-blue-500/40' : ''}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4.5 h-4.5 text-blue-500" />
+              <h3 className="font-semibold">GridMind Optimize</h3>
+            </div>
+            {optimizeEnabled && (
+              <span className="text-xs bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
+                {optimizeStatus?.phase === 'dumping' ? 'Dumping' :
+                 optimizeStatus?.phase === 'peak_hold' ? 'Holding' :
+                 optimizeStatus?.phase === 'complete' ? 'Complete' : 'Active'}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Smart peak export strategy. Holds battery during peak hours, then intelligently dumps to grid
+            for maximum export credits before peak ends. Timing adapts daily based on battery level, home
+            load, and time remaining.
+          </p>
+
+          {optimizeEnabled && optimizeStatus?.last_calculation && (
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 mb-3 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Phase</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300 capitalize">{optimizeStatus.phase}</span>
+              </div>
+              {optimizeStatus.last_calculation.available_kwh !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Available to dump</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{optimizeStatus.last_calculation.available_kwh} kWh</span>
+                </div>
+              )}
+              {optimizeStatus.last_calculation.minutes_needed !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Time needed</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{optimizeStatus.last_calculation.minutes_needed} min</span>
+                </div>
+              )}
+              {optimizeStatus.last_calculation.minutes_remaining !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Peak time remaining</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{optimizeStatus.last_calculation.minutes_remaining} min</span>
+                </div>
+              )}
+              {optimizeStatus.estimated_finish && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Estimated dump finish</span>
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">{optimizeStatus.estimated_finish}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Peak Start</label>
+              <select className="select w-full text-sm" value={optimizePeakStart}
+                onChange={(e) => setOptimizePeakStart(Number(e.target.value))} disabled={optimizeEnabled}>
+                {Array.from({length: 24}, (_, i) => (
+                  <option key={i} value={i}>{i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i-12}:00 PM`}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Peak End</label>
+              <select className="select w-full text-sm" value={optimizePeakEnd}
+                onChange={(e) => setOptimizePeakEnd(Number(e.target.value))} disabled={optimizeEnabled}>
+                {Array.from({length: 24}, (_, i) => (
+                  <option key={i} value={i}>{i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i-12}:00 PM`}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Buffer (min)</label>
+              <input type="number" className="input w-full text-sm" value={optimizeBuffer} min={5} max={60}
+                onChange={(e) => setOptimizeBuffer(Number(e.target.value))} disabled={optimizeEnabled} />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Min Reserve %</label>
+              <input type="number" className="input w-full text-sm" value={optimizeMinReserve} min={0} max={50}
+                onChange={(e) => setOptimizeMinReserve(Number(e.target.value))} disabled={optimizeEnabled} />
+            </div>
+          </div>
+
+          <button
+            onClick={handleToggleOptimize}
+            disabled={saving === 'optimize'}
+            className={optimizeEnabled ? 'btn-danger w-full' : 'btn-primary w-full'}
+          >
+            {saving === 'optimize' ? 'Switching...' :
+              optimizeEnabled ? 'Disable GridMind Optimize' :
+              <span className="flex items-center justify-center gap-2"><Zap className="w-4 h-4" /> Enable GridMind Optimize</span>}
+          </button>
+        </div>
+      )}
 
       {/* Off-Grid Mode */}
       {authStatus?.authenticated && (

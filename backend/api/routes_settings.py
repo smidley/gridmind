@@ -328,6 +328,42 @@ async def discover_site():
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# --- GridMind Optimize Mode ---
+
+
+class OptimizeRequest(BaseModel):
+    enabled: bool
+    peak_start: int = 17     # Hour (24h format)
+    peak_end: int = 21       # Hour (24h format)
+    buffer_minutes: int = 15  # Safety buffer before peak ends
+    min_reserve: int = 5     # Don't dump below this %
+
+
+@router.post("/optimize")
+async def toggle_optimize(req: OptimizeRequest):
+    """Enable or disable GridMind Optimize mode."""
+    from automation.optimizer import enable, disable, get_state
+
+    if req.enabled:
+        enable(
+            peak_start=req.peak_start,
+            peak_end=req.peak_end,
+            buffer=req.buffer_minutes,
+            min_reserve=req.min_reserve,
+        )
+        return {"success": True, "enabled": True, "message": "GridMind Optimize enabled", "state": get_state()}
+    else:
+        disable()
+        return {"success": True, "enabled": False, "message": "GridMind Optimize disabled"}
+
+
+@router.get("/optimize/status")
+async def optimize_status():
+    """Get the current GridMind Optimize status and calculations."""
+    from automation.optimizer import get_state
+    return get_state()
+
+
 # --- Off-Grid Mode ---
 
 

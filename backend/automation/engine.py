@@ -50,6 +50,16 @@ def setup_scheduler():
         replace_existing=True,
     )
 
+    # GridMind Optimize - every 2 minutes
+    from automation.optimizer import evaluate as optimizer_evaluate
+    scheduler.add_job(
+        optimizer_evaluate,
+        IntervalTrigger(minutes=2),
+        id="gridmind_optimizer",
+        name="GridMind Optimize Engine",
+        replace_existing=True,
+    )
+
     # Solar forecast - every 6 hours
     scheduler.add_job(
         fetch_solar_forecast,
