@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Plus, Power, PowerOff, Clock, Battery, Zap, Wifi, Sun, Trash2 } from 'lucide-react'
+import { Plus, Power, PowerOff, Clock, Battery, Zap, Wifi, Sun, Trash2, BookOpen } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 import RuleBuilder from '../components/RuleBuilder'
+import AutomationPresets from '../components/AutomationPresets'
 
 interface Rule {
   id: number
@@ -71,6 +72,7 @@ export default function Rules() {
   const { data: rules, loading, refetch } = useApi<Rule[]>('/rules')
   const { data: logs } = useApi<any[]>('/rules/log/recent')
   const [showBuilder, setShowBuilder] = useState(false)
+  const [showPresets, setShowPresets] = useState(false)
 
   const toggleRule = async (id: number) => {
     await apiFetch(`/rules/${id}/toggle`, { method: 'POST' })
@@ -90,10 +92,21 @@ export default function Rules() {
           <h2 className="text-2xl font-bold">Automation Rules</h2>
           <p className="text-sm text-slate-500">Configure triggers and actions for your Powerwall</p>
         </div>
-        <button onClick={() => setShowBuilder(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Rule
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => { setShowPresets(!showPresets); setShowBuilder(false) }} className="btn-secondary flex items-center gap-2">
+            <BookOpen className="w-4 h-4" /> Presets
+          </button>
+          <button onClick={() => { setShowBuilder(true); setShowPresets(false) }} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Rule
+          </button>
+        </div>
       </div>
+
+      {showPresets && (
+        <div className="card">
+          <AutomationPresets onInstalled={() => { setShowPresets(false); refetch() }} />
+        </div>
+      )}
 
       {showBuilder && (
         <RuleBuilder
@@ -109,7 +122,10 @@ export default function Rules() {
         <div className="card text-center py-12">
           <Zap className="w-10 h-10 text-slate-600 mx-auto mb-3" />
           <h3 className="text-lg font-medium text-slate-400 mb-1">No Rules Yet</h3>
-          <p className="text-sm text-slate-500">Create your first automation rule to get started.</p>
+          <p className="text-sm text-slate-500 mb-3">Get started with a preset or create a custom rule.</p>
+          <button onClick={() => setShowPresets(true)} className="btn-secondary text-sm inline-flex items-center gap-2">
+            <BookOpen className="w-4 h-4" /> Browse Presets
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
