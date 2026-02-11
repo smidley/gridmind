@@ -127,12 +127,12 @@ export default function ForecastPage() {
                   <ConditionIcon
                     condition={tomorrow.condition}
                     className={`w-5 h-5 ${
-                      tomorrow.condition === 'sunny' ? 'text-amber-400' :
-                      tomorrow.condition === 'partly_cloudy' ? 'text-amber-300' : 'text-slate-400'
+                      tomorrow.condition === 'sunny' ? 'text-blue-400' :
+                      tomorrow.condition === 'partly_cloudy' ? 'text-blue-300' : 'text-slate-400'
                     }`}
                   />
                 </div>
-                <div className="stat-value text-amber-400">{tomorrow.estimated_kwh} kWh</div>
+                <div className="stat-value text-blue-400">{tomorrow.estimated_kwh} kWh</div>
                 <div className="stat-label">Estimated generation</div>
                 <div className="flex gap-4 mt-3 text-sm text-slate-400">
                   <span>Peak: {(tomorrow.peak_watts / 1000).toFixed(1)} kW</span>

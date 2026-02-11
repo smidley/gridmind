@@ -208,7 +208,7 @@ export default function Dashboard() {
               {forecast?.tomorrow && (
                 <div className="card">
                   <div className="card-header">Tomorrow's Forecast</div>
-                  <div className="stat-value text-amber-400">
+                  <div className="stat-value text-blue-400">
                     {forecast.tomorrow.estimated_kwh} kWh
                   </div>
                   <div className="stat-label">
