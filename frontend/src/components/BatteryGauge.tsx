@@ -13,23 +13,22 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
   const discharging = power > 50
   const active = charging || discharging
 
-  const getBarClass = () => {
-    if (soc <= 10) return 'from-red-600 to-red-500'
-    if (soc <= 20) return 'from-orange-600 to-orange-500'
-    if (soc <= 40) return 'from-amber-600 to-amber-500'
-    if (soc <= 60) return 'from-yellow-600 to-yellow-500'
-    if (soc <= 80) return 'from-lime-600 to-lime-500'
-    return 'from-emerald-600 to-emerald-500'
+  // Gradient bar: color transitions smoothly based on SOC using a multi-stop gradient
+  // Red (0%) -> Orange (15%) -> Amber (30%) -> Yellow-Green (50%) -> Green (70%) -> Emerald (100%)
+  const getBarGradient = () => {
+    // Fill the bar with a gradient that shows the full spectrum,
+    // clipped to the current SOC width
+    return 'linear-gradient(90deg, #ef4444 0%, #f97316 15%, #f59e0b 30%, #84cc16 55%, #22c55e 75%, #10b981 100%)'
   }
 
   // Shimmer speed based on power level
   const maxP = (maxPowerKw || 11.5) * 1000
   const intensity = Math.min(Math.abs(power) / maxP, 1)
-  const shimmerDuration = `${2.5 - intensity * 1.5}s` // 2.5s slow -> 1s fast
+  const shimmerDuration = `${2.5 - intensity * 1.5}s`
 
   // Calculate available energy
   const availableKwh = capacityKwh ? (soc / 100) * capacityKwh : null
-  const usableKwh = capacityKwh ? ((soc - reserve) / 100) * capacityKwh : null
+  const usableKwh = capacityKwh ? (Math.max(soc - reserve, 0) / 100) * capacityKwh : null
 
   return (
     <div className="card">
@@ -53,13 +52,37 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
           }
         `}</style>
 
-        {/* Fill bar with gradient */}
+        {/* Reserve zone background - subtle dark tint with soft pattern */}
+        {reserve > 0 && (
+          <div
+            className="absolute top-0 bottom-0 left-0"
+            style={{ width: `${reserve}%` }}
+          >
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-slate-900/40" />
+            {/* Subtle diagonal lines */}
+            <svg className="absolute inset-0 w-full h-full opacity-30">
+              <defs>
+                <pattern id="reservePattern" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(148,163,184,0.3)" strokeWidth="1" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#reservePattern)" />
+            </svg>
+          </div>
+        )}
+
+        {/* Fill bar with spectrum gradient */}
         <div
-          className={`absolute top-0 bottom-0 left-0 bg-gradient-to-r ${getBarClass()} transition-all duration-1000`}
-          style={{ width: `${soc}%` }}
+          className="absolute top-0 bottom-0 left-0 transition-all duration-1000 rounded-r-sm"
+          style={{
+            width: `${soc}%`,
+            background: getBarGradient(),
+            backgroundSize: `${10000 / soc}% 100%`,
+          }}
         />
 
-        {/* Elegant shimmer sweep */}
+        {/* Shimmer animation when active */}
         {active && (
           <div
             className="absolute top-0 bottom-0 left-0 overflow-hidden"
@@ -76,29 +99,24 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
           </div>
         )}
 
-        {/* Reserve hatched overlay */}
-        {reserve > 0 && (
-          <svg
-            className="absolute top-0 left-0 h-full"
-            style={{ width: `${reserve}%` }}
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <pattern id="reserveHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
-                <rect width="8" height="8" fill="rgba(0,0,0,0.35)" />
-                <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(239,68,68,0.5)" strokeWidth="3" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#reserveHatch)" />
-          </svg>
-        )}
-
         {/* Reserve boundary line */}
         {reserve > 0 && (
           <div
-            className="absolute top-0 bottom-0 w-0.5 bg-red-400/70"
-            style={{ left: `${reserve}%` }}
-          />
+            className="absolute top-0 bottom-0"
+            style={{ left: `${reserve}%`, width: '2px' }}
+          >
+            <div className="w-full h-full bg-gradient-to-b from-slate-500/60 via-slate-400/40 to-slate-500/60" />
+          </div>
+        )}
+
+        {/* Reserve label - small text inside the reserve zone */}
+        {reserve > 5 && (
+          <div
+            className="absolute top-0 bottom-0 left-0 flex items-center justify-center"
+            style={{ width: `${reserve}%` }}
+          >
+            <span className="text-[8px] text-slate-500/60 font-medium uppercase tracking-wider">RSV</span>
+          </div>
         )}
 
         {/* SOC label */}
