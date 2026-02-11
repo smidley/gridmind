@@ -195,6 +195,158 @@ async def _compute_today_from_readings():
     }
 
 
+@router.get("/value")
+async def get_energy_value(
+    days: int = Query(default=1, ge=1, le=30),
+    db: AsyncSession = Depends(get_db),
+):
+    """Calculate the financial value of energy production and consumption.
+
+    Uses Tesla's tariff data to compute:
+    - Export credits (what you earned selling to the grid)
+    - Import costs (what you would have paid without solar)
+    - Solar self-consumption savings
+    - Net value
+    """
+    from tesla.client import tesla_client, TeslaAPIError
+    from tesla.commands import get_site_info, get_energy_history
+    from services import setup_store
+    from zoneinfo import ZoneInfo
+
+    if not tesla_client.is_authenticated:
+        return {"error": "Not authenticated"}
+
+    # Get tariff data
+    try:
+        info = await get_site_info()
+    except TeslaAPIError:
+        return {"error": "Could not fetch site info"}
+
+    tariff = info.get("tariff_content", {})
+    if not tariff:
+        return {"error": "No tariff configured"}
+
+    # Get user timezone
+    user_tz_name = setup_store.get_timezone()
+    try:
+        user_tz = ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = ZoneInfo("America/New_York")
+
+    # Parse rate schedule
+    seasons = tariff.get("seasons", {})
+    energy_charges = tariff.get("energy_charges", {})
+    sell_tariff = tariff.get("sell_tariff", {})
+    sell_charges = sell_tariff.get("energy_charges", energy_charges)
+
+    # Get today's energy data from Tesla
+    try:
+        data = await get_energy_history(period="day", kind="energy")
+    except TeslaAPIError:
+        return {"error": "Could not fetch energy history"}
+
+    time_series = data.get("time_series", [])
+
+    # Helper to determine TOU period for a given hour/day
+    def get_period_and_rate(hour: int, day_of_week: int, month: int, is_sell: bool = False):
+        charges = sell_charges if is_sell else energy_charges
+        for season_name, season_data in seasons.items():
+            from_month = season_data.get("fromMonth", 1)
+            to_month = season_data.get("toMonth", 12)
+            if from_month <= month <= to_month:
+                tou_periods = season_data.get("tou_periods", {})
+                for period_name, schedules in tou_periods.items():
+                    schedule_list = schedules if isinstance(schedules, list) else []
+                    for sched in schedule_list:
+                        from_dow = sched.get("fromDayOfWeek", 0)
+                        to_dow = sched.get("toDayOfWeek", 6)
+                        from_hr = sched.get("fromHour", 0)
+                        to_hr = sched.get("toHour", 0)
+
+                        if not (from_dow <= day_of_week <= to_dow):
+                            continue
+
+                        # All-day period (weekends)
+                        if from_hr == 0 and to_hr == 0:
+                            rate = charges.get(season_name, {}).get(period_name, 0)
+                            return period_name, rate
+
+                        # Time check
+                        if from_hr < to_hr:
+                            if from_hr <= hour < to_hr:
+                                rate = charges.get(season_name, {}).get(period_name, 0)
+                                return period_name, rate
+                        else:
+                            if hour >= from_hr or hour < to_hr:
+                                rate = charges.get(season_name, {}).get(period_name, 0)
+                                return period_name, rate
+        return "OFF_PEAK", 0
+
+    # Calculate values
+    now = datetime.now(user_tz)
+    total_export_value = 0.0
+    total_import_cost = 0.0
+    total_solar_self_use_savings = 0.0
+    period_breakdown = {}
+
+    for entry in time_series:
+        # Parse timestamp
+        ts_str = entry.get("timestamp", "")
+        try:
+            ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            ts_local = ts.astimezone(user_tz)
+        except Exception:
+            continue
+
+        hour = ts_local.hour
+        dow = ts_local.weekday()
+        month = ts_local.month
+
+        _, buy_rate = get_period_and_rate(hour, dow, month, is_sell=False)
+        period_name, sell_rate = get_period_and_rate(hour, dow, month, is_sell=True)
+
+        # Energy values in Wh from Tesla, convert to kWh
+        exported = (entry.get("grid_energy_exported_from_solar", 0) +
+                   entry.get("grid_energy_exported_from_battery", 0)) / 1000
+        imported = entry.get("grid_energy_imported", 0) / 1000
+        solar_self = (entry.get("consumer_energy_imported_from_solar", 0) +
+                     entry.get("consumer_energy_imported_from_battery", 0)) / 1000
+
+        export_value = exported * sell_rate
+        import_cost = imported * buy_rate
+        self_use_savings = solar_self * buy_rate  # What you would have paid
+
+        total_export_value += export_value
+        total_import_cost += import_cost
+        total_solar_self_use_savings += self_use_savings
+
+        # Period breakdown
+        display = {"OFF_PEAK": "Off-Peak", "ON_PEAK": "Peak", "PARTIAL_PEAK": "Mid-Peak"}.get(period_name, period_name)
+        if display not in period_breakdown:
+            period_breakdown[display] = {"exported_kwh": 0, "imported_kwh": 0, "export_value": 0, "import_cost": 0}
+        period_breakdown[display]["exported_kwh"] += exported
+        period_breakdown[display]["imported_kwh"] += imported
+        period_breakdown[display]["export_value"] += export_value
+        period_breakdown[display]["import_cost"] += import_cost
+
+    # Round values
+    net_value = total_export_value + total_solar_self_use_savings - total_import_cost
+
+    return {
+        "period": "today",
+        "utility": tariff.get("utility", ""),
+        "plan": tariff.get("name", ""),
+        "export_credits": round(total_export_value, 2),
+        "import_costs": round(total_import_cost, 2),
+        "solar_savings": round(total_solar_self_use_savings, 2),
+        "net_value": round(net_value, 2),
+        "period_breakdown": {
+            k: {kk: round(vv, 2) for kk, vv in v.items()}
+            for k, v in period_breakdown.items()
+        },
+    }
+
+
 @router.get("/forecast")
 async def solar_forecast():
     """Get solar generation forecast for today and tomorrow."""

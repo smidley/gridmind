@@ -6,17 +6,20 @@ import {
   Settings,
   Sun,
   CloudSun,
+  DollarSign,
   Activity,
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Rules from './pages/Rules'
 import HistoryPage from './pages/History'
 import ForecastPage from './pages/Forecast'
+import ValuePage from './pages/Value'
 import SettingsPage from './pages/Settings'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/forecast', icon: CloudSun, label: 'Forecast' },
+  { to: '/value', icon: DollarSign, label: 'Value' },
   { to: '/rules', icon: Zap, label: 'Automation' },
   { to: '/history', icon: History, label: 'History' },
   { to: '/settings', icon: Settings, label: 'Settings' },
@@ -68,7 +71,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-400 transition-colors"
             >
               <Sun className="w-3.5 h-3.5" />
-              <span>GridMind v0.4.0</span>
+              <span>GridMind v0.5.0</span>
             </a>
           </div>
         </nav>
@@ -78,6 +81,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/forecast" element={<ForecastPage />} />
+            <Route path="/value" element={<ValuePage />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
