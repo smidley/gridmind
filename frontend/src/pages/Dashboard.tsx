@@ -13,6 +13,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   DollarSign,
+  Activity,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi } from '../hooks/useApi'
@@ -196,18 +197,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {optimizeStatus?.enabled && (
-                <div className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="font-medium text-blue-600 dark:text-blue-400">
-                    GridMind Optimize
-                    {optimizeStatus.phase === 'peak_hold' ? ' (Holding)' :
-                     optimizeStatus.phase === 'dumping' ? ` (Dumping${optimizeStatus.estimated_finish ? ` until ${optimizeStatus.estimated_finish}` : ''})` :
-                     optimizeStatus.phase === 'complete' ? ' (Complete)' : ''}
-                  </span>
-                </div>
-              )}
-
               {status.storm_mode && (
                 <div className="flex items-center gap-2">
                   <Cloud className="w-3.5 h-3.5 text-amber-400" />
@@ -216,6 +205,66 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+
+          {/* GridMind Optimize Status */}
+          {optimizeStatus && (
+            <div className={`card flex items-center gap-4 ${
+              optimizeStatus.enabled
+                ? 'border-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/15 dark:border-emerald-500/20'
+                : ''
+            }`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                optimizeStatus.enabled
+                  ? 'bg-emerald-500/15 dark:bg-emerald-500/20'
+                  : 'bg-slate-200/60 dark:bg-slate-800'
+              }`}>
+                <Activity className={`w-5 h-5 ${
+                  optimizeStatus.enabled ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-600'
+                }`} />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">GridMind Optimize</span>
+                  {optimizeStatus.enabled ? (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      optimizeStatus.phase === 'dumping'
+                        ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
+                        : optimizeStatus.phase === 'peak_hold'
+                        ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                        : optimizeStatus.phase === 'complete'
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                    }`}>
+                      {optimizeStatus.phase === 'dumping' ? 'Dumping to Grid'
+                        : optimizeStatus.phase === 'peak_hold' ? 'Holding Battery'
+                        : optimizeStatus.phase === 'complete' ? 'Peak Complete'
+                        : 'Waiting for Peak'}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-slate-200/60 text-slate-500 dark:bg-slate-800 dark:text-slate-500 px-1.5 py-0.5 rounded-full font-medium">OFF</span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {optimizeStatus.enabled
+                    ? optimizeStatus.phase === 'dumping' && optimizeStatus.estimated_finish
+                      ? `Exporting battery to grid · Est. finish: ${optimizeStatus.estimated_finish}`
+                      : optimizeStatus.phase === 'peak_hold'
+                      ? `Self-powered during peak · ${optimizeStatus.last_calculation?.available_kwh || '?'} kWh ready to dump`
+                      : optimizeStatus.phase === 'complete'
+                      ? 'Peak period finished · Normal operation restored'
+                      : `Peak window: ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`
+                    : 'Smart peak export strategy · Enable in Settings'}
+                </p>
+              </div>
+
+              {!optimizeStatus.enabled && (
+                <button onClick={() => navigate('/settings')} className="btn-secondary text-xs shrink-0">
+                  Enable
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Solar Goal + Tomorrow Forecast */}
           {forecast?.today && todayTotals && (
