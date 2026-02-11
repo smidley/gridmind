@@ -5,6 +5,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  LineChart, Line,
 } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
@@ -157,24 +158,24 @@ export default function ValuePage() {
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* TOU Export Value Bar Chart */}
+            {/* TOU Value Line Chart */}
             {periodData.length > 0 && (
               <div className="card">
                 <div className="card-header">Value by TOU Period</div>
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={periodData} layout="vertical">
+                  <LineChart data={periodData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis type="number" stroke="#475569" fontSize={11} tickLine={false}
+                    <XAxis dataKey="name" stroke="#475569" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#475569" fontSize={11} tickLine={false}
                       tickFormatter={(v) => `$${v.toFixed(2)}`} />
-                    <YAxis type="category" dataKey="name" stroke="#475569" fontSize={11} tickLine={false} width={70} />
                     <Tooltip
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                       contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
-                      formatter={(v: number) => [`$${v.toFixed(2)}`, '']}
+                      formatter={(v: number, name: string) => [`$${v.toFixed(2)}`, name]}
                     />
-                    <Bar dataKey="exportValue" name="Export Credits" fill="#34d399" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="importCost" name="Import Costs" fill="#f87171" radius={[0, 4, 4, 0]} />
-                  </BarChart>
+                    <Legend />
+                    <Line type="monotone" dataKey="exportValue" name="Export Credits" stroke="#34d399" strokeWidth={2} dot={{ r: 5, fill: '#34d399' }} />
+                    <Line type="monotone" dataKey="importCost" name="Import Costs" stroke="#f87171" strokeWidth={2} dot={{ r: 5, fill: '#f87171' }} />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             )}
@@ -193,6 +194,7 @@ export default function ValuePage() {
                       outerRadius={90}
                       paddingAngle={4}
                       dataKey="value"
+                      nameKey="name"
                       stroke="none"
                     >
                       {valuePieData.map((entry, index) => (
@@ -201,10 +203,10 @@ export default function ValuePage() {
                     </Pie>
                     <Tooltip
                       contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
-                      formatter={(v: number) => [`$${v.toFixed(2)}`, '']}
+                      formatter={(val: number, name: string) => [`$${val.toFixed(2)}`, name]}
                     />
                     <Legend
-                      formatter={(value) => <span className="text-slate-300 text-xs">{value}</span>}
+                      formatter={(legendValue) => <span className="text-slate-300 text-xs">{legendValue}</span>}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -217,19 +219,18 @@ export default function ValuePage() {
             <div className="card">
               <div className="card-header">Energy Flow by TOU Period (kWh)</div>
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={periodData}>
+                <LineChart data={periodData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis dataKey="name" stroke="#475569" fontSize={11} tickLine={false} />
                   <YAxis stroke="#475569" fontSize={11} tickLine={false} />
                   <Tooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                     contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(v: number) => [`${v.toFixed(1)} kWh`, '']}
+                    formatter={(v: number, name: string) => [`${v.toFixed(1)} kWh`, name]}
                   />
                   <Legend />
-                  <Bar dataKey="exported" name="Exported" fill="#34d399" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="imported" name="Imported" fill="#f87171" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line type="monotone" dataKey="exported" name="Exported" stroke="#34d399" strokeWidth={2} dot={{ r: 5, fill: '#34d399' }} />
+                  <Line type="monotone" dataKey="imported" name="Imported" stroke="#f87171" strokeWidth={2} dot={{ r: 5, fill: '#f87171' }} />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           )}
