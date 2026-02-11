@@ -328,6 +328,63 @@ async def discover_site():
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# --- Off-Grid Mode ---
+
+
+class OffGridRequest(BaseModel):
+    enabled: bool
+
+
+@router.post("/offgrid")
+async def toggle_off_grid(req: OffGridRequest):
+    """Toggle simulated off-grid mode.
+
+    When enabled: self-consumption mode, no grid charging, no grid export, reserve 0%.
+    When disabled: restores to autonomous (time-based) mode with previous settings.
+    """
+    if not tesla_client.is_authenticated:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        if req.enabled:
+            # Save current settings before going off-grid
+            setup_store.set("pre_offgrid_mode", setup_store.get("last_known_mode") or "autonomous")
+            setup_store.set("pre_offgrid_reserve", setup_store.get("last_known_reserve") or 20)
+            setup_store.set("offgrid_active", True)
+
+            # Go off-grid: self-powered, no grid interaction
+            await set_operation_mode("self_consumption")
+            await set_grid_import_export(
+                disallow_charge_from_grid_with_solar_installed=True,
+                customer_preferred_export_rule="never",
+            )
+            await set_backup_reserve(0)
+
+            return {"success": True, "offgrid": True, "message": "Off-grid mode activated. Grid interaction disabled."}
+        else:
+            # Restore previous settings
+            prev_mode = setup_store.get("pre_offgrid_mode") or "autonomous"
+            prev_reserve = float(setup_store.get("pre_offgrid_reserve") or 20)
+            setup_store.set("offgrid_active", False)
+
+            await set_operation_mode(prev_mode)
+            await set_grid_import_export(
+                disallow_charge_from_grid_with_solar_installed=False,
+                customer_preferred_export_rule="pv_only",
+            )
+            await set_backup_reserve(prev_reserve)
+
+            return {"success": True, "offgrid": False, "message": f"Off-grid mode deactivated. Restored to {prev_mode} with {prev_reserve}% reserve."}
+    except (TeslaAPIError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/offgrid/status")
+async def offgrid_status():
+    """Check if off-grid mode is currently active."""
+    return {"active": bool(setup_store.get("offgrid_active"))}
+
+
 # --- Powerwall Control ---
 
 

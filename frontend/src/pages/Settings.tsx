@@ -54,6 +54,10 @@ export default function SettingsPage() {
   const [regDomain, setRegDomain] = useState(setupData?.fleet_api_domain || '')
   const [publicKey, setPublicKey] = useState('')
 
+  // Off-grid mode
+  const { data: offgridStatus } = useApi<any>('/settings/offgrid/status')
+  const [offgridActive, setOffgridActive] = useState(false)
+
   // Manual controls
   const [reserve, setReserve] = useState(20)
   const [mode, setMode] = useState('self_consumption')
@@ -75,6 +79,10 @@ export default function SettingsPage() {
       if (data?.public_key) setPublicKey(data.public_key)
     }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (offgridStatus) setOffgridActive(offgridStatus.active)
+  }, [offgridStatus])
 
   useEffect(() => {
     if (solarConfig?.configured) {
@@ -205,6 +213,20 @@ export default function SettingsPage() {
       setConnectError(e.message)
     }
     setConnectLoading('')
+  }
+
+  const handleToggleOffgrid = async () => {
+    setSaving('offgrid')
+    try {
+      const result = await apiFetch('/settings/offgrid', {
+        method: 'POST',
+        body: JSON.stringify({ enabled: !offgridActive }),
+      })
+      setOffgridActive(result.offgrid)
+    } catch (e: any) {
+      alert(`Failed: ${e.message}`)
+    }
+    setSaving('')
   }
 
   const handleSaveSolar = async () => {
@@ -742,6 +764,31 @@ export default function SettingsPage() {
           {solarSaving ? 'Saving & Refreshing Forecast...' : 'Save Solar Configuration'}
         </button>
       </div>
+
+      {/* Off-Grid Mode */}
+      {authStatus?.authenticated && (
+        <div className={`card ${offgridActive ? 'border-amber-500/40 dark:border-amber-500/40' : ''}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4.5 h-4.5 text-amber-500" />
+              <h3 className="font-semibold">Off-Grid Mode</h3>
+            </div>
+            {offgridActive && (
+              <span className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">Active</span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Simulate off-grid operation. Disables all grid interaction -- solar and battery power your home exclusively.
+          </p>
+          <button
+            onClick={handleToggleOffgrid}
+            disabled={saving === 'offgrid'}
+            className={offgridActive ? 'btn-danger w-full' : 'btn-secondary w-full'}
+          >
+            {saving === 'offgrid' ? 'Switching...' : offgridActive ? 'Disable Off-Grid Mode' : 'Enable Off-Grid Mode'}
+          </button>
+        </div>
+      )}
 
       {/* Manual Controls */}
       {authStatus?.authenticated && (
