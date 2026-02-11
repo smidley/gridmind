@@ -457,7 +457,7 @@ export default function SettingsPage() {
         ) : !setupStatus?.has_credentials ? (
           /* No credentials yet */
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-800 flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 text-slate-500" />
             </div>
             <p className="text-sm text-slate-500">Enter your Tesla API credentials above first.</p>
@@ -467,7 +467,7 @@ export default function SettingsPage() {
           <div className="space-y-4">
 
             {/* Step A: Generate Keys */}
-            <div className={`rounded-lg border p-4 ${publicKey ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+            <div className={`rounded-lg border p-4 ${publicKey ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-300/60 bg-slate-200/30 dark:border-slate-700 dark:bg-slate-800/50'}`}>
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${publicKey ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
                   {publicKey ? <Check className="w-3.5 h-3.5" /> : '1'}
@@ -488,7 +488,7 @@ export default function SettingsPage() {
 
             {/* Step B: Host Public Key */}
             {publicKey && (
-              <div className={`rounded-lg border p-4 ${authStatus?.authenticated ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+              <div className={`rounded-lg border p-4 ${authStatus?.authenticated ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-300/60 bg-slate-200/30 dark:border-slate-700 dark:bg-slate-800/50'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${authStatus?.authenticated ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
                     {authStatus?.authenticated ? <Check className="w-3.5 h-3.5" /> : '2'}
@@ -531,7 +531,7 @@ export default function SettingsPage() {
 
             {/* Step C: Register with Fleet API */}
             {publicKey && (
-              <div className={`rounded-lg border p-4 ${connectSuccess.includes('registered') || connectSuccess.includes('Registered') ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+              <div className={`rounded-lg border p-4 ${connectSuccess.includes('registered') || connectSuccess.includes('Registered') ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-300/60 bg-slate-200/30 dark:border-slate-700 dark:bg-slate-800/50'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-blue-500/20 text-blue-400">3</div>
                   <h4 className="text-sm font-semibold">Register with Tesla Fleet API</h4>
@@ -556,7 +556,7 @@ export default function SettingsPage() {
 
             {/* Step D: Authenticate */}
             {publicKey && (
-              <div className={`rounded-lg border p-4 ${authStatus?.authenticated ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-700 bg-slate-800/50'}`}>
+              <div className={`rounded-lg border p-4 ${authStatus?.authenticated ? 'border-emerald-600/30 bg-emerald-500/5' : 'border-slate-300/60 bg-slate-200/30 dark:border-slate-700 dark:bg-slate-800/50'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${authStatus?.authenticated ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
                     {authStatus?.authenticated ? <Check className="w-3.5 h-3.5" /> : '4'}
@@ -580,7 +580,7 @@ export default function SettingsPage() {
 
             {/* Step E: Discover Site */}
             {authStatus?.authenticated && !authStatus?.energy_site_id && (
-              <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+              <div className="rounded-lg border border-slate-300/60 bg-slate-200/30 dark:border-slate-700 dark:bg-slate-800/50 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-blue-500/20 text-blue-400">5</div>
                   <h4 className="text-sm font-semibold">Discover Powerwall</h4>
@@ -646,7 +646,7 @@ export default function SettingsPage() {
         </div>
 
         {geocodeResult && (
-          <div className="bg-slate-800 rounded-lg p-4 mb-3">
+          <div className="bg-slate-200/50 dark:bg-slate-800 rounded-lg p-4 mb-3">
             <p className="text-sm font-medium text-slate-200 mb-2">{geocodeResult.display_name}</p>
             <div className="flex gap-6 text-sm text-slate-400 mb-3">
               <span>Lat: {geocodeResult.latitude.toFixed(4)}</span>
@@ -665,7 +665,7 @@ export default function SettingsPage() {
 
         {/* Show current location if set */}
         {setupData?.latitude && setupData.latitude !== 0 && !geocodeResult && (
-          <div className="bg-slate-800/50 rounded-lg p-3 text-sm text-slate-400">
+          <div className="bg-slate-200/50 dark:bg-slate-800/50 rounded-lg p-3 text-sm text-slate-500 dark:text-slate-400">
             <p>Current: {setupData.address || `${setupData.latitude.toFixed(4)}, ${setupData.longitude.toFixed(4)}`}</p>
             <p className="text-xs text-slate-600 mt-1">Timezone: {setupData.timezone || 'Auto-detected'}</p>
           </div>
@@ -947,8 +947,8 @@ export default function SettingsPage() {
                   disabled={saving === 'mode'}
                   className={`flex-1 py-3 rounded-lg font-medium text-sm transition-colors ${
                     mode === 'self_consumption'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                      ? 'bg-slate-700 text-white dark:bg-blue-600'
+                      : 'bg-slate-200/80 text-slate-500 hover:bg-slate-300/80 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
                   }`}
                 >
                   Self-Powered
@@ -958,8 +958,8 @@ export default function SettingsPage() {
                   disabled={saving === 'mode'}
                   className={`flex-1 py-3 rounded-lg font-medium text-sm transition-colors ${
                     mode === 'autonomous'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                      ? 'bg-slate-700 text-white dark:bg-blue-600'
+                      : 'bg-slate-200/80 text-slate-500 hover:bg-slate-300/80 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
                   }`}
                 >
                   Time-Based Control
