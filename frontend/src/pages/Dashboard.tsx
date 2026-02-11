@@ -236,13 +236,17 @@ export default function Dashboard() {
                   <div
                     style={{
                       position: 'absolute',
-                      top: '-150%',
-                      left: '-150%',
-                      width: '400%',
-                      height: '400%',
-                      background: `conic-gradient(from 0deg, transparent 0%, transparent 35%, ${solidColor} 45%, ${solidColor}88 50%, ${solidColor} 55%, transparent 65%, transparent 100%)`,
+                      top: '50%',
+                      left: '50%',
+                      /* Must be larger than the card diagonal. Card is ~960px wide, ~80px tall.
+                         Diagonal ≈ 963px. Use 200% of the larger dimension to be safe. */
+                      width: '200vw',
+                      height: '200vw',
+                      marginTop: '-100vw',
+                      marginLeft: '-100vw',
+                      borderRadius: '50%',
+                      background: `conic-gradient(from 0deg, transparent 0%, transparent 30%, ${solidColor}40 38%, ${solidColor} 45%, ${solidColor} 55%, ${solidColor}40 62%, transparent 70%, transparent 100%)`,
                       animation: `rotateBorder ${isDumping ? '2s' : isHolding ? '4s' : '6s'} linear infinite`,
-                      transformOrigin: 'center center',
                     }}
                   />
                 </div>
