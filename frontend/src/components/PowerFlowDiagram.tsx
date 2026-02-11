@@ -98,18 +98,33 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
 
         let particles = particlesRef.current.get(key) || []
 
-        // Target particle count based on power level
-        const targetCount = Math.min(Math.max(Math.floor(path.watts / 400), 5), 24)
+        // Scale particles based on power level:
+        //   < 100W  ->  2 particles (barely visible trickle)
+        //   500W    ->  4 particles
+        //   1000W   ->  7 particles
+        //   2000W   -> 10 particles
+        //   3000W   -> 13 particles
+        //   5000W   -> 18 particles
+        //   8000W+  -> 25 particles (max, strong flow)
+        const watts = Math.abs(path.watts)
+        const targetCount = Math.min(Math.max(Math.round(2 + Math.sqrt(watts) * 0.26), 2), 25)
+
+        // Speed also scales: low power = slower drift, high power = faster rush
+        const baseSpeed = 0.004 + Math.min(watts / 15000, 0.008)
+
+        // Particle size: slightly larger at higher power
+        const baseSize = 1.5 + Math.min(watts / 3000, 2)
+
         while (particles.length < targetCount) {
           particles.push({
             progress: Math.random(),
-            speed: 0.006 + Math.random() * 0.008,
-            size: 2 + Math.random() * 2.5,
-            opacity: 0.5 + Math.random() * 0.5,
+            speed: baseSpeed + Math.random() * baseSpeed * 0.8,
+            size: baseSize + Math.random() * baseSize * 0.5,
+            opacity: 0.4 + Math.random() * 0.6,
           })
         }
-        // Trim excess
-        if (particles.length > targetCount + 4) {
+        // Trim excess smoothly
+        if (particles.length > targetCount + 2) {
           particles = particles.slice(0, targetCount)
         }
 
