@@ -137,6 +137,7 @@ export default function HistoryPage() {
               <XAxis dataKey="date" stroke="#475569" fontSize={11} tickLine={false} />
               <YAxis stroke="#475569" fontSize={11} tickLine={false} />
               <Tooltip
+                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                 contentStyle={{
                   backgroundColor: '#0f172a',
                   border: '1px solid #1e293b',
