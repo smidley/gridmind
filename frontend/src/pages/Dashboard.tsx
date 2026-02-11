@@ -208,54 +208,112 @@ export default function Dashboard() {
 
           {/* GridMind Optimize Status */}
           {optimizeStatus && (
-            <div className={`card flex items-center gap-4 ${
+            <div className={`card overflow-hidden relative ${
               optimizeStatus.enabled
-                ? 'border-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/15 dark:border-emerald-500/20'
+                ? optimizeStatus.phase === 'dumping'
+                  ? 'border-amber-500/40 dark:border-amber-500/30'
+                  : optimizeStatus.phase === 'peak_hold'
+                  ? 'border-blue-500/40 dark:border-blue-500/30'
+                  : 'border-emerald-500/30 dark:border-emerald-500/20'
                 : ''
             }`}>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                optimizeStatus.enabled
-                  ? 'bg-emerald-500/15 dark:bg-emerald-500/20'
-                  : 'bg-slate-200/60 dark:bg-slate-800'
-              }`}>
-                <Activity className={`w-5 h-5 ${
-                  optimizeStatus.enabled ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-600'
-                }`} />
-              </div>
+              {/* Animated background shimmer for active phases */}
+              {optimizeStatus.enabled && optimizeStatus.phase !== 'idle' && optimizeStatus.phase !== 'complete' && (
+                <style>{`
+                  @keyframes optimizePulse {
+                    0%, 100% { opacity: 0.03; }
+                    50% { opacity: 0.08; }
+                  }
+                  @keyframes optimizeSweep {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(200%); }
+                  }
+                `}</style>
+              )}
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">GridMind Optimize</span>
-                  {optimizeStatus.enabled ? (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                      optimizeStatus.phase === 'dumping'
-                        ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
+              {/* Phase-colored background pulse */}
+              {optimizeStatus.enabled && (optimizeStatus.phase === 'peak_hold' || optimizeStatus.phase === 'dumping') && (
+                <div className={`absolute inset-0 ${
+                  optimizeStatus.phase === 'dumping' ? 'bg-amber-500' : 'bg-blue-500'
+                }`} style={{ animation: 'optimizePulse 3s ease-in-out infinite' }} />
+              )}
+
+              {/* Sweep animation during dumping */}
+              {optimizeStatus.enabled && optimizeStatus.phase === 'dumping' && (
+                <div className="absolute inset-0 overflow-hidden">
+                  <div className="absolute top-0 bottom-0 w-1/3"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.1), transparent)',
+                      animation: 'optimizeSweep 2s ease-in-out infinite',
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="relative flex items-center gap-4">
+                {/* Phase icon with animated ring */}
+                <div className="relative shrink-0">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    !optimizeStatus.enabled
+                      ? 'bg-slate-200/60 dark:bg-slate-800'
+                      : optimizeStatus.phase === 'dumping'
+                      ? 'bg-amber-500/15 dark:bg-amber-500/20'
+                      : optimizeStatus.phase === 'peak_hold'
+                      ? 'bg-blue-500/15 dark:bg-blue-500/20'
+                      : 'bg-emerald-500/15 dark:bg-emerald-500/20'
+                  }`}>
+                    <Activity className={`w-6 h-6 ${
+                      !optimizeStatus.enabled
+                        ? 'text-slate-400 dark:text-slate-600'
+                        : optimizeStatus.phase === 'dumping'
+                        ? 'text-amber-500 animate-pulse'
                         : optimizeStatus.phase === 'peak_hold'
-                        ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                        : optimizeStatus.phase === 'complete'
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                    }`}>
-                      {optimizeStatus.phase === 'dumping' ? 'Dumping to Grid'
-                        : optimizeStatus.phase === 'peak_hold' ? 'Holding Battery'
-                        : optimizeStatus.phase === 'complete' ? 'Peak Complete'
-                        : 'Waiting for Peak'}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] bg-slate-200/60 text-slate-500 dark:bg-slate-800 dark:text-slate-500 px-1.5 py-0.5 rounded-full font-medium">OFF</span>
+                        ? 'text-blue-500'
+                        : 'text-emerald-500'
+                    }`} />
+                  </div>
+                  {/* Animated ring around icon during active phases */}
+                  {optimizeStatus.enabled && (optimizeStatus.phase === 'peak_hold' || optimizeStatus.phase === 'dumping') && (
+                    <div className={`absolute -inset-0.5 rounded-xl border-2 animate-pulse ${
+                      optimizeStatus.phase === 'dumping' ? 'border-amber-500/40' : 'border-blue-500/40'
+                    }`} />
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {optimizeStatus.enabled
-                    ? optimizeStatus.phase === 'dumping' && optimizeStatus.estimated_finish
-                      ? `Exporting battery to grid · Est. finish: ${optimizeStatus.estimated_finish}`
-                      : optimizeStatus.phase === 'peak_hold'
-                      ? `Self-powered during peak · ${optimizeStatus.last_calculation?.available_kwh || '?'} kWh ready to dump`
-                      : optimizeStatus.phase === 'complete'
-                      ? 'Peak period finished · Normal operation restored'
-                      : `Peak window: ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`
-                    : 'Smart peak export strategy'}
-                </p>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">GridMind Optimize</span>
+                    {optimizeStatus.enabled ? (
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                        optimizeStatus.phase === 'dumping'
+                          ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
+                          : optimizeStatus.phase === 'peak_hold'
+                          ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                          : optimizeStatus.phase === 'complete'
+                          ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {optimizeStatus.phase === 'dumping' ? 'DUMPING TO GRID'
+                          : optimizeStatus.phase === 'peak_hold' ? 'HOLDING BATTERY'
+                          : optimizeStatus.phase === 'complete' ? 'PEAK COMPLETE'
+                          : 'WAITING FOR PEAK'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-slate-200/60 text-slate-500 dark:bg-slate-800 dark:text-slate-500 px-1.5 py-0.5 rounded-full font-medium">OFF</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {optimizeStatus.enabled
+                      ? optimizeStatus.phase === 'dumping' && optimizeStatus.estimated_finish
+                        ? `Exporting battery to grid at max rate · Estimated finish: ${optimizeStatus.estimated_finish}`
+                        : optimizeStatus.phase === 'peak_hold'
+                        ? `Self-powered during peak · ${optimizeStatus.last_calculation?.available_kwh || '?'} kWh available · Calculating optimal dump time`
+                        : optimizeStatus.phase === 'complete'
+                        ? 'Peak period finished · Normal operation restored'
+                        : `Peak window: ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`
+                      : 'Smart peak export strategy'}
+                  </p>
+                </div>
               </div>
             </div>
           )}
