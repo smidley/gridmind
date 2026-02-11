@@ -298,13 +298,13 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
         }`} style={tileStyle}>
           <Battery className={`w-6 h-6 mb-1 ${status.battery_soc > 20 ? 'text-blue-500 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`} />
           <span className={`text-xl font-bold tabular-nums ${status.battery_soc > 20 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
-            {status.battery_soc.toFixed(0)}%
+            {formatPower(status.battery_power)}
           </span>
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5">Battery</span>
           <span className={`text-[9px] ${batteryCharging || batteryDischarging ? 'text-blue-500/70 dark:text-blue-400/70' : 'text-slate-400 dark:text-slate-600'}`}>
-            {batteryCharging ? `Charging ${formatPower(status.battery_power)}`
-              : batteryDischarging ? `Discharging ${formatPower(status.battery_power)}`
-              : 'Idle'}
+            {batteryCharging ? `Charging · ${status.battery_soc.toFixed(0)}%`
+              : batteryDischarging ? `Discharging · ${status.battery_soc.toFixed(0)}%`
+              : `Idle · ${status.battery_soc.toFixed(0)}%`}
           </span>
         </div>
       </div>
