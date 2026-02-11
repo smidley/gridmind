@@ -43,8 +43,8 @@ export default function App() {
     <BrowserRouter>
       <div className="flex h-screen">
         {/* Sidebar */}
-        <nav className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col dark:bg-slate-900 dark:border-slate-800">
-          <div className="p-5 border-b border-slate-200 dark:border-slate-800">
+        <nav className="w-64 bg-slate-100 border-r border-slate-200/60 flex flex-col dark:bg-slate-900 dark:border-slate-800">
+          <div className="p-5 border-b border-slate-200/60 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-amber-500/20 flex items-center justify-center">
                 <Activity className="w-5 h-5 text-amber-500 dark:text-amber-400" />
@@ -76,7 +76,7 @@ export default function App() {
             ))}
           </div>
 
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 space-y-3">
             {/* Theme toggle */}
             <button
               onClick={cycleTheme}
@@ -100,7 +100,7 @@ export default function App() {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950">
+        <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/forecast" element={<ForecastPage />} />

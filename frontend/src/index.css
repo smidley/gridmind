@@ -4,13 +4,13 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-slate-100 text-slate-700 antialiased dark:bg-slate-950 dark:text-slate-100;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm
+    @apply bg-slate-50 border border-slate-200/60 rounded-xl p-5 shadow-sm
            dark:bg-slate-900 dark:border-slate-800 dark:shadow-none;
   }
 
@@ -42,7 +42,7 @@
   }
 
   .input {
-    @apply bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900
+    @apply bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800
            focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
            placeholder:text-slate-400
            dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100
@@ -64,11 +64,11 @@
 
 /* Recharts tooltip theme override */
 .recharts-default-tooltip {
-  background-color: #ffffff !important;
+  background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
-  color: #1e293b !important;
+  color: #334155 !important;
   border-radius: 8px !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08) !important;
 }
 
 .dark .recharts-default-tooltip {
