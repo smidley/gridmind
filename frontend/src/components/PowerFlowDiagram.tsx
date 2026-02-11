@@ -235,9 +235,9 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
   // Node positions as fractions of the container (0-1)
   const nodePositions: Record<string, { x: number; y: number }> = {
     solar:   { x: 0.5,  y: 0.12 },
-    battery: { x: 0.5,  y: 0.50 },
-    home:    { x: 0.15, y: 0.88 },
-    grid:    { x: 0.85, y: 0.88 },
+    battery: { x: 0.5,  y: 0.48 },
+    home:    { x: 0.22, y: 0.84 },
+    grid:    { x: 0.78, y: 0.84 },
   }
 
   // Particle colors match source tile
@@ -264,7 +264,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
   ]
 
   return (
-    <div className="relative w-full" style={{ height: 400 }}>
+    <div className="relative w-full" style={{ height: 420 }}>
       {/* Particle canvas */}
       <ParticleCanvas paths={flowPaths} nodePositions={nodePositions} />
 
@@ -283,7 +283,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
       </div>
 
       {/* Battery - center */}
-      <div className="absolute z-10" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: '50%', top: '48%', transform: 'translate(-50%, -50%)' }}>
         <div className={`flex flex-col items-center rounded-xl border px-8 py-4 min-w-[120px] transition-all duration-500 ${
           batteryCharging || batteryDischarging ? 'border-blue-500/40 bg-blue-950/80 shadow-lg shadow-blue-500/20' : 'border-slate-800 bg-slate-900/95'
         }`}>
@@ -301,7 +301,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
       </div>
 
       {/* Home - bottom left */}
-      <div className="absolute z-10" style={{ left: '15%', top: '88%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: '22%', top: '84%', transform: 'translate(-50%, -50%)' }}>
         <div className={`flex flex-col items-center rounded-xl border px-8 py-4 min-w-[120px] transition-all duration-500 ${
           homeActive ? 'border-cyan-500/40 bg-cyan-950/80 shadow-lg shadow-cyan-500/20' : 'border-slate-800 bg-slate-900/95'
         }`}>
@@ -315,7 +315,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
       </div>
 
       {/* Grid - bottom right */}
-      <div className="absolute z-10" style={{ left: '85%', top: '88%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: '78%', top: '84%', transform: 'translate(-50%, -50%)' }}>
         <div className={`flex flex-col items-center rounded-xl border px-8 py-4 min-w-[120px] transition-all duration-500 ${
           gridImporting ? 'border-red-500/40 bg-red-950/80 shadow-lg shadow-red-500/20'
           : gridExporting ? 'border-emerald-500/40 bg-emerald-950/80 shadow-lg shadow-emerald-500/20'
