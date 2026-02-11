@@ -13,22 +13,22 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
   const discharging = power > 50
   const active = charging || discharging
 
-  const getColor = () => {
-    if (soc <= 10) return 'bg-red-500'
-    if (soc <= 20) return 'bg-orange-500'
-    if (soc <= 50) return 'bg-amber-500'
-    return 'bg-emerald-500'
+  const getBarColor = () => {
+    if (soc <= 10) return { bg: 'bg-red-500', hex: '#ef4444' }
+    if (soc <= 20) return { bg: 'bg-orange-500', hex: '#f97316' }
+    if (soc <= 50) return { bg: 'bg-amber-500', hex: '#f59e0b' }
+    return { bg: 'bg-emerald-500', hex: '#10b981' }
   }
 
-  const getFlowColor = () => {
-    if (charging) return '#34d399'   // emerald for charging
-    if (discharging) return '#60a5fa' // blue for discharging
-    return 'transparent'
-  }
+  const barColor = getBarColor()
 
   // Calculate available energy
   const availableKwh = capacityKwh ? (soc / 100) * capacityKwh : null
   const usableKwh = capacityKwh ? ((soc - reserve) / 100) * capacityKwh : null
+
+  // Flow intensity based on power (0-1 scale)
+  const maxPower = (maxPowerKw || 11.5) * 1000
+  const intensity = Math.min(Math.abs(power) / maxPower, 1)
 
   return (
     <div className="card">
@@ -41,37 +41,66 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
 
       {/* Battery visual */}
       <div className="relative w-full h-10 bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
-        {/* Animated flow CSS */}
-        {active && (
-          <style>{`
-            @keyframes batteryFlowRight {
-              0% { background-position: 0% 0; }
-              100% { background-position: 200% 0; }
-            }
-            @keyframes batteryFlowLeft {
-              0% { background-position: 200% 0; }
-              100% { background-position: 0% 0; }
-            }
-          `}</style>
-        )}
+        <style>{`
+          @keyframes flowRight {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0%); }
+          }
+          @keyframes flowLeft {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+          }
+          @keyframes pulseGlow {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+          }
+        `}</style>
 
         {/* Fill bar */}
         <div
-          className={`absolute top-0 bottom-0 left-0 transition-all duration-1000 ${getColor()}`}
+          className={`absolute top-0 bottom-0 left-0 transition-all duration-1000 ${barColor.bg}`}
           style={{ width: `${soc}%` }}
         />
 
-        {/* Animated flow overlay on the fill area */}
+        {/* Fluid wave animation overlay */}
         {active && (
           <div
-            className="absolute top-0 bottom-0 left-0"
-            style={{
-              width: `${soc}%`,
-              background: `repeating-linear-gradient(${discharging ? '90deg' : '270deg'}, transparent, transparent 10px, ${getFlowColor()}44 10px, ${getFlowColor()}44 20px, transparent 20px, transparent 30px)`,
-              backgroundSize: '200% 100%',
-              animation: `${discharging ? 'batteryFlowRight' : 'batteryFlowLeft'} 1.2s linear infinite`,
-            }}
-          />
+            className="absolute top-0 bottom-0 left-0 overflow-hidden"
+            style={{ width: `${soc}%` }}
+          >
+            {/* Moving wave layer */}
+            <div
+              className="absolute top-0 bottom-0"
+              style={{
+                width: '200%',
+                left: 0,
+                animation: `${charging ? 'flowRight' : 'flowLeft'} ${1.5 - intensity * 0.7}s linear infinite`,
+                background: `linear-gradient(90deg, 
+                  transparent 0%, 
+                  rgba(255,255,255,${0.08 + intensity * 0.12}) 15%, 
+                  rgba(255,255,255,${0.15 + intensity * 0.2}) 25%, 
+                  transparent 40%, 
+                  transparent 50%, 
+                  rgba(255,255,255,${0.08 + intensity * 0.12}) 65%, 
+                  rgba(255,255,255,${0.15 + intensity * 0.2}) 75%, 
+                  transparent 90%, 
+                  transparent 100%
+                )`,
+              }}
+            />
+            {/* Soft glow pulse at the leading edge */}
+            <div
+              className="absolute top-0 bottom-0"
+              style={{
+                width: '30%',
+                ...(charging
+                  ? { right: 0, background: `linear-gradient(90deg, transparent, ${barColor.hex}60)` }
+                  : { left: 0, background: `linear-gradient(270deg, transparent, ${barColor.hex}60)` }
+                ),
+                animation: `pulseGlow ${2 - intensity}s ease-in-out infinite`,
+              }}
+            />
+          </div>
         )}
 
         {/* Reserve hatched overlay */}
@@ -106,7 +135,9 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
       </div>
 
       <div className="flex justify-between mt-3 text-sm">
-        <span className="text-slate-400">
+        <span className={
+          charging ? 'text-emerald-400' : discharging ? 'text-blue-400' : 'text-slate-400'
+        }>
           {charging ? 'Charging' : discharging ? 'Discharging' : 'Idle'}
         </span>
         <span className={`font-medium ${
