@@ -374,13 +374,22 @@ async def get_energy_value(
         hourly_data[hour]["imported_kwh"] += imported
 
     # Build sorted hourly breakdown with net value
+    # Compute correct TOU period for every hour (even those without data)
+    now = datetime.now(user_tz)
     hourly_breakdown = []
     for h in range(24):
-        entry = hourly_data.get(h, {
-            "hour": h, "export_value": 0, "import_cost": 0,
-            "exported_kwh": 0, "imported_kwh": 0, "period": "Off-Peak",
-            "sell_rate": 0, "buy_rate": 0,
-        })
+        if h in hourly_data:
+            entry = hourly_data[h]
+        else:
+            # No energy data for this hour -- compute TOU period anyway
+            period_name, sell_rate = get_period_and_rate(h, now.weekday(), now.month, is_sell=True)
+            _, buy_rate = get_period_and_rate(h, now.weekday(), now.month, is_sell=False)
+            display = display_map.get(period_name, period_name)
+            entry = {
+                "hour": h, "export_value": 0, "import_cost": 0,
+                "exported_kwh": 0, "imported_kwh": 0, "period": display,
+                "sell_rate": sell_rate, "buy_rate": buy_rate,
+            }
         entry["net"] = round(entry["export_value"] - entry["import_cost"], 4)
         # Round for output
         for k in ["export_value", "import_cost", "exported_kwh", "imported_kwh"]:
