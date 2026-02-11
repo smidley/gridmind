@@ -10,7 +10,7 @@
 
 @layer components {
   .card {
-    @apply bg-slate-50 border border-slate-200/60 rounded-xl p-5 shadow-sm
+    @apply bg-slate-200/50 border border-slate-300/40 rounded-xl p-5
            dark:bg-slate-900 dark:border-slate-800 dark:shadow-none;
   }
 
