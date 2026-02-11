@@ -66,9 +66,9 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
             className="absolute top-0 bottom-0 left-0"
             style={{
               width: `${soc}%`,
-              background: `repeating-linear-gradient(${charging ? '90deg' : '270deg'}, transparent, transparent 10px, ${getFlowColor()}44 10px, ${getFlowColor()}44 20px, transparent 20px, transparent 30px)`,
+              background: `repeating-linear-gradient(${discharging ? '90deg' : '270deg'}, transparent, transparent 10px, ${getFlowColor()}44 10px, ${getFlowColor()}44 20px, transparent 20px, transparent 30px)`,
               backgroundSize: '200% 100%',
-              animation: `${charging ? 'batteryFlowRight' : 'batteryFlowLeft'} 1.2s linear infinite`,
+              animation: `${discharging ? 'batteryFlowRight' : 'batteryFlowLeft'} 1.2s linear infinite`,
             }}
           />
         )}
