@@ -206,8 +206,9 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
   const solarActive = status.solar_power > 50
   const gridImporting = status.grid_power > 50
   const gridExporting = status.grid_power < -50
-  const batteryCharging = status.battery_power > 50
-  const batteryDischarging = status.battery_power < -50
+  // Tesla convention: negative battery_power = charging, positive = discharging
+  const batteryCharging = status.battery_power < -50
+  const batteryDischarging = status.battery_power > 50
   const homeActive = status.home_power > 50
 
   // Node positions as fractions of the container (0-1)

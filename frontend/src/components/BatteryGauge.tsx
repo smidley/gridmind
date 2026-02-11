@@ -8,8 +8,9 @@ interface Props {
 }
 
 export default function BatteryGauge({ soc, power, reserve, description, capacityKwh, maxPowerKw }: Props) {
-  const charging = power > 50
-  const discharging = power < -50
+  // Tesla convention: negative = charging (into battery), positive = discharging (out of battery)
+  const charging = power < -50
+  const discharging = power > 50
   const active = charging || discharging
 
   const getColor = () => {
