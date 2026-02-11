@@ -37,7 +37,18 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
 
-    # Start automation scheduler
+    # Log persistent state restoration
+    from services import setup_store
+    if setup_store.is_setup_complete():
+        logger.info("Tesla credentials: configured")
+    if setup_store.is_location_configured():
+        logger.info("Location: configured (%s)", setup_store.get_address() or f"{setup_store.get_latitude()},{setup_store.get_longitude()}")
+    if setup_store.get("gridmind_optimize_enabled"):
+        logger.info("GridMind Optimize: will restore on scheduler start")
+    if setup_store.get("offgrid_active"):
+        logger.warning("Off-Grid Mode was active at shutdown -- will remain in last known state. Check Settings.")
+
+    # Start automation scheduler (also restores optimizer state)
     setup_scheduler()
 
     yield
@@ -116,13 +127,24 @@ async def health():
     from tesla.client import tesla_client
     from services.collector import get_latest_status
 
+    import os
+    from services import setup_store
+
     status = get_latest_status()
+    data_dir = settings.data_dir
+    volume_mounted = os.path.isdir(data_dir) and os.access(data_dir, os.W_OK)
+    setup_exists = os.path.isfile(os.path.join(data_dir, "setup.json"))
+
     return {
         "status": "ok",
         "version": settings.app_version,
         "authenticated": tesla_client.is_authenticated,
         "energy_site_id": tesla_client.energy_site_id,
         "has_data": status is not None,
+        "data_volume_mounted": volume_mounted,
+        "setup_persisted": setup_exists,
+        "optimize_enabled": bool(setup_store.get("gridmind_optimize_enabled")),
+        "offgrid_active": bool(setup_store.get("offgrid_active")),
     }
 
 
