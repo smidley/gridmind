@@ -59,13 +59,21 @@ async def site_tariff():
     try:
         from tesla.commands import get_site_info
         from datetime import datetime
+        from zoneinfo import ZoneInfo
         info = await get_site_info()
         tariff = info.get("tariff_content", {})
 
         if not tariff:
             return {"configured": False}
 
-        now = datetime.now()
+        # Use the user's configured timezone for TOU period calculation
+        user_tz_name = setup_store.get_timezone()
+        try:
+            user_tz = ZoneInfo(user_tz_name)
+        except Exception:
+            user_tz = ZoneInfo("America/New_York")
+
+        now = datetime.now(user_tz)
         day_of_week = now.weekday()  # 0=Monday, 6=Sunday
         hour = now.hour
         minute = now.minute
