@@ -239,51 +239,15 @@ export default function ForecastPage() {
             </div>
           )}
 
-          {/* Today's Hourly Chart */}
-          {todayChart.length > 0 && (
-            <div className="card">
-              <div className="card-header">Today - Hourly Generation (W)</div>
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={todayChart}>
-                  <defs>
-                    <linearGradient id="solarGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#fbbf24" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="hour" stroke="#475569" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#475569" fontSize={11} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0f172a',
-                      border: '1px solid #1e293b',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                    formatter={(value: number, name: string) => [
-                      name === 'generation' ? `${value} W` : `${value}%`,
-                      name === 'generation' ? 'Solar' : 'Cloud Cover'
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="generation"
-                    stroke="#fbbf24"
-                    fill="url(#solarGradient)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
           {/* Tomorrow's Hourly Chart */}
           {tomorrowChart.length > 0 && (
             <div className="card">
-              <div className="card-header">Tomorrow - Hourly Generation (W)</div>
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={tomorrowChart}>
+              <div className="card-header">Tomorrow - Hourly Forecast</div>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={tomorrowChart.map((h: any) => ({
+                  ...h,
+                  generationKw: Math.round(h.generation / 10) / 100,
+                }))}>
                   <defs>
                     <linearGradient id="solarGradient2" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
@@ -291,8 +255,9 @@ export default function ForecastPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="hour" stroke="#475569" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#475569" fontSize={11} tickLine={false} />
+                  <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false}
+                    tickFormatter={(v) => `${v.toFixed(1)}kW`} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0f172a',
@@ -300,14 +265,11 @@ export default function ForecastPage() {
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
-                    formatter={(value: number, name: string) => [
-                      name === 'generation' ? `${value} W` : `${value}%`,
-                      name === 'generation' ? 'Solar' : 'Cloud Cover'
-                    ]}
+                    formatter={(value: number) => [`${value.toFixed(2)} kW`, 'Forecast']}
                   />
                   <Area
                     type="monotone"
-                    dataKey="generation"
+                    dataKey="generationKw"
                     stroke="#60a5fa"
                     fill="url(#solarGradient2)"
                     strokeWidth={2}
