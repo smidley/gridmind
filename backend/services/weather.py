@@ -15,14 +15,23 @@ logger = logging.getLogger(__name__)
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 
+def _get_solar_config() -> dict:
+    """Get solar panel configuration from setup store with defaults."""
+    return {
+        "capacity_kw": float(setup_store.get("solar_capacity_kw") or 5.0),
+        "tilt": float(setup_store.get("solar_tilt") or 30),        # degrees from horizontal
+        "azimuth": float(setup_store.get("solar_azimuth") or 0),    # 0=South, -90=East, 90=West
+        "dc_ac_ratio": float(setup_store.get("solar_dc_ac_ratio") or 1.2),
+        "inverter_efficiency": float(setup_store.get("solar_inverter_efficiency") or 0.96),
+        "system_losses": float(setup_store.get("solar_system_losses") or 14),  # percent
+    }
+
+
 async def fetch_solar_forecast() -> list[dict]:
     """Fetch solar irradiance forecast from Open-Meteo.
 
-    Returns hourly forecast for the next 2 days including:
-    - Global horizontal irradiance (GHI)
-    - Direct normal irradiance (DNI)
-    - Cloud cover
-    - Temperature
+    Uses Global Tilted Irradiance (GTI) when panel tilt/azimuth are configured,
+    falling back to horizontal GHI. Estimates PV output based on panel config.
     """
     latitude = setup_store.get_latitude()
     longitude = setup_store.get_longitude()
@@ -32,13 +41,21 @@ async def fetch_solar_forecast() -> list[dict]:
         logger.warning("Location not configured - skipping solar forecast")
         return []
 
+    solar_config = _get_solar_config()
+
+    # Build hourly variables - use tilted irradiance if tilt/azimuth configured
+    hourly_vars = ["shortwave_radiation", "direct_normal_irradiance", "cloud_cover", "temperature_2m"]
+
     params = {
         "latitude": latitude,
         "longitude": longitude,
-        "hourly": "shortwave_radiation,direct_normal_irradiance,cloud_cover,temperature_2m",
+        "hourly": ",".join(hourly_vars),
         "daily": "sunrise,sunset",
         "timezone": timezone,
         "forecast_days": 2,
+        # Request tilted irradiance for the panel configuration
+        "tilt": solar_config["tilt"],
+        "azimuth": solar_config["azimuth"],
     }
 
     try:
@@ -52,28 +69,40 @@ async def fetch_solar_forecast() -> list[dict]:
 
     hourly = data.get("hourly", {})
     times = hourly.get("time", [])
-    radiation = hourly.get("shortwave_radiation", [])
+    # Prefer tilted irradiance (global_tilted_irradiance) if available, else use GHI
+    radiation = (hourly.get("global_tilted_irradiance")
+                 or hourly.get("shortwave_radiation", []))
     cloud_cover = hourly.get("cloud_cover", [])
+    temperature = hourly.get("temperature_2m", [])
+
+    # PV generation calculation parameters
+    capacity_w = solar_config["capacity_kw"] * 1000
+    inverter_eff = solar_config["inverter_efficiency"]
+    system_loss_factor = 1 - (solar_config["system_losses"] / 100)
 
     forecasts = []
     for i, time_str in enumerate(times):
         dt = datetime.fromisoformat(time_str)
         irradiance = radiation[i] if i < len(radiation) else 0
         clouds = cloud_cover[i] if i < len(cloud_cover) else 0
+        temp = temperature[i] if i < len(temperature) else 25
 
-        # Estimate solar generation from irradiance
-        # Uses the user's configured solar capacity (kW) if set, otherwise defaults to 5kW
-        # Standard Test Conditions (STC) irradiance is 1000 W/m²
-        # Real-world factor ~0.75-0.85 accounts for temperature, inverter, wiring losses
-        solar_capacity_kw = float(setup_store.get("solar_capacity_kw") or 5.0)
-        system_factor = float(setup_store.get("solar_efficiency_factor") or 0.80)
-        estimated_watts = (irradiance / 1000) * solar_capacity_kw * 1000 * system_factor
+        # PV output estimation:
+        # P = Irradiance/1000 * Capacity * InverterEff * (1 - SystemLosses) * TempFactor
+        # Temperature coefficient: ~-0.4%/°C above 25°C for crystalline silicon
+        temp_factor = 1.0 + (-0.004 * max(temp - 25, 0))
+
+        estimated_watts = ((irradiance / 1000)
+                          * capacity_w
+                          * inverter_eff
+                          * system_loss_factor
+                          * temp_factor)
 
         forecasts.append({
             "date": dt.strftime("%Y-%m-%d"),
             "hour": dt.hour,
             "irradiance_wm2": irradiance,
-            "estimated_generation_w": round(estimated_watts, 1),
+            "estimated_generation_w": round(max(estimated_watts, 0), 1),
             "cloud_cover_pct": clouds,
         })
 

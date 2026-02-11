@@ -9,6 +9,7 @@ import {
   Key,
   Search,
   Loader2,
+  Sun,
 } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 
@@ -33,6 +34,18 @@ export default function SettingsPage() {
   const [locationSaving, setLocationSaving] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [locationSuccess, setLocationSuccess] = useState('')
+
+  // Solar configuration
+  const { data: solarConfig, refetch: refetchSolar } = useApi<any>('/settings/setup/solar')
+  const [solarCapacity, setSolarCapacity] = useState(0)
+  const [solarTilt, setSolarTilt] = useState(30)
+  const [solarAzimuth, setSolarAzimuth] = useState(0)
+  const [solarDcAc, setSolarDcAc] = useState(1.2)
+  const [solarInverterEff, setSolarInverterEff] = useState(0.96)
+  const [solarLosses, setSolarLosses] = useState(14)
+  const [solarSaving, setSolarSaving] = useState(false)
+  const [solarSuccess, setSolarSuccess] = useState('')
+  const [solarError, setSolarError] = useState('')
 
   // Tesla registration + site discovery
   const [connectLoading, setConnectLoading] = useState('')
@@ -62,6 +75,17 @@ export default function SettingsPage() {
       if (data?.public_key) setPublicKey(data.public_key)
     }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (solarConfig?.configured) {
+      setSolarCapacity(solarConfig.capacity_kw)
+      setSolarTilt(solarConfig.tilt)
+      setSolarAzimuth(solarConfig.azimuth)
+      setSolarDcAc(solarConfig.dc_ac_ratio)
+      setSolarInverterEff(solarConfig.inverter_efficiency)
+      setSolarLosses(solarConfig.system_losses)
+    }
+  }, [solarConfig])
 
   useEffect(() => {
     if (siteConfig) {
@@ -181,6 +205,32 @@ export default function SettingsPage() {
       setConnectError(e.message)
     }
     setConnectLoading('')
+  }
+
+  const handleSaveSolar = async () => {
+    setSolarSaving(true)
+    setSolarError('')
+    setSolarSuccess('')
+    try {
+      await apiFetch('/settings/setup/solar', {
+        method: 'POST',
+        body: JSON.stringify({
+          capacity_kw: solarCapacity,
+          tilt: solarTilt,
+          azimuth: solarAzimuth,
+          dc_ac_ratio: solarDcAc,
+          inverter_efficiency: solarInverterEff,
+          system_losses: solarLosses,
+        }),
+      })
+      // Refresh forecast with new config
+      await apiFetch('/history/forecast/refresh', { method: 'POST' })
+      setSolarSuccess('Solar configuration saved! Forecast updated.')
+      refetchSolar()
+    } catch (e: any) {
+      setSolarError(e.message)
+    }
+    setSolarSaving(false)
   }
 
   const handleSetMode = async (newMode: string) => {
@@ -557,6 +607,136 @@ export default function SettingsPage() {
             <p className="text-xs text-slate-600 mt-1">Timezone: {setupData.timezone || 'Auto-detected'}</p>
           </div>
         )}
+      </div>
+
+      {/* Solar Configuration */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4">
+          <Sun className="w-4.5 h-4.5 text-amber-400" />
+          <h3 className="font-semibold">Solar Panel Configuration</h3>
+          {solarConfig?.configured && (
+            <span className="ml-auto text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Check className="w-3 h-3" /> Configured
+            </span>
+          )}
+        </div>
+
+        <p className="text-sm text-slate-400 mb-4">
+          Configure your solar array for accurate generation forecasts. Check your installation documents or Tesla app for these values.
+        </p>
+
+        {solarError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-3 text-sm text-red-400">{solarError}</div>
+        )}
+        {solarSuccess && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 mb-3 text-sm text-emerald-400">{solarSuccess}</div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">
+              Array Size (kW DC)
+              <span className="text-slate-600 ml-1">- total panel capacity</span>
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              className="input w-full"
+              placeholder="e.g., 11.5"
+              value={solarCapacity || ''}
+              onChange={(e) => setSolarCapacity(Number(e.target.value))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">
+              Panel Tilt (degrees)
+              <span className="text-slate-600 ml-1">- 0=flat, 90=vertical</span>
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              max="90"
+              className="input w-full"
+              value={solarTilt}
+              onChange={(e) => setSolarTilt(Number(e.target.value))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">
+              Panel Azimuth (degrees)
+              <span className="text-slate-600 ml-1">- 0=South, -90=East, 90=West</span>
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="-180"
+              max="180"
+              className="input w-full"
+              value={solarAzimuth}
+              onChange={(e) => setSolarAzimuth(Number(e.target.value))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">
+              DC/AC Ratio
+              <span className="text-slate-600 ml-1">- panels to inverter ratio</span>
+            </label>
+            <input
+              type="number"
+              step="0.05"
+              min="0.5"
+              max="2.0"
+              className="input w-full"
+              value={solarDcAc}
+              onChange={(e) => setSolarDcAc(Number(e.target.value))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">
+              Inverter Efficiency
+              <span className="text-slate-600 ml-1">- typically 0.95-0.98</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.8"
+              max="1.0"
+              className="input w-full"
+              value={solarInverterEff}
+              onChange={(e) => setSolarInverterEff(Number(e.target.value))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">
+              System Losses (%)
+              <span className="text-slate-600 ml-1">- wiring, soiling, shading</span>
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              max="50"
+              className="input w-full"
+              value={solarLosses}
+              onChange={(e) => setSolarLosses(Number(e.target.value))}
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSaveSolar}
+          disabled={solarSaving || !solarCapacity}
+          className="btn-primary mt-4"
+        >
+          {solarSaving ? 'Saving & Refreshing Forecast...' : 'Save Solar Configuration'}
+        </button>
       </div>
 
       {/* Manual Controls */}

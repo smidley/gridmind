@@ -124,17 +124,45 @@ async def save_location(req: LocationCoordsRequest):
     }
 
 
-class SolarCapacityRequest(BaseModel):
-    capacity_kw: float  # Total panel capacity in kW
+class SolarConfigRequest(BaseModel):
+    capacity_kw: float              # Total DC panel capacity in kW
+    tilt: float = 30                # Panel tilt (degrees from horizontal, 0=flat, 90=vertical)
+    azimuth: float = 0              # Panel azimuth (0=South, -90=East, 90=West, 180=North)
+    dc_ac_ratio: float = 1.2        # DC/AC ratio (panels to inverter)
+    inverter_efficiency: float = 0.96  # Inverter efficiency (0-1)
+    system_losses: float = 14       # Total system losses % (wiring, soiling, shading, etc.)
 
 
-@router.post("/setup/solar-capacity")
-async def save_solar_capacity(req: SolarCapacityRequest):
-    """Save the solar panel system capacity for forecast calibration."""
+@router.post("/setup/solar")
+async def save_solar_config(req: SolarConfigRequest):
+    """Save solar panel system configuration for forecast calibration."""
     if req.capacity_kw <= 0:
         raise HTTPException(status_code=400, detail="Capacity must be greater than 0.")
-    setup_store.set("solar_capacity_kw", req.capacity_kw)
-    return {"success": True, "solar_capacity_kw": req.capacity_kw}
+
+    setup_store.update({
+        "solar_capacity_kw": req.capacity_kw,
+        "solar_tilt": req.tilt,
+        "solar_azimuth": req.azimuth,
+        "solar_dc_ac_ratio": req.dc_ac_ratio,
+        "solar_inverter_efficiency": req.inverter_efficiency,
+        "solar_system_losses": req.system_losses,
+    })
+
+    return {"success": True, "message": "Solar configuration saved."}
+
+
+@router.get("/setup/solar")
+async def get_solar_config():
+    """Get current solar panel configuration."""
+    return {
+        "capacity_kw": float(setup_store.get("solar_capacity_kw") or 0),
+        "tilt": float(setup_store.get("solar_tilt") or 30),
+        "azimuth": float(setup_store.get("solar_azimuth") or 0),
+        "dc_ac_ratio": float(setup_store.get("solar_dc_ac_ratio") or 1.2),
+        "inverter_efficiency": float(setup_store.get("solar_inverter_efficiency") or 0.96),
+        "system_losses": float(setup_store.get("solar_system_losses") or 14),
+        "configured": bool(setup_store.get("solar_capacity_kw")),
+    }
 
 
 @router.post("/setup/generate-keys")
