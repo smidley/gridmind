@@ -200,7 +200,7 @@ export default function Dashboard() {
               {status.storm_mode && (
                 <div className="flex items-center gap-2">
                   <Cloud className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="font-medium text-amber-400">Storm Mode Active</span>
+                  <span className="font-medium text-amber-400">Storm Watch</span>
                 </div>
               )}
             </div>
@@ -289,6 +289,9 @@ export default function Dashboard() {
 
                 {/* Center: description */}
                 <div className="flex-1 min-w-0">
+                  {enabled && (
+                    <span className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-medium inline-block mb-1">Enabled</span>
+                  )}
                   <p className="text-xs text-slate-500">
                     {enabled
                       ? isDumping && optimizeStatus.estimated_finish
