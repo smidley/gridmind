@@ -86,6 +86,13 @@ def shutdown_scheduler():
 
 async def evaluate_all_rules():
     """Evaluate all enabled automation rules against current state."""
+    # Check if a higher-priority controller is active
+    from services.mode_manager import check_automation_allowed
+    allowed, reason = check_automation_allowed()
+    if not allowed:
+        logger.debug("Rule evaluation skipped: %s", reason)
+        return
+
     status = get_latest_status()
     if status is None:
         logger.debug("No current status available, skipping rule evaluation")

@@ -345,6 +345,10 @@ async def toggle_optimize(req: OptimizeRequest):
     from automation.optimizer import enable, disable, get_state
 
     if req.enabled:
+        from services.mode_manager import check_mode_conflict
+        has_conflict, msg = check_mode_conflict("optimizer")
+        if has_conflict:
+            raise HTTPException(status_code=409, detail=msg)
         enable(
             peak_start=req.peak_start,
             peak_end=req.peak_end,
@@ -380,6 +384,13 @@ async def toggle_off_grid(req: OffGridRequest):
     """
     if not tesla_client.is_authenticated:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Check for conflicts
+    if req.enabled:
+        from services.mode_manager import check_mode_conflict
+        has_conflict, msg = check_mode_conflict("offgrid")
+        if has_conflict:
+            raise HTTPException(status_code=409, detail=msg)
 
     try:
         if req.enabled:
@@ -460,6 +471,10 @@ async def control_mode(req: ModeRequest):
     """Set the Powerwall operation mode."""
     if not tesla_client.is_authenticated:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    from services.mode_manager import check_manual_change_allowed
+    allowed, reason = check_manual_change_allowed()
+    if not allowed:
+        raise HTTPException(status_code=409, detail=f"Cannot change mode: {reason}")
     try:
         result = await set_operation_mode(req.mode)
         return {"success": True, "mode": req.mode}
@@ -472,6 +487,10 @@ async def control_reserve(req: ReserveRequest):
     """Set the backup reserve percentage."""
     if not tesla_client.is_authenticated:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    from services.mode_manager import check_manual_change_allowed
+    allowed, reason = check_manual_change_allowed()
+    if not allowed:
+        raise HTTPException(status_code=409, detail=f"Cannot change reserve: {reason}")
     try:
         result = await set_backup_reserve(req.reserve_percent)
         return {"success": True, "reserve_percent": req.reserve_percent}
@@ -496,6 +515,10 @@ async def control_grid_charging(req: GridChargingRequest):
     """Enable or disable grid charging."""
     if not tesla_client.is_authenticated:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    from services.mode_manager import check_manual_change_allowed
+    allowed, reason = check_manual_change_allowed()
+    if not allowed:
+        raise HTTPException(status_code=409, detail=f"Cannot change grid charging: {reason}")
     try:
         result = await set_grid_import_export(
             disallow_charge_from_grid_with_solar_installed=not req.enabled
@@ -510,6 +533,10 @@ async def control_export_rule(req: ExportRuleRequest):
     """Set the energy export rule."""
     if not tesla_client.is_authenticated:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    from services.mode_manager import check_manual_change_allowed
+    allowed, reason = check_manual_change_allowed()
+    if not allowed:
+        raise HTTPException(status_code=409, detail=f"Cannot change export rule: {reason}")
     try:
         result = await set_grid_import_export(customer_preferred_export_rule=req.rule)
         return {"success": True, "export_rule": req.rule}

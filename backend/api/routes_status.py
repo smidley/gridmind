@@ -11,6 +11,19 @@ from services import setup_store
 router = APIRouter(prefix="/api", tags=["status"])
 
 
+@router.get("/mode-status")
+async def mode_status():
+    """Get the current mode manager status -- who's in control."""
+    from services.mode_manager import get_active_controller, check_manual_change_allowed
+    active = get_active_controller()
+    allowed, reason = check_manual_change_allowed()
+    return {
+        "active_controller": active,
+        "manual_allowed": allowed,
+        "block_reason": reason if not allowed else None,
+    }
+
+
 @router.get("/status")
 async def current_status():
     """Get the latest cached Powerwall status."""

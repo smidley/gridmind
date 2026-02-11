@@ -16,6 +16,7 @@ import {
 import { useApi, apiFetch } from '../hooks/useApi'
 
 export default function SettingsPage() {
+  const { data: modeStatus } = useApi<any>('/mode-status')
   const { data: setupStatus, refetch: refetchSetup } = useApi<any>('/settings/setup/status')
   const { data: setupData, refetch: refetchSetupData } = useApi<any>('/settings/setup')
   const { data: authStatus, refetch: refetchAuth } = useApi<any>('/auth/status')
@@ -956,11 +957,18 @@ export default function SettingsPage() {
 
       {/* Manual Controls */}
       {authStatus?.authenticated && (
-        <div className="card">
+        <div className={`card ${modeStatus && !modeStatus.manual_allowed ? 'opacity-60' : ''}`}>
           <div className="flex items-center gap-2 mb-4">
             <Sliders className="w-4.5 h-4.5 text-blue-400" />
             <h3 className="font-semibold">Manual Control</h3>
           </div>
+
+          {modeStatus && !modeStatus.manual_allowed && (
+            <div className="bg-amber-100/80 dark:bg-amber-500/10 border border-amber-300/50 dark:border-amber-500/30 rounded-lg p-3 mb-4 text-xs text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>Manual controls locked: {modeStatus.block_reason}. Disable the active mode to make changes.</span>
+            </div>
+          )}
 
           <div className="space-y-4">
             {/* Operation Mode */}
