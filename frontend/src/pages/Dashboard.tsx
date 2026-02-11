@@ -95,7 +95,7 @@ export default function Dashboard() {
           {/* Daily Totals + Battery */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Solar Generated Today */}
-            <div className="card">
+            <div className="card cursor-pointer hover:ring-1 hover:ring-amber-500/30 transition-all" onClick={() => navigate('/detail/solar')}>
               <div className="flex items-center gap-2 mb-2">
                 <Sun className="w-4 h-4 text-amber-400" />
                 <span className="card-header mb-0">Generated</span>
@@ -118,7 +118,7 @@ export default function Dashboard() {
             </div>
 
             {/* Grid Exported Today */}
-            <div className="card">
+            <div className="card cursor-pointer hover:ring-1 hover:ring-emerald-500/30 transition-all" onClick={() => navigate('/detail/grid')}>
               <div className="flex items-center gap-2 mb-2">
                 <ArrowUpFromLine className="w-4 h-4 text-emerald-400" />
                 <span className="card-header mb-0">Exported</span>
@@ -130,7 +130,7 @@ export default function Dashboard() {
             </div>
 
             {/* Home Consumed Today */}
-            <div className="card">
+            <div className="card cursor-pointer hover:ring-1 hover:ring-cyan-500/30 transition-all" onClick={() => navigate('/detail/home')}>
               <div className="flex items-center gap-2 mb-2">
                 <Home className="w-4 h-4 text-cyan-400" />
                 <span className="card-header mb-0">Consumed</span>
@@ -142,14 +142,16 @@ export default function Dashboard() {
             </div>
 
             {/* Battery */}
-            <BatteryGauge
-              soc={status.battery_soc}
-              power={status.battery_power}
-              reserve={status.backup_reserve}
-              description={siteConfig?.battery_description}
-              capacityKwh={siteConfig?.total_capacity_kwh}
-              maxPowerKw={siteConfig?.nameplate_power_kw}
-            />
+            <div className="cursor-pointer hover:ring-1 hover:ring-blue-500/30 transition-all rounded-xl" onClick={() => navigate('/detail/battery')}>
+              <BatteryGauge
+                soc={status.battery_soc}
+                power={status.battery_power}
+                reserve={status.backup_reserve}
+                description={siteConfig?.battery_description}
+                capacityKwh={siteConfig?.total_capacity_kwh}
+                maxPowerKw={siteConfig?.nameplate_power_kw}
+              />
+            </div>
           </div>
 
           {/* System Status Bar */}

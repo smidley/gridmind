@@ -1,0 +1,130 @@
+import { useNavigate } from 'react-router-dom'
+import { Sun, ArrowLeft } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useApi } from '../hooks/useApi'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import { useWebSocket } from '../hooks/useWebSocket'
+import SolarGoal from '../components/SolarGoal'
+
+function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
+
+export default function DetailSolar() {
+  const navigate = useNavigate()
+  const { status } = useWebSocket()
+  const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
+  const { data: forecast } = useApi('/history/forecast')
+  const { data: vsActual } = useApi('/history/forecast/vs-actual')
+  const { data: readings } = useApi('/history/readings?hours=24&resolution=5')
+  const { data: solarConfig } = useApi('/settings/setup/solar')
+
+  const chartData = readings?.readings?.map((r: any) => ({
+    time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    solar: Math.round((r.solar_power || 0) / 100) / 10,
+  })) || []
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
+          <ArrowLeft className="w-5 h-5 text-slate-500" />
+        </button>
+        <Sun className="w-6 h-6 text-amber-500" />
+        <h2 className="text-2xl font-bold">Solar</h2>
+      </div>
+
+      {/* Live + Today Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="card">
+          <div className="card-header">Current Output</div>
+          <div className="stat-value text-amber-500 dark:text-amber-400">{status ? formatPower(status.solar_power) : '—'}</div>
+        </div>
+        <div className="card">
+          <div className="card-header">Generated Today</div>
+          <div className="stat-value text-amber-500 dark:text-amber-400">{todayTotals ? `${todayTotals.solar_generated_kwh.toFixed(1)} kWh` : '—'}</div>
+        </div>
+        <div className="card">
+          <div className="card-header">Forecast Today</div>
+          <div className="stat-value text-amber-500/70 dark:text-amber-400/70">{forecast?.today ? `${forecast.today.estimated_kwh} kWh` : '—'}</div>
+          <div className="stat-label">{forecast?.today?.condition?.replace('_', ' ')}</div>
+        </div>
+        <div className="card">
+          <div className="card-header">Forecast Tomorrow</div>
+          <div className="stat-value text-blue-500 dark:text-blue-400">{forecast?.tomorrow ? `${forecast.tomorrow.estimated_kwh} kWh` : '—'}</div>
+          <div className="stat-label">{forecast?.tomorrow?.condition?.replace('_', ' ')}</div>
+        </div>
+      </div>
+
+      {/* Solar Goal */}
+      {todayTotals && forecast?.today && (
+        <div className="card">
+          <SolarGoal actual={todayTotals.solar_generated_kwh} forecast={forecast.today.estimated_kwh} label="Today's Solar Goal" />
+        </div>
+      )}
+
+      {/* Production Chart */}
+      {chartData.length > 0 && (
+        <div className="card">
+          <div className="card-header">Solar Production (Last 24h)</div>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="solarDetailGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#fbbf24" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
+              <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
+              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Solar']} />
+              <Area type="monotone" dataKey="solar" stroke="#fbbf24" fill="url(#solarDetailGrad)" strokeWidth={2} dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Forecast vs Actual */}
+      {vsActual?.hourly && (
+        <div className="card">
+          <div className="card-header">Forecast vs Actual</div>
+          <div className="flex gap-4 text-xs text-slate-500 mb-2">
+            <span>Forecast: <span className="text-amber-500">{vsActual.forecast_total_kwh} kWh</span></span>
+            <span>Actual: <span className="text-emerald-500">{vsActual.actual_total_kwh} kWh</span></span>
+            {vsActual.forecast_total_kwh > 0 && (
+              <span>{((vsActual.actual_total_kwh / vsActual.forecast_total_kwh) * 100).toFixed(0)}% of forecast</span>
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart data={vsActual.hourly.map((h: any) => ({
+              hour: h.hour === 0 ? '12a' : h.hour === 12 ? '12p' : h.hour < 12 ? `${h.hour}a` : `${h.hour-12}p`,
+              forecast: Math.round(h.forecast_w / 10) / 100,
+              actual: h.actual_w != null ? Math.round(h.actual_w / 10) / 100 : undefined,
+            }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
+              <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
+              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(2)} kW`, '']} />
+              <Area type="monotone" dataKey="forecast" stroke="#fbbf24" fill="#fbbf2410" strokeWidth={1.5} strokeDasharray="6 3" dot={false} />
+              <Area type="monotone" dataKey="actual" stroke="#34d399" fill="#34d39915" strokeWidth={2.5} dot={false} connectNulls={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* System Info */}
+      {solarConfig?.configured && (
+        <div className="card">
+          <div className="card-header">Solar System</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+            <div><span className="text-slate-500">Array Size</span><p className="font-medium">{solarConfig.capacity_kw} kW DC</p></div>
+            <div><span className="text-slate-500">Tilt</span><p className="font-medium">{solarConfig.tilt}°</p></div>
+            <div><span className="text-slate-500">Azimuth</span><p className="font-medium">{solarConfig.azimuth === 0 ? 'South' : `${solarConfig.azimuth}°`}</p></div>
+            <div><span className="text-slate-500">Inverter Efficiency</span><p className="font-medium">{(solarConfig.inverter_efficiency * 100).toFixed(0)}%</p></div>
+            <div><span className="text-slate-500">System Losses</span><p className="font-medium">{solarConfig.system_losses}%</p></div>
+            <div><span className="text-slate-500">DC/AC Ratio</span><p className="font-medium">{solarConfig.dc_ac_ratio}</p></div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

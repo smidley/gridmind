@@ -17,6 +17,10 @@ import HistoryPage from './pages/History'
 import ForecastPage from './pages/Forecast'
 import ValuePage from './pages/Value'
 import SettingsPage from './pages/Settings'
+import DetailSolar from './pages/DetailSolar'
+import DetailGrid from './pages/DetailGrid'
+import DetailHome from './pages/DetailHome'
+import DetailBattery from './pages/DetailBattery'
 import { useTheme } from './hooks/useTheme'
 
 const navItems = [
@@ -94,7 +98,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v0.9.2</span>
+              <span>GridMind v1.0.0</span>
             </a>
           </div>
         </nav>
@@ -107,6 +111,10 @@ export default function App() {
             <Route path="/value" element={<ValuePage />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/detail/solar" element={<DetailSolar />} />
+            <Route path="/detail/grid" element={<DetailGrid />} />
+            <Route path="/detail/home" element={<DetailHome />} />
+            <Route path="/detail/battery" element={<DetailBattery />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
