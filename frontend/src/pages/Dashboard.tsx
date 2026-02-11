@@ -32,6 +32,7 @@ export default function Dashboard() {
   const { data: setupStatus } = useApi<any>('/settings/setup/status')
   const { data: todayTotals } = useApi<any>('/history/today')
   const { data: siteConfig } = useApi<any>('/site/config')
+  const { data: tariff } = useApi<any>('/site/tariff')
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -82,7 +83,7 @@ export default function Dashboard() {
           {/* Power Flow */}
           <div className="card">
             <div className="card-header">Power Flow</div>
-            <PowerFlowDiagram status={status} />
+            <PowerFlowDiagram status={status} tariff={tariff} />
           </div>
 
           {/* Daily Totals + Battery */}

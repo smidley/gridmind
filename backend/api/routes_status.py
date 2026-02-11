@@ -51,6 +51,115 @@ async def site_info_raw():
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
 
 
+@router.get("/site/tariff")
+async def site_tariff():
+    """Get the current TOU rate period and tariff info from Tesla."""
+    if not tesla_client.is_authenticated:
+        raise HTTPException(status_code=401, detail="Not authenticated with Tesla")
+    try:
+        from tesla.commands import get_site_info
+        from datetime import datetime
+        info = await get_site_info()
+        tariff = info.get("tariff_content", {})
+
+        if not tariff:
+            return {"configured": False}
+
+        now = datetime.now()
+        day_of_week = now.weekday()  # 0=Monday, 6=Sunday
+        hour = now.hour
+        minute = now.minute
+
+        # Parse the tariff to find current period
+        current_period = "OFF_PEAK"
+        current_rate = 0.0
+
+        seasons = tariff.get("seasons", {})
+        energy_charges = tariff.get("energy_charges", {})
+
+        # Find the active season
+        for season_name, season_data in seasons.items():
+            from_month = season_data.get("fromMonth", 1)
+            to_month = season_data.get("toMonth", 12)
+            if from_month <= now.month <= to_month:
+                tou_periods = season_data.get("tou_periods", {})
+
+                for period_name, schedules in tou_periods.items():
+                    # schedules is a list of time ranges
+                    schedule_list = schedules if isinstance(schedules, list) else []
+                    for sched in schedule_list:
+                        from_dow = sched.get("fromDayOfWeek", 0)
+                        to_dow = sched.get("toDayOfWeek", 6)
+                        from_hr = sched.get("fromHour", 0)
+                        from_min = sched.get("fromMinute", 0)
+                        to_hr = sched.get("toHour", 0)
+                        to_min = sched.get("toMinute", 0)
+
+                        # Check day of week
+                        if not (from_dow <= day_of_week <= to_dow):
+                            continue
+
+                        # Weekend all-day (fromHour=0, toHour=0)
+                        if from_hr == 0 and to_hr == 0 and from_min == 0 and to_min == 0:
+                            current_period = period_name
+                            break
+
+                        # Check time range (handles overnight spans like 21:00-7:00)
+                        current_minutes = hour * 60 + minute
+                        from_minutes = from_hr * 60 + from_min
+                        to_minutes = to_hr * 60 + to_min
+
+                        if from_minutes < to_minutes:
+                            # Normal range (e.g., 7:00 - 17:00)
+                            if from_minutes <= current_minutes < to_minutes:
+                                current_period = period_name
+                                break
+                        else:
+                            # Overnight range (e.g., 21:00 - 7:00)
+                            if current_minutes >= from_minutes or current_minutes < to_minutes:
+                                current_period = period_name
+                                break
+
+                # Get rate for current period and season
+                season_charges = energy_charges.get(season_name, {})
+                current_rate = season_charges.get(current_period, 0)
+                break
+
+        # Format period name for display
+        period_display = {
+            "OFF_PEAK": "Off-Peak",
+            "ON_PEAK": "Peak",
+            "PARTIAL_PEAK": "Mid-Peak",
+        }
+
+        # Get all rates for display
+        rate_schedule = {}
+        for season_name, season_data in seasons.items():
+            tou_periods = season_data.get("tou_periods", {})
+            season_charges = energy_charges.get(season_name, {})
+            for period_name, schedules in tou_periods.items():
+                schedule_list = schedules if isinstance(schedules, list) else []
+                rate_schedule[period_name] = {
+                    "display_name": period_display.get(period_name, period_name),
+                    "rate": season_charges.get(period_name, 0),
+                    "schedules": schedule_list,
+                }
+
+        return {
+            "configured": True,
+            "utility": tariff.get("utility", ""),
+            "plan_name": tariff.get("name", ""),
+            "plan_code": tariff.get("code", ""),
+            "currency": tariff.get("currency", "USD"),
+            "current_period": current_period,
+            "current_period_display": period_display.get(current_period, current_period),
+            "current_rate": current_rate,
+            "rate_schedule": rate_schedule,
+        }
+    except TeslaAPIError as e:
+        raise HTTPException(status_code=e.status_code or 500, detail=str(e))
+
+
 @router.get("/site/list")
 async def list_sites():
     """List available energy sites on the Tesla account."""

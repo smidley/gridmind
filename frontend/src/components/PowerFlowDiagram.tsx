@@ -2,8 +2,16 @@ import { useEffect, useRef } from 'react'
 import { Sun, Home, Zap, Battery } from 'lucide-react'
 import type { PowerwallStatus } from '../hooks/useWebSocket'
 
+interface TariffInfo {
+  configured: boolean
+  current_period_display?: string
+  current_rate?: number
+  currency?: string
+}
+
 interface Props {
   status: PowerwallStatus
+  tariff?: TariffInfo | null
 }
 
 function formatPower(watts: number): string {
@@ -179,7 +187,7 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
   )
 }
 
-export default function PowerFlowDiagram({ status }: Props) {
+export default function PowerFlowDiagram({ status, tariff }: Props) {
   const solarActive = status.solar_power > 50
   const gridImporting = status.grid_power > 50
   const gridExporting = status.grid_power < -50
@@ -288,6 +296,18 @@ export default function PowerFlowDiagram({ status }: Props) {
           }`}>
             {gridImporting ? 'Importing' : gridExporting ? 'Exporting' : 'Idle'}
           </span>
+          {tariff?.configured && tariff.current_period_display && (
+            <span className={`text-[9px] mt-0.5 px-1.5 py-0.5 rounded-full font-medium ${
+              tariff.current_period_display === 'Peak'
+                ? 'bg-red-500/20 text-red-400'
+                : tariff.current_period_display === 'Mid-Peak'
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'bg-emerald-500/20 text-emerald-400'
+            }`}>
+              {tariff.current_period_display}
+              {tariff.current_rate ? ` · $${tariff.current_rate.toFixed(2)}` : ''}
+            </span>
+          )}
         </div>
       </div>
     </div>
