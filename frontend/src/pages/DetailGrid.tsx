@@ -29,10 +29,14 @@ export default function DetailGrid() {
   const exporting = status && status.grid_power < -50
   const netCredit = (rs.grid_exported_kwh || 0) - (rs.grid_imported_kwh || 0)
 
-  const chartData = readings?.readings?.map((r: any) => ({
-    time: formatChartTime(r.timestamp, range),
-    grid: Math.round((r.grid_power || 0) / 100) / 10,
-  })) || []
+  const chartData = readings?.readings?.map((r: any) => {
+    const kw = Math.round((r.grid_power || 0) / 100) / 10
+    return {
+      time: formatChartTime(r.timestamp, range),
+      importing: kw > 0 ? kw : 0,
+      exporting: kw < 0 ? Math.abs(kw) : 0,
+    }
+  }) || []
 
   return (
     <div className="p-6 space-y-6">
@@ -106,13 +110,20 @@ export default function DetailGrid() {
       {chartData.length > 0 && (
         <div className="card">
           <div className="card-header">Grid Power ({rs.period_label || ''})</div>
-          <p className="text-xs text-slate-500 mb-2">Above zero = importing, below zero = exporting</p>
+          <div className="flex gap-4 text-[10px] text-slate-500 mb-2">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-400" /> Importing</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-400" /> Exporting</span>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData}>
               <defs>
-                <linearGradient id="gridPosGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                <linearGradient id="gridImportGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f87171" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#f87171" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="gridExportGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#34d399" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -120,10 +131,13 @@ export default function DetailGrid() {
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
-                formatter={(v: number) => [`${v.toFixed(1)} kW`, v >= 0 ? 'Importing' : 'Exporting']}
+                formatter={(v: number, name: string) => [
+                  `${v.toFixed(1)} kW`,
+                  name === 'importing' ? 'Importing' : 'Exporting',
+                ]}
               />
-              <ReferenceLine y={0} stroke="#475569" strokeDasharray="3 3" />
-              <Area type="monotone" dataKey="grid" stroke="#94a3b8" fill="url(#gridPosGrad)" strokeWidth={1.5} dot={false} />
+              <Area type="monotone" dataKey="importing" stroke="#f87171" fill="url(#gridImportGrad)" strokeWidth={1.5} dot={false} />
+              <Area type="monotone" dataKey="exporting" stroke="#34d399" fill="url(#gridExportGrad)" strokeWidth={1.5} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
