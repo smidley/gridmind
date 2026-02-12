@@ -66,14 +66,15 @@ def init():
         _state["min_reserve_pct"] = int(setup_store.get("gridmind_optimize_min_reserve") or 5)
 
         # Check if we're currently in peak hours and set phase accordingly
-        # so the dashboard doesn't show "Waiting for Peak" for the first 2 minutes
         try:
             tz = ZoneInfo(setup_store.get_timezone() or settings.timezone)
             now = datetime.now(tz)
             current_hour = now.hour
             if _state["peak_start_hour"] <= current_hour < _state["peak_end_hour"]:
+                # Default to peak_hold — will be refined to "dumping" by check_actual_state()
                 _state["phase"] = "peak_hold"
-                logger.info("GridMind Optimize restored: currently in peak hours, entering peak_hold")
+                _state["_needs_state_check"] = True  # Flag for first evaluate() call
+                logger.info("GridMind Optimize restored: currently in peak hours, will check actual battery state")
             else:
                 _state["phase"] = "idle"
                 logger.info("GridMind Optimize restored: outside peak hours")
@@ -172,6 +173,24 @@ async def evaluate():
     status = get_latest_status()
     if status is None:
         return
+
+    # On first evaluation after restart during peak, check actual Powerwall state
+    # to determine if we were dumping (autonomous + battery_ok) or holding (self_consumption)
+    if _state.get("_needs_state_check"):
+        _state.pop("_needs_state_check", None)
+        try:
+            from tesla.commands import get_site_config
+            config = await get_site_config()
+            mode = config.get("operation_mode", "")
+            export_rule = config.get("export_rule", "")
+            if mode == "autonomous" and export_rule == "battery_ok":
+                _state["phase"] = "dumping"
+                _state["dump_started_at"] = datetime.now().isoformat()
+                logger.info("GridMind Optimize: detected active dump (autonomous + battery_ok), resuming dump phase")
+            else:
+                logger.info("GridMind Optimize: Powerwall in %s/%s, staying in peak_hold", mode, export_rule)
+        except Exception as e:
+            logger.warning("GridMind Optimize: could not check Powerwall state: %s", e)
 
     # Before peak: ensure we're ready
     if hour < peak_start:

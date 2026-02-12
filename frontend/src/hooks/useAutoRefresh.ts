@@ -25,6 +25,7 @@ export function useAutoRefresh<T = any>(path: string, intervalMs: number = 30000
     if (showLoading) setLoading(true)
     try {
       const response = await fetch(`${API_BASE}${pathRef.current}`, {
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
       })

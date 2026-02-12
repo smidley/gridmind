@@ -46,12 +46,12 @@ export default function App() {
 
   // Check if auth is enabled and if we have a valid session
   useEffect(() => {
-    fetch('/api/app-auth/status')
+    fetch('/api/app-auth/status', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (data.auth_enabled) {
           // Try fetching a protected endpoint to test session
-          fetch('/api/status')
+          fetch('/api/status', { credentials: 'include' })
             .then(r => {
               setNeedsLogin(r.status === 401)
               setAuthChecked(true)
@@ -62,6 +62,19 @@ export default function App() {
         }
       })
       .catch(() => setAuthChecked(true))
+  }, [])
+
+  // Global 401 handler — if any API call gets a 401, show login
+  useEffect(() => {
+    const origFetch = window.fetch
+    window.fetch = async (...args) => {
+      const response = await origFetch(...args)
+      if (response.status === 401 && !String(args[0]).includes('app-auth')) {
+        setNeedsLogin(true)
+      }
+      return response
+    }
+    return () => { window.fetch = origFetch }
   }, [])
 
   const handleLogin = () => {
