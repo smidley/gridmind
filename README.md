@@ -142,11 +142,17 @@ Then follow the setup wizard in the Settings page.
    - **Scopes** (for EV features): `Vehicle Information`, `Vehicle Charging Management`
 3. Save your **Client ID** and **Client Secret**
 
+> **Unraid / remote server users**: The Redirect URI must match the URL you use to access GridMind in your browser. If GridMind is running on a server (e.g., Unraid at `192.168.1.100`), use `http://192.168.1.100:8080/auth/callback` instead of `localhost`. Add this URL to both:
+> 1. Your Tesla Developer App's **Allowed Redirect URIs** at developer.tesla.com
+> 2. The **Redirect URI** field in GridMind's Settings page
+>
+> You can add multiple redirect URIs to the Tesla app if you access GridMind from different addresses.
+
 > **Note on EV scopes**: If you add vehicle scopes after your initial setup, you must revoke GridMind's access at [tesla.com/teslaaccount](https://www.tesla.com/teslaaccount) → Security → Third-Party Apps, then re-authenticate. Existing tokens don't retroactively gain new scopes.
 
 ### 2. Enter Credentials
 
-Open `http://localhost:8080/settings` and enter your Client ID and Client Secret.
+Open `http://YOUR-SERVER-IP:8080/settings` (or `http://localhost:8080/settings` if running locally) and enter your Client ID, Client Secret, and Redirect URI.
 
 ### 3. Generate & Host Public Key
 
@@ -187,13 +193,21 @@ Tesla requires a public key hosted at a public URL. GridMind generates the key p
 
 ## Unraid Installation
 
-GridMind is available for Unraid:
+**Option A — Community Apps (pending approval):**
+1. Go to **Apps** → **Settings** (gear icon)
+2. Add template repository: `https://github.com/smidley/unraid-templates`
+3. Go back to **Apps**, search "GridMind", and install
 
-1. Docker tab → Add Container → Template Repositories
-2. Add: `https://github.com/smidley/unRAID-CA-templates`
-3. Search "GridMind" and install
+**Option B — Manual:**
+1. **Docker** tab → **Add Container**
+2. **Repository**: `ghcr.io/smidley/gridmind:latest`
+3. Add **Port**: Host `8080` → Container `8000` (TCP)
+4. Add **Path**: Host `/mnt/user/appdata/gridmind` → Container `/app/data` (RW)
+5. Click **Apply**
 
 Container image: `ghcr.io/smidley/gridmind:latest` (amd64 + arm64)
+
+> **Important**: When setting up Tesla OAuth on Unraid, use your server's IP address for the Redirect URI (e.g., `http://192.168.1.100:8080/auth/callback`), not `localhost`. See [Step 1](#1-register-a-tesla-developer-app) for details.
 
 ## Development
 
