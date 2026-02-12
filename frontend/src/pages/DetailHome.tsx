@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, ArrowLeft, Sun, Battery, Zap } from 'lucide-react'
+import { Home, ArrowLeft, Sun, Battery, Zap, Layers } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
@@ -17,15 +17,24 @@ export default function DetailHome() {
   const status = wsStatus || validPolled
 
   const [range, setRange] = useState('today')
+  const [showSources, setShowSources] = useState(false)
   const tr = getTimeRange(range)
 
   const { data: rangeStats } = useApi<any>(`/history/range-stats?${tr.apiParam}`)
   const { data: readings } = useApi<any>(`/history/readings?${tr.apiParam}&resolution=${tr.resolution}`)
 
-  const chartData = readings?.readings?.map((r: any) => ({
-    time: formatChartTime(r.timestamp, range),
-    home: Math.round((r.home_power || 0) / 100) / 10,
-  })) || []
+  const chartData = readings?.readings?.map((r: any) => {
+    const solar = Math.max(r.solar_power || 0, 0) / 1000
+    const batteryDischarge = Math.max(r.battery_power || 0, 0) / 1000  // positive = discharging
+    const gridImport = Math.max(r.grid_power || 0, 0) / 1000  // positive = importing
+    return {
+      time: formatChartTime(r.timestamp, range),
+      home: Math.round((r.home_power || 0) / 100) / 10,
+      solar: Math.round(solar * 10) / 10,
+      battery: Math.round(batteryDischarge * 10) / 10,
+      grid: Math.round(gridImport * 10) / 10,
+    }
+  }) || []
 
   const rs = rangeStats || {}
 
@@ -120,25 +129,82 @@ export default function DetailHome() {
       {/* Consumption Chart */}
       {chartData.length > 0 && (
         <div className="card">
-          <div className="card-header">Home Consumption ({rs.period_label || ''})</div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="homeDetailGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
-              <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
-              <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
-                formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Home']}
-              />
-              <Area type="monotone" dataKey="home" stroke="#22d3ee" fill="url(#homeDetailGrad)" strokeWidth={2} dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="flex items-center justify-between mb-2">
+            <div className="card-header mb-0">
+              {showSources ? 'Power Sources' : 'Home Consumption'} ({rs.period_label || ''})
+            </div>
+            <button
+              onClick={() => setShowSources(!showSources)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                showSources
+                  ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
+                  : 'bg-slate-200/60 dark:bg-slate-800/60 text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Sources
+            </button>
+          </div>
+
+          {showSources ? (
+            <>
+              <div className="flex gap-4 text-[10px] text-slate-500 mb-2">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-500" /> Solar</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500" /> Battery</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-400" /> Grid</span>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="srcSolar" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                    </linearGradient>
+                    <linearGradient id="srcBattery" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                    </linearGradient>
+                    <linearGradient id="srcGrid" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f87171" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#f87171" stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                    formatter={(v: number, name: string) => [
+                      `${v.toFixed(1)} kW`,
+                      name === 'solar' ? 'Solar' : name === 'battery' ? 'Battery' : 'Grid',
+                    ]}
+                  />
+                  <Area type="monotone" dataKey="solar" stackId="1" stroke="#f59e0b" fill="url(#srcSolar)" strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="battery" stackId="1" stroke="#3b82f6" fill="url(#srcBattery)" strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="grid" stackId="1" stroke="#f87171" fill="url(#srcGrid)" strokeWidth={1.5} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="homeDetailGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
+                <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                  formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Home']}
+                />
+                <Area type="monotone" dataKey="home" stroke="#22d3ee" fill="url(#homeDetailGrad)" strokeWidth={2} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       )}
     </div>
