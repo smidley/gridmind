@@ -64,7 +64,10 @@ export default function VehiclePage() {
   const vehicle = vehicleStatus?.vehicle
   const isAsleep = vehicle?.state === 'asleep'
   const isCharging = cs?.charging_state === 'Charging'
-  const isPluggedIn = cs?.charging_state && cs.charging_state !== 'Disconnected'
+  // Use Wall Connector data as a fallback for plug state (works even when car is asleep)
+  const wcPluggedIn = vehicleStatus?.wc_plugged_in === true
+  const vehiclePluggedIn = cs?.charging_state && cs.charging_state !== 'Disconnected'
+  const isPluggedIn = vehiclePluggedIn || wcPluggedIn
 
   // Build chart data from readings
   const chartData = readings?.readings?.map((r: any) => ({
@@ -201,11 +204,13 @@ export default function VehiclePage() {
       </div>
 
       {/* Asleep / stale data notice */}
-      {isAsleep && cs && (
+      {isAsleep && (
         <div className="flex items-center justify-between p-3 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-sm">
           <div className="flex items-center gap-2 text-slate-500">
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>Vehicle is asleep. Data may be stale. Wake to get the latest status.</span>
+            <span>
+              Vehicle is asleep{wcPluggedIn ? ' (plugged in via Wall Connector)' : ''}. Charge data may be stale. Wake to refresh.
+            </span>
           </div>
           <button
             onClick={() => doAction('/vehicle/wake').then(() => setTimeout(refetch, 5000))}
@@ -319,11 +324,13 @@ export default function VehiclePage() {
                   cs.charging_state === 'Complete' ? 'text-blue-400' :
                   cs.charging_state === 'Stopped' ? 'text-amber-400' :
                   cs.charging_state === 'NoPower' ? 'text-amber-400' :
+                  wcPluggedIn ? 'text-amber-400' :
                   'text-slate-500'
                 }`}>
                   {cs.charging_state === 'Complete' ? 'Complete' :
                    cs.charging_state === 'Stopped' ? 'Plugged In' :
                    cs.charging_state === 'NoPower' ? 'Plugged In (No Power)' :
+                   wcPluggedIn ? 'Plugged In (via WC)' :
                    'Unplugged'}
                 </div>
                 <div className="stat-label">

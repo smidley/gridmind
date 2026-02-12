@@ -80,21 +80,72 @@ async def vehicle_select(data: dict):
 # --- Live Status ---
 
 
+def _get_wc_plugged_in() -> bool | None:
+    """Check if a car is plugged into the Wall Connector via Powerwall live_status.
+
+    Returns True/False, or None if WC data unavailable.
+    WC state 2 = available (no car), states 4+ = car connected.
+    """
+    from services.collector import get_latest_status
+    # The WC data is refreshed via the Powerwall poll (every 30s), no car wake needed
+    try:
+        from tesla.client import tesla_client as tc
+        import time
+
+        # Use a simple cache to avoid hitting the API on every vehicle status request
+        cache_key = "_wc_state_cache"
+        cache_time_key = "_wc_state_cache_time"
+        cached_val = getattr(_get_wc_plugged_in, cache_key, None)
+        cached_at = getattr(_get_wc_plugged_in, cache_time_key, 0)
+        if cached_val is not None and (time.time() - cached_at) < 60:
+            return cached_val
+
+        if not tc.is_authenticated:
+            return None
+
+        import asyncio
+        # We need to make this sync-compatible — just read from the last known data
+        # The wall connector endpoint already fetches this, but let's use a simpler approach
+        return None  # Will be populated by the enrichment below
+    except Exception:
+        return None
+
+
 @router.get("/status")
 async def vehicle_status():
-    """Get current vehicle charge status."""
+    """Get current vehicle charge status, enriched with Wall Connector plug state."""
     _require_auth()
     vid = _get_vehicle_id()
+
+    # Check Wall Connector state from Powerwall (doesn't require car to be awake)
+    wc_plugged_in = None
+    try:
+        live_data = await tesla_client.get(tesla_client._site_url("/live_status"))
+        wc_list = live_data.get("response", {}).get("wall_connectors", [])
+        for wc in wc_list:
+            wc_state = wc.get("wall_connector_state", 0)
+            # State 2 = available/no car, states 4+ = car connected (Ready, Charging, etc.)
+            if wc_state > 2:
+                wc_plugged_in = True
+                break
+        if wc_plugged_in is None and wc_list:
+            wc_plugged_in = False
+    except Exception:
+        pass
 
     # Try cached status first
     cached = get_latest_vehicle_status()
     if cached:
-        return cached.model_dump(mode="json")
+        result = cached.model_dump(mode="json")
+        result["wc_plugged_in"] = wc_plugged_in
+        return result
 
     # Fallback: fetch live
     try:
         status = await get_vehicle_data(vid)
-        return status.model_dump(mode="json")
+        result = status.model_dump(mode="json")
+        result["wc_plugged_in"] = wc_plugged_in
+        return result
     except TeslaAPIError as e:
         if e.status_code == 408:
             return {
@@ -106,6 +157,7 @@ async def vehicle_status():
                     "vin": "",
                 },
                 "charge_state": None,
+                "wc_plugged_in": wc_plugged_in,
                 "timestamp": datetime.utcnow().isoformat(),
             }
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
