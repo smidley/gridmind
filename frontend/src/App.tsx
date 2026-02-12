@@ -13,6 +13,7 @@ import {
   Car,
   Activity,
   LogOut,
+  Trophy,
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Rules from './pages/Rules'
@@ -25,6 +26,7 @@ import DetailGrid from './pages/DetailGrid'
 import DetailHome from './pages/DetailHome'
 import DetailBattery from './pages/DetailBattery'
 import VehiclePage from './pages/Vehicle'
+import Achievements from './pages/Achievements'
 import Login from './pages/Login'
 import { useTheme } from './hooks/useTheme'
 import { apiFetch } from './hooks/useApi'
@@ -36,6 +38,7 @@ const navItems = [
   { to: '/value', icon: DollarSign, label: 'Value' },
   { to: '/rules', icon: Zap, label: 'Automation' },
   { to: '/history', icon: History, label: 'History' },
+  { to: '/achievements', icon: Trophy, label: 'Achievements' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
@@ -167,6 +170,7 @@ export default function App() {
             <Route path="/value" element={<ValuePage />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/achievements" element={<Achievements />} />
             <Route path="/detail/solar" element={<DetailSolar />} />
             <Route path="/detail/grid" element={<DetailGrid />} />
             <Route path="/detail/home" element={<DetailHome />} />
