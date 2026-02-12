@@ -227,9 +227,7 @@ npm run dev  # http://localhost:5173
 
 If GridMind is useful to you, consider buying me a coffee:
 
-<a href="https://buymeacoffee.com/smidley">
-  <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=⚡&slug=smidley&button_colour=FFDD00&font_colour=000000&font_family=Poppins&outline_colour=000000&coffee_colour=ffffff" />
-</a>
+<a href="https://www.buymeacoffee.com/smidley" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## License
 
