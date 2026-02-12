@@ -42,9 +42,95 @@ async def _get_cached(key: str, fetch_fn, ttl: int = CACHE_TTL):
         raise
 
 
+def _resolve_since(since_param: str | None, hours: int) -> datetime:
+    """Resolve the 'since' time from either a named param or hours lookback."""
+    if since_param == "today":
+        from zoneinfo import ZoneInfo
+        from services import setup_store
+        tz_name = setup_store.get_timezone()
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = ZoneInfo("America/New_York")
+        local_now = datetime.now(tz)
+        midnight_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return midnight_local.astimezone(None).replace(tzinfo=None)  # Convert to UTC naive
+    return datetime.utcnow() - timedelta(hours=hours)
+
+
+@router.get("/range-stats")
+async def get_range_stats(
+    hours: int = Query(default=24, ge=1, le=168),
+    since: str = Query(default=None, description="Named time range: 'today'"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compute aggregate stats for a time range. Used by detail pages."""
+    since_dt = _resolve_since(since, hours)
+
+    result = await db.execute(
+        select(EnergyReading)
+        .where(EnergyReading.timestamp >= since_dt)
+        .order_by(EnergyReading.timestamp)
+    )
+    readings = result.scalars().all()
+
+    if not readings:
+        return {
+            "consumed_kwh": 0, "peak_load_w": 0, "avg_load_w": 0,
+            "solar_generated_kwh": 0, "grid_imported_kwh": 0, "grid_exported_kwh": 0,
+            "battery_charged_kwh": 0, "battery_discharged_kwh": 0,
+            "self_powered_pct": 0, "source_solar_pct": 0, "source_battery_pct": 0, "source_grid_pct": 0,
+            "period_label": since if since else f"Last {hours}h", "reading_count": 0,
+        }
+
+    interval_hours = 30 / 3600  # 30 seconds per reading
+
+    # Energy totals
+    solar_kwh = sum(max(r.solar_power or 0, 0) * interval_hours for r in readings) / 1000
+    import_kwh = sum(max(r.grid_power or 0, 0) * interval_hours for r in readings) / 1000
+    export_kwh = sum(abs(min(r.grid_power or 0, 0)) * interval_hours for r in readings) / 1000
+    consumed_kwh = sum(max(r.home_power or 0, 0) * interval_hours for r in readings) / 1000
+    charged_kwh = sum(max(r.battery_power or 0, 0) * interval_hours for r in readings) / 1000
+    discharged_kwh = sum(abs(min(r.battery_power or 0, 0)) * interval_hours for r in readings) / 1000
+
+    # Peak and average load
+    home_powers = [r.home_power or 0 for r in readings]
+    peak_w = max(home_powers) if home_powers else 0
+    avg_w = sum(home_powers) / len(home_powers) if home_powers else 0
+
+    # Power source breakdown
+    total_supply = solar_kwh + discharged_kwh + import_kwh
+    source_solar_pct = round((solar_kwh / total_supply) * 100) if total_supply > 0 else 0
+    source_battery_pct = round((discharged_kwh / total_supply) * 100) if total_supply > 0 else 0
+    source_grid_pct = round((import_kwh / total_supply) * 100) if total_supply > 0 else 0
+
+    # Self-powered = non-grid portion
+    self_powered_pct = max(0, round(100 - source_grid_pct))
+
+    period_label = "Today" if since == "today" else f"Last {hours}h" if hours <= 24 else f"Last {hours // 24}d"
+
+    return {
+        "consumed_kwh": round(consumed_kwh, 2),
+        "peak_load_w": round(peak_w, 0),
+        "avg_load_w": round(avg_w, 0),
+        "solar_generated_kwh": round(solar_kwh, 2),
+        "grid_imported_kwh": round(import_kwh, 2),
+        "grid_exported_kwh": round(export_kwh, 2),
+        "battery_charged_kwh": round(charged_kwh, 2),
+        "battery_discharged_kwh": round(discharged_kwh, 2),
+        "self_powered_pct": self_powered_pct,
+        "source_solar_pct": source_solar_pct,
+        "source_battery_pct": source_battery_pct,
+        "source_grid_pct": source_grid_pct,
+        "period_label": period_label,
+        "reading_count": len(readings),
+    }
+
+
 @router.get("/readings")
 async def get_readings(
     hours: int = Query(default=24, ge=1, le=168),
+    since: str = Query(default=None, description="Named time range: 'today'"),
     resolution: int = Query(default=1, ge=1, le=60, description="Minutes between samples"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -55,13 +141,14 @@ async def get_readings(
 
     Args:
         hours: Number of hours to look back (1-168, default 24)
+        since: Named time range ('today' = since midnight local time)
         resolution: Resolution in minutes (1-60, default 1 = every reading)
     """
-    since = datetime.utcnow() - timedelta(hours=hours)
+    since_dt = _resolve_since(since, hours)
 
     result = await db.execute(
         select(EnergyReading)
-        .where(EnergyReading.timestamp >= since)
+        .where(EnergyReading.timestamp >= since_dt)
         .order_by(EnergyReading.timestamp)
     )
     readings = result.scalars().all()

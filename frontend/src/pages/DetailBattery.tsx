@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Battery,
@@ -17,6 +18,7 @@ import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
 import BatteryGauge from '../components/BatteryGauge'
+import TimeRangeSelector, { getTimeRange } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
 
@@ -24,17 +26,22 @@ export default function DetailBattery() {
   const navigate = useNavigate()
   const { status: wsStatus } = useWebSocket()
   const { data: polledStatus } = useAutoRefresh<any>('/status', 30000)
-  const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: siteConfig } = useApi('/site/config')
-  const { data: readings } = useApi('/history/readings?hours=24&resolution=5')
   const { data: health } = useApi<any>('/powerwall/health')
   const { data: throughput } = useApi<any>('/powerwall/health/throughput?days=30')
   const { data: alerts } = useAutoRefresh<any>('/powerwall/health/alerts', 120000)
   const { data: capacity } = useApi<any>('/powerwall/health/capacity')
 
+  const [range, setRange] = useState('today')
+  const tr = getTimeRange(range)
+
+  const { data: rangeStats } = useApi<any>(`/history/range-stats?${tr.apiParam}`)
+  const { data: readings } = useApi<any>(`/history/readings?${tr.apiParam}&resolution=${tr.resolution}`)
+
   // Use WebSocket data when available, fall back to API polling
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
   const status = wsStatus || validPolled
+  const rs = rangeStats || {}
 
   const charging = status && status.battery_power < -50
   const discharging = status && status.battery_power > 50
@@ -47,15 +54,18 @@ export default function DetailBattery() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-slate-500" />
-        </button>
-        <Battery className="w-6 h-6 text-blue-500" />
-        <h2 className="text-2xl font-bold">Battery</h2>
-        {siteConfig?.battery_description && (
-          <span className="text-sm text-slate-500">{siteConfig.battery_description}</span>
-        )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
+            <ArrowLeft className="w-5 h-5 text-slate-500" />
+          </button>
+          <Battery className="w-6 h-6 text-blue-500" />
+          <h2 className="text-2xl font-bold">Battery</h2>
+          {siteConfig?.battery_description && (
+            <span className="text-sm text-slate-500">{siteConfig.battery_description}</span>
+          )}
+        </div>
+        <TimeRangeSelector value={range} onChange={setRange} />
       </div>
 
       {/* Battery Gauge */}
@@ -82,21 +92,23 @@ export default function DetailBattery() {
           <div className="stat-label">{charging ? 'Charging' : discharging ? 'Discharging' : 'Idle'}</div>
         </div>
         <div className="card">
-          <div className="card-header">Charged Today</div>
-          <div className="stat-value text-emerald-500 dark:text-emerald-400">{todayTotals ? `${todayTotals.battery_charged_kwh.toFixed(1)} kWh` : '—'}</div>
+          <div className="card-header">Charged</div>
+          <div className="stat-value text-emerald-500 dark:text-emerald-400">{rs.battery_charged_kwh > 0 ? `${rs.battery_charged_kwh} kWh` : '—'}</div>
+          <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
-          <div className="card-header">Discharged Today</div>
-          <div className="stat-value text-blue-500 dark:text-blue-400">{todayTotals ? `${todayTotals.battery_discharged_kwh.toFixed(1)} kWh` : '—'}</div>
+          <div className="card-header">Discharged</div>
+          <div className="stat-value text-blue-500 dark:text-blue-400">{rs.battery_discharged_kwh > 0 ? `${rs.battery_discharged_kwh} kWh` : '—'}</div>
+          <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
-          <div className="card-header">Cycles Today</div>
+          <div className="card-header">Cycles</div>
           <div className="stat-value text-slate-600 dark:text-slate-300">
-            {todayTotals && siteConfig?.total_capacity_kwh
-              ? ((todayTotals.battery_discharged_kwh / siteConfig.total_capacity_kwh).toFixed(2))
+            {rs.battery_discharged_kwh > 0 && siteConfig?.total_capacity_kwh
+              ? (rs.battery_discharged_kwh / siteConfig.total_capacity_kwh).toFixed(2)
               : '—'}
           </div>
-          <div className="stat-label">Full discharge equivalents</div>
+          <div className="stat-label">{rs.period_label || ''}</div>
         </div>
       </div>
 
@@ -116,7 +128,7 @@ export default function DetailBattery() {
       {/* SOC History Chart */}
       {chartData.length > 0 && (
         <div className="card">
-          <div className="card-header">State of Charge (Last 24h)</div>
+          <div className="card-header">State of Charge ({rs.period_label || ''})</div>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -132,7 +144,7 @@ export default function DetailBattery() {
       {/* Battery Power Chart */}
       {chartData.length > 0 && (
         <div className="card">
-          <div className="card-header">Battery Power (Last 24h)</div>
+          <div className="card-header">Battery Power ({rs.period_label || ''})</div>
           <p className="text-xs text-slate-500 mb-2">Positive = discharging, Negative = charging</p>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={chartData}>

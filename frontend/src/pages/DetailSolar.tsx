@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sun, ArrowLeft } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -5,6 +6,7 @@ import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
 import SolarGoal from '../components/SolarGoal'
+import TimeRangeSelector, { getTimeRange } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
 
@@ -14,11 +16,17 @@ export default function DetailSolar() {
   const { data: polledStatus } = useAutoRefresh<any>('/status', 30000)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
   const status = wsStatus || validPolled
-  const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
+
+  const [range, setRange] = useState('today')
+  const tr = getTimeRange(range)
+
+  const { data: rangeStats } = useApi<any>(`/history/range-stats?${tr.apiParam}`)
+  const { data: readings } = useApi<any>(`/history/readings?${tr.apiParam}&resolution=${tr.resolution}`)
   const { data: forecast } = useApi('/history/forecast')
   const { data: vsActual } = useApi('/history/forecast/vs-actual')
-  const { data: readings } = useApi('/history/readings?hours=24&resolution=5')
   const { data: solarConfig } = useApi('/settings/setup/solar')
+
+  const rs = rangeStats || {}
 
   const chartData = readings?.readings?.map((r: any) => ({
     time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -27,23 +35,27 @@ export default function DetailSolar() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-slate-500" />
-        </button>
-        <Sun className="w-6 h-6 text-amber-500" />
-        <h2 className="text-2xl font-bold">Solar</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
+            <ArrowLeft className="w-5 h-5 text-slate-500" />
+          </button>
+          <Sun className="w-6 h-6 text-amber-500" />
+          <h2 className="text-2xl font-bold">Solar</h2>
+        </div>
+        <TimeRangeSelector value={range} onChange={setRange} />
       </div>
 
-      {/* Live + Today Stats */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
           <div className="card-header">Current Output</div>
           <div className="stat-value text-amber-500 dark:text-amber-400">{status ? formatPower(status.solar_power) : '—'}</div>
         </div>
         <div className="card">
-          <div className="card-header">Generated Today</div>
-          <div className="stat-value text-amber-500 dark:text-amber-400">{todayTotals ? `${todayTotals.solar_generated_kwh.toFixed(1)} kWh` : '—'}</div>
+          <div className="card-header">Generated</div>
+          <div className="stat-value text-amber-500 dark:text-amber-400">{rs.solar_generated_kwh > 0 ? `${rs.solar_generated_kwh} kWh` : '—'}</div>
+          <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
           <div className="card-header">Forecast Today</div>
@@ -58,16 +70,16 @@ export default function DetailSolar() {
       </div>
 
       {/* Solar Goal */}
-      {todayTotals && forecast?.today && (
+      {rs.solar_generated_kwh > 0 && forecast?.today && (
         <div className="card">
-          <SolarGoal actual={todayTotals.solar_generated_kwh} forecast={forecast.today.estimated_kwh} label="Today's Solar Goal" />
+          <SolarGoal actual={rs.solar_generated_kwh} forecast={forecast.today.estimated_kwh} label="Today's Solar Goal" />
         </div>
       )}
 
       {/* Production Chart */}
       {chartData.length > 0 && (
         <div className="card">
-          <div className="card-header">Solar Production (Last 24h)</div>
+          <div className="card-header">Solar Production ({rs.period_label || ''})</div>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData}>
               <defs>
@@ -79,7 +91,10 @@ export default function DetailSolar() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
-              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Solar']} />
+              <Tooltip
+                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Solar']}
+              />
               <Area type="monotone" dataKey="solar" stroke="#fbbf24" fill="url(#solarDetailGrad)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
