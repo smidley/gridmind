@@ -150,7 +150,7 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
 
       {/* Reserve indicator below bar */}
       {reserve > 0 && (
-        <div className="relative w-full h-4 mt-0.5">
+        <div className="relative w-full h-5 mt-1">
           {/* Bracket line from 0 to reserve% */}
           <div
             className="absolute top-0 h-1.5 border-l border-r border-b border-slate-500/50 rounded-b-sm"
@@ -158,7 +158,7 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
           />
           {/* Label */}
           <div
-            className="absolute top-2 flex justify-center"
+            className="absolute top-2.5 flex justify-center"
             style={{ left: 0, width: `${reserve}%` }}
           >
             <span className="text-[9px] text-slate-500 leading-none">
@@ -168,7 +168,7 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
         </div>
       )}
 
-      <div className={`flex justify-between ${reserve > 0 ? 'mt-1' : 'mt-3'} text-sm`}>
+      <div className={`flex justify-between ${reserve > 0 ? 'mt-2' : 'mt-3'} text-sm`}>
         <span className={
           charging ? 'text-emerald-400' : discharging ? 'text-blue-400' : 'text-slate-400'
         }>
@@ -184,7 +184,7 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
       </div>
 
       {capacityKwh ? (
-        <div className="text-xs text-slate-500 mt-1">
+        <div className="text-xs text-slate-500 mt-1.5">
           {availableKwh !== null ? `${availableKwh.toFixed(1)}` : '—'} / {capacityKwh} kWh
           {usableKwh !== null && usableKwh > 0 && (
             <span className="text-slate-600"> ({usableKwh.toFixed(1)} usable)</span>
@@ -192,7 +192,7 @@ export default function BatteryGauge({ soc, power, reserve, description, capacit
         </div>
       ) : null}
       {maxPowerKw ? (
-        <div className="text-xs text-slate-600 mt-0.5">
+        <div className="text-xs text-slate-600 mt-1">
           Max output: {maxPowerKw} kW
         </div>
       ) : null}

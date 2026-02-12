@@ -49,8 +49,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="flex h-screen">
-        {/* Sidebar */}
-        <nav className="w-64 bg-slate-100 border-r border-slate-200/60 flex flex-col dark:bg-slate-900 dark:border-slate-800">
+        {/* Desktop Sidebar — hidden on mobile */}
+        <nav className="hidden md:flex w-64 bg-slate-100 border-r border-slate-200/60 flex-col dark:bg-slate-900 dark:border-slate-800">
           <div className="p-5 border-b border-slate-200/60 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-amber-500/20 flex items-center justify-center">
@@ -84,7 +84,6 @@ export default function App() {
           </div>
 
           <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 space-y-3">
-            {/* Theme toggle */}
             <button
               onClick={cycleTheme}
               className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors w-full"
@@ -106,8 +105,8 @@ export default function App() {
           </div>
         </nav>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950">
+        {/* Main Content — adds bottom padding on mobile for nav bar */}
+        <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950 pb-16 md:pb-0">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/vehicle" element={<VehiclePage />} />
@@ -122,6 +121,43 @@ export default function App() {
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
+
+        {/* Mobile Bottom Navigation — visible only on small screens */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 z-50">
+          <div className="flex justify-around items-center h-14">
+            {navItems.slice(0, 5).map(({ to, icon: Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg min-w-0 ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-slate-400 dark:text-slate-500'
+                  }`
+                }
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[9px] font-medium leading-none truncate">{label}</span>
+              </NavLink>
+            ))}
+            {/* More menu: Settings + remaining items */}
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg ${
+                  isActive
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`
+              }
+            >
+              <Settings className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none">Settings</span>
+            </NavLink>
+          </div>
+        </nav>
       </div>
     </BrowserRouter>
   )

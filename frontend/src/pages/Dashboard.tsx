@@ -20,6 +20,9 @@ import {
   Lightbulb,
   Trophy,
   Info,
+  Shield as ShieldIcon,
+  PiggyBank,
+  BarChart3,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi } from '../hooks/useApi'
@@ -48,6 +51,8 @@ export default function Dashboard() {
   const { data: optimizeStatus } = useAutoRefresh<any>('/settings/optimize/status', 60000)
   const { data: aiInsights } = useApi<any>('/ai/insights')
   const { data: aiAnomalies } = useApi<any>('/ai/anomalies')
+  const { data: healthData } = useApi<any>('/powerwall/health')
+  const { data: savingsData } = useApi<any>('/powerwall/health/savings')
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -402,6 +407,87 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Backup Time + Cost Savings */}
+          {(healthData || savingsData) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Backup Duration */}
+              {healthData?.battery?.backup_time_remaining_hours != null && (
+                <div className="card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShieldIcon className="w-4 h-4 text-blue-400" />
+                    <span className="card-header mb-0">Backup Reserve</span>
+                  </div>
+                  <div className="stat-value text-blue-400">
+                    {healthData.battery.backup_time_remaining_hours >= 24
+                      ? `${(healthData.battery.backup_time_remaining_hours / 24).toFixed(1)} days`
+                      : `${healthData.battery.backup_time_remaining_hours.toFixed(1)} hours`}
+                  </div>
+                  <div className="stat-label">
+                    Estimated backup at current usage · {healthData.battery.backup_reserve_pct}% reserve
+                  </div>
+                </div>
+              )}
+
+              {/* Cost Savings */}
+              {savingsData && !savingsData.error && (
+                <div className="card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <PiggyBank className="w-4 h-4 text-emerald-400" />
+                    <span className="card-header mb-0">Savings</span>
+                  </div>
+                  <div className="stat-value text-emerald-400">
+                    ${savingsData.total_savings.toLocaleString()}
+                  </div>
+                  <div className="stat-label">
+                    Total saved over {savingsData.days_tracked} days · ~${savingsData.avg_daily_savings}/day
+                  </div>
+                  {savingsData.today_savings > 0 && (
+                    <div className="text-xs text-emerald-500/70 mt-1">
+                      +${savingsData.today_savings.toFixed(2)} today
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 7-Day Solar Forecast */}
+          {forecast?.week?.length > 2 && (
+            <div className="card">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-amber-400" />
+                <span className="card-header mb-0">7-Day Solar Forecast</span>
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {forecast.week.map((day: any) => {
+                  const dayName = new Date(day.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short' })
+                  const isToday = day.date === new Date().toISOString().slice(0, 10)
+                  return (
+                    <div key={day.date} className={`text-center p-2 rounded-lg ${
+                      isToday ? 'bg-amber-500/10 ring-1 ring-amber-500/30' : 'bg-slate-800/30'
+                    }`}>
+                      <div className={`text-[10px] font-medium ${isToday ? 'text-amber-400' : 'text-slate-500'}`}>
+                        {isToday ? 'Today' : dayName}
+                      </div>
+                      <div className={`text-sm font-bold mt-1 ${
+                        day.condition === 'sunny' ? 'text-amber-400' :
+                        day.condition === 'partly_cloudy' ? 'text-amber-300/70' :
+                        'text-slate-400'
+                      }`}>
+                        {day.estimated_kwh}
+                      </div>
+                      <div className="text-[9px] text-slate-500">kWh</div>
+                      <div className="text-[9px] mt-1">
+                        {day.condition === 'sunny' ? '☀️' :
+                         day.condition === 'partly_cloudy' ? '⛅' : '☁️'}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 

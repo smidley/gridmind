@@ -307,10 +307,131 @@ async def powerwall_alerts():
                 "ended": None,
             })
 
+    # Firmware version change detection
+    try:
+        from tesla.commands import get_site_info as _get_info
+        info = await _get_info()
+        current_fw = info.get("version", "")
+        if current_fw:
+            last_fw = setup_store.get("last_known_firmware", "")
+            if last_fw and last_fw != current_fw:
+                alerts.append({
+                    "type": "firmware_update",
+                    "severity": "info",
+                    "message": f"Firmware updated: {last_fw} → {current_fw}",
+                    "started": now.isoformat(),
+                    "ended": None,
+                })
+            # Always update the stored version
+            if current_fw != last_fw:
+                setup_store.set("last_known_firmware", current_fw)
+    except Exception:
+        pass
+
     # Sort: ongoing first, then by time descending
     alerts.sort(key=lambda a: (a.get("ended") is not None, a.get("started", "")), reverse=True)
 
     return {"alerts": alerts, "checked_at": now.isoformat()}
+
+
+@router.get("/health/savings")
+async def powerwall_savings():
+    """Calculate cost savings from having solar + battery vs grid-only.
+
+    Computes what you would have paid at full TOU rates for all consumption,
+    minus what you actually paid (imports only). The difference is your savings.
+    """
+    from tesla.client import tesla_client as tc, TeslaAPIError
+    from tesla.commands import get_site_info
+    from services import setup_store as ss
+    from zoneinfo import ZoneInfo
+
+    if not tc.is_authenticated:
+        return {"error": "Not authenticated"}
+
+    try:
+        info = await get_site_info()
+    except TeslaAPIError:
+        return {"error": "Could not fetch site info"}
+
+    tariff = info.get("tariff_content", {})
+    if not tariff:
+        return {"error": "No tariff configured"}
+
+    user_tz_name = ss.get_timezone()
+    try:
+        user_tz = ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = ZoneInfo("America/New_York")
+
+    # Get rate info — find a reasonable average buy rate
+    seasons = tariff.get("seasons", {})
+    energy_charges = tariff.get("energy_charges", {})
+
+    # Collect all buy rates to find avg
+    all_rates = []
+    for season_data in energy_charges.values():
+        for rate in season_data.values():
+            if isinstance(rate, (int, float)) and rate > 0:
+                all_rates.append(rate)
+    avg_buy_rate = sum(all_rates) / len(all_rates) if all_rates else 0.15  # $/kWh
+
+    # Get throughput data
+    async with async_session() as session:
+        result = await session.execute(
+            select(DailyEnergySummary).order_by(DailyEnergySummary.date.asc())
+        )
+        summaries = result.scalars().all()
+
+    if not summaries:
+        return {"error": "No energy data yet"}
+
+    total_consumed = sum(s.home_consumed_kwh or 0 for s in summaries)
+    total_imported = sum(s.grid_imported_kwh or 0 for s in summaries)
+    total_exported = sum(s.grid_exported_kwh or 0 for s in summaries)
+    total_solar = sum(s.solar_generated_kwh or 0 for s in summaries)
+
+    # What you WOULD have paid without solar/battery (all consumption from grid)
+    would_have_paid = total_consumed * avg_buy_rate
+
+    # What you actually paid (only grid imports, at avg rate)
+    actually_paid = total_imported * avg_buy_rate
+
+    # Export credits (sell rate is typically lower)
+    sell_tariff = tariff.get("sell_tariff", {})
+    sell_charges = sell_tariff.get("energy_charges", energy_charges)
+    sell_rates = []
+    for season_data in sell_charges.values():
+        for rate in season_data.values():
+            if isinstance(rate, (int, float)) and rate > 0:
+                sell_rates.append(rate)
+    avg_sell_rate = sum(sell_rates) / len(sell_rates) if sell_rates else avg_buy_rate
+    export_credits = total_exported * avg_sell_rate
+
+    total_savings = (would_have_paid - actually_paid) + export_credits
+    days = len(summaries)
+
+    # Today's savings
+    today_summary = summaries[-1] if summaries else None
+    today_savings = 0
+    if today_summary:
+        today_consumed = today_summary.home_consumed_kwh or 0
+        today_imported = today_summary.grid_imported_kwh or 0
+        today_exported = today_summary.grid_exported_kwh or 0
+        today_savings = ((today_consumed - today_imported) * avg_buy_rate) + (today_exported * avg_sell_rate)
+
+    return {
+        "total_savings": round(total_savings, 2),
+        "today_savings": round(today_savings, 2),
+        "avg_daily_savings": round(total_savings / days, 2) if days else 0,
+        "would_have_paid": round(would_have_paid, 2),
+        "actually_paid": round(actually_paid, 2),
+        "export_credits": round(export_credits, 2),
+        "avg_buy_rate": round(avg_buy_rate, 4),
+        "avg_sell_rate": round(avg_sell_rate, 4),
+        "days_tracked": days,
+        "monthly_estimate": round((total_savings / days) * 30, 2) if days else 0,
+    }
 
 
 @router.get("/health/capacity")

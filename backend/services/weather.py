@@ -58,7 +58,7 @@ async def fetch_solar_forecast() -> list[dict]:
         "hourly": ",".join(hourly_vars),
         "daily": "sunrise,sunset",
         "timezone": timezone,
-        "forecast_days": 2,
+        "forecast_days": 7,
         # These parameters control global_tilted_irradiance calculation
         "tilt": solar_config["tilt"],
         "azimuth": solar_config["azimuth"],
@@ -170,10 +170,14 @@ async def get_forecast_summary() -> dict:
     today = local_now.strftime("%Y-%m-%d")
     tomorrow = (local_now + timedelta(days=1)).strftime("%Y-%m-%d")
 
+    # Fetch all forecast days (up to 7 days ahead)
+    week_end = (local_now + timedelta(days=7)).strftime("%Y-%m-%d")
+
     async with async_session() as session:
         result = await session.execute(
             select(SolarForecast).where(
-                SolarForecast.date.in_([today, tomorrow])
+                SolarForecast.date >= today,
+                SolarForecast.date <= week_end,
             ).order_by(SolarForecast.date, SolarForecast.hour)
         )
         entries = result.scalars().all()
@@ -247,7 +251,18 @@ async def get_forecast_summary() -> dict:
     today_entries = [e for e in entries if e.date == today]
     tomorrow_entries = [e for e in entries if e.date == tomorrow]
 
+    # Build 7-day forecast
+    all_dates = sorted(set(e.date for e in entries))
+    week = []
+    for d in all_dates:
+        day_entries = [e for e in entries if e.date == d]
+        summary = summarize_day(day_entries, d)
+        if summary:
+            summary["date"] = d
+            week.append(summary)
+
     return {
         "today": summarize_day(today_entries, today),
         "tomorrow": summarize_day(tomorrow_entries, tomorrow),
+        "week": week,
     }
