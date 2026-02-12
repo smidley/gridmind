@@ -125,7 +125,7 @@ async def get_readings(
         "source": source,
         "readings": [
             {
-                "timestamp": r.timestamp.isoformat(),
+                "timestamp": r.timestamp.isoformat() + "Z",  # Mark as UTC so browsers parse correctly
                 "battery_soc": r.battery_soc,
                 "battery_power": r.battery_power,
                 "solar_power": r.solar_power,
