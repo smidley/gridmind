@@ -79,7 +79,7 @@ function AuthConfig() {
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username"
           autoComplete="off"
-          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+          className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
         />
         <input
           type="password"
@@ -87,7 +87,7 @@ function AuthConfig() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
           autoComplete="new-password"
-          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+          className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
         />
         <button onClick={saveAuth} disabled={saving || !username || !password} className="btn-primary text-sm px-4">
           {saving ? 'Saving...' : authStatus?.auth_enabled ? 'Update' : 'Enable'}
@@ -263,7 +263,7 @@ function AIKeyConfig() {
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="sk-..."
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
           />
           <button onClick={saveKey} disabled={saving || !key} className="btn-primary text-sm px-4">
             {saving ? 'Saving...' : 'Save'}
