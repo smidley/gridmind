@@ -61,6 +61,18 @@ class WebSocketManager {
 
   private listeners = new Set<() => void>()
 
+  constructor() {
+    // Reconnect when page becomes visible (phone unlock, tab switch)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.refCount > 0) {
+        // Check if WS is still alive, reconnect if not
+        if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+          this.connect()
+        }
+      }
+    })
+  }
+
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
     this.refCount++

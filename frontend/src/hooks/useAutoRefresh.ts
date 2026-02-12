@@ -59,5 +59,16 @@ export function useAutoRefresh<T = any>(path: string, intervalMs: number = 30000
     return () => clearInterval(timer)
   }, [fetchData, intervalMs])
 
+  // Refresh when tab becomes visible (e.g., phone unlocked, tab switched back)
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && mountedRef.current) {
+        fetchData(false)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [fetchData])
+
   return { data, loading, error, refetch: () => fetchData(true) }
 }
