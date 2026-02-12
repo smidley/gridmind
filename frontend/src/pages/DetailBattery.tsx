@@ -340,6 +340,40 @@ export default function DetailBattery() {
               )}
             </div>
 
+          </div>
+
+          {/* Health Explanation */}
+          {capacity.latest_estimate && (
+            <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-800/50 mb-4">
+              <p className="text-xs text-slate-400 leading-relaxed">
+                <span className="font-medium text-slate-300">How this is calculated: </span>
+                On {capacity.latest_estimate.date}, the battery cycled from {capacity.latest_estimate.min_soc}% to {capacity.latest_estimate.max_soc}% ({capacity.latest_estimate.soc_swing_pct}% swing),
+                using {capacity.latest_estimate.charged_kwh} kWh. Accounting for ~92% round-trip efficiency,
+                that estimates an effective capacity of <span className="font-medium text-slate-300">{capacity.latest_estimate.estimated_capacity_kwh} kWh</span> out
+                of {capacity.nominal_capacity_kwh} kWh nominal = <span className={`font-medium ${
+                  capacity.latest_estimate.health_pct >= 95 ? 'text-emerald-400' :
+                  capacity.latest_estimate.health_pct >= 85 ? 'text-lime-400' :
+                  capacity.latest_estimate.health_pct >= 70 ? 'text-amber-400' : 'text-red-400'
+                }`}>{capacity.latest_estimate.health_pct}% health</span>.
+              </p>
+              <p className="text-[10px] text-slate-500 mt-2">
+                {capacity.latest_estimate.health_pct >= 95
+                  ? 'Excellent — capacity is at or near nominal. Battery is performing as expected.'
+                  : capacity.latest_estimate.health_pct >= 85
+                  ? 'Good — slight capacity reduction is normal. No concerns.'
+                  : capacity.latest_estimate.health_pct >= 70
+                  ? 'Fair — this estimate may be affected by incomplete charge cycles, high loads during charging, or temperature. A single deep cycle (10% to 100%) gives the most accurate reading. This does not necessarily indicate degradation.'
+                  : 'Degraded — capacity is significantly below nominal. Monitor over multiple cycles to confirm.'}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Rating scale: Excellent (95%+), Good (85-95%), Fair (70-85%), Degraded (&lt;70%).
+                {capacity.data_points < 5 && ' Accuracy improves with more deep charge cycles.'}
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
             {/* Round-Trip Efficiency */}
             <div>
               <span className="text-xs text-slate-500">Round-Trip Efficiency</span>
