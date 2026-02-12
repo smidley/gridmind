@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="gridmind.png" alt="GridMind" width="800" />
+  <img src="gridmind.png" alt="GridMind" width="400" />
 </p>
 
 <h1 align="center">GridMind</h1>
