@@ -41,6 +41,12 @@ _state = {
 }
 
 
+def _set_phase(phase: str):
+    """Set the optimizer phase and persist it for restart recovery."""
+    _state["phase"] = phase
+    setup_store.set("gridmind_optimize_phase", phase)
+
+
 def get_state() -> dict:
     """Get the current optimizer state."""
     return {
@@ -65,16 +71,21 @@ def init():
         _state["buffer_minutes"] = int(setup_store.get("gridmind_optimize_buffer") or 15)
         _state["min_reserve_pct"] = int(setup_store.get("gridmind_optimize_min_reserve") or 5)
 
-        # Check if we're currently in peak hours and set phase accordingly
+        # Restore persisted phase, validated against current time
+        saved_phase = setup_store.get("gridmind_optimize_phase", "idle")
         try:
             tz = ZoneInfo(setup_store.get_timezone() or settings.timezone)
             now = datetime.now(tz)
             current_hour = now.hour
-            if _state["peak_start_hour"] <= current_hour < _state["peak_end_hour"]:
-                # Default to peak_hold — will be refined to "dumping" by check_actual_state()
+            in_peak = _state["peak_start_hour"] <= current_hour < _state["peak_end_hour"]
+
+            if in_peak and saved_phase in ("dumping", "peak_hold"):
+                # Restore the exact phase from before restart
+                _state["phase"] = saved_phase
+                logger.info("GridMind Optimize restored: in peak hours, resuming phase '%s'", saved_phase)
+            elif in_peak:
                 _state["phase"] = "peak_hold"
-                _state["_needs_state_check"] = True  # Flag for first evaluate() call
-                logger.info("GridMind Optimize restored: currently in peak hours, will check actual battery state")
+                logger.info("GridMind Optimize restored: in peak hours, entering peak_hold")
             else:
                 _state["phase"] = "idle"
                 logger.info("GridMind Optimize restored: outside peak hours")
@@ -98,12 +109,12 @@ def enable(peak_start: int = 17, peak_end: int = 21, buffer: int = 15, min_reser
         tz = ZoneInfo(setup_store.get_timezone() or settings.timezone)
         current_hour = datetime.now(tz).hour
         if peak_start <= current_hour < peak_end:
-            _state["phase"] = "peak_hold"
+            _set_phase("peak_hold")
             logger.info("GridMind Optimize enabled during peak hours — entering peak_hold")
         else:
-            _state["phase"] = "idle"
+            _set_phase("idle")
     except Exception:
-        _state["phase"] = "idle"
+        _set_phase("idle")
 
     # Persist all settings
     setup_store.set("gridmind_optimize_enabled", True)
@@ -117,7 +128,7 @@ def enable(peak_start: int = 17, peak_end: int = 21, buffer: int = 15, min_reser
 def disable():
     """Disable GridMind Optimize mode."""
     _state["enabled"] = False
-    _state["phase"] = "idle"
+    _set_phase("idle")
     _state["dump_started_at"] = None
     _state["estimated_finish"] = None
     setup_store.set("gridmind_optimize_enabled", False)
@@ -174,35 +185,17 @@ async def evaluate():
     if status is None:
         return
 
-    # On first evaluation after restart during peak, check actual Powerwall state
-    # to determine if we were dumping (autonomous + battery_ok) or holding (self_consumption)
-    if _state.get("_needs_state_check"):
-        _state.pop("_needs_state_check", None)
-        try:
-            from tesla.commands import get_site_config
-            config = await get_site_config()
-            mode = config.get("operation_mode", "")
-            export_rule = config.get("export_rule", "")
-            if mode == "autonomous" and export_rule == "battery_ok":
-                _state["phase"] = "dumping"
-                _state["dump_started_at"] = datetime.now().isoformat()
-                logger.info("GridMind Optimize: detected active dump (autonomous + battery_ok), resuming dump phase")
-            else:
-                logger.info("GridMind Optimize: Powerwall in %s/%s, staying in peak_hold", mode, export_rule)
-        except Exception as e:
-            logger.warning("GridMind Optimize: could not check Powerwall state: %s", e)
-
     # Before peak: ensure we're ready
     if hour < peak_start:
         if _state["phase"] != "idle":
-            _state["phase"] = "idle"
+            _set_phase("idle")
         return
 
     # After peak: restore and reset
     if hour >= peak_end:
         if _state["phase"] in ("peak_hold", "dumping"):
             await _end_peak()
-        _state["phase"] = "complete" if hour < peak_end + 1 else "idle"
+        _set_phase("complete" if hour < peak_end + 1 else "idle")
         return
 
     # During peak hours
@@ -239,7 +232,7 @@ async def _start_peak_hold(status):
         _state["pre_optimize_reserve"] = status.backup_reserve
         _state["pre_optimize_export"] = "battery_ok"
 
-    _state["phase"] = "peak_hold"
+    _set_phase("peak_hold")
 
     try:
         # Self-powered mode, hold current battery level
@@ -325,7 +318,7 @@ async def _start_dump(estimated_finish: datetime):
     from tesla.commands import set_grid_import_export, set_backup_reserve, set_operation_mode
     from services.notifications import send_notification
 
-    _state["phase"] = "dumping"
+    _set_phase("dumping")
     _state["dump_started_at"] = datetime.now().isoformat()
     _state["estimated_finish"] = estimated_finish.strftime("%H:%M")
 
@@ -359,7 +352,7 @@ async def _monitor_dump(status, now: datetime):
             await set_grid_import_export(customer_preferred_export_rule="pv_only")
         except Exception:
             pass
-        _state["phase"] = "complete"
+        _set_phase("complete")
 
 
 async def _end_peak():
@@ -388,6 +381,6 @@ async def _end_peak():
     except Exception as e:
         logger.error("GridMind Optimize: Failed to restore: %s", e)
 
-    _state["phase"] = "idle"
+    _set_phase("idle")
     _state["dump_started_at"] = None
     _state["estimated_finish"] = None

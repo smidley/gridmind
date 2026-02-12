@@ -154,18 +154,13 @@ async def app_auth_login(data: LoginRequest, request: Request, response: Respons
         return JSONResponse(status_code=401, content={"detail": "Invalid username or password"})
 
     token = create_session_token(data.username)
-    # Auto-detect HTTPS from request headers (reverse proxy sets X-Forwarded-Proto)
-    is_https = (
-        request.headers.get("x-forwarded-proto") == "https"
-        or request.url.scheme == "https"
-    )
     response.set_cookie(
         key="gridmind_session",
         value=token,
         httponly=True,
-        samesite="lax" if not is_https else "none",
+        samesite="lax",
         max_age=60 * 60 * 24 * 30,  # 30 days
-        secure=is_https,
+        secure=False,  # Allow cookie on both HTTP and HTTPS
     )
 
     return {"status": "ok", "username": data.username}
