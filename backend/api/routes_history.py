@@ -102,9 +102,23 @@ async def get_range_stats(
 
     # Power source breakdown
     total_supply = solar_kwh + discharged_kwh + import_kwh
-    source_solar_pct = round((solar_kwh / total_supply) * 100) if total_supply > 0 else 0
-    source_battery_pct = round((discharged_kwh / total_supply) * 100) if total_supply > 0 else 0
-    source_grid_pct = round((import_kwh / total_supply) * 100) if total_supply > 0 else 0
+    if total_supply > 0:
+        # Use floor for first two, remainder goes to largest to ensure sum = 100
+        raw_solar = (solar_kwh / total_supply) * 100
+        raw_battery = (discharged_kwh / total_supply) * 100
+        raw_grid = (import_kwh / total_supply) * 100
+        source_solar_pct = int(raw_solar)
+        source_battery_pct = int(raw_battery)
+        source_grid_pct = int(raw_grid)
+        # Distribute remainder to the largest source
+        remainder = 100 - (source_solar_pct + source_battery_pct + source_grid_pct)
+        if remainder > 0:
+            largest = max(('solar', raw_solar), ('battery', raw_battery), ('grid', raw_grid), key=lambda x: x[1])
+            if largest[0] == 'solar': source_solar_pct += remainder
+            elif largest[0] == 'battery': source_battery_pct += remainder
+            else: source_grid_pct += remainder
+    else:
+        source_solar_pct = source_battery_pct = source_grid_pct = 0
 
     # Self-powered = non-grid portion
     self_powered_pct = max(0, round(100 - source_grid_pct))

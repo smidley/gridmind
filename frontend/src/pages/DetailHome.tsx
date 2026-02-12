@@ -77,10 +77,10 @@ export default function DetailHome() {
       {rs.reading_count > 0 && (
         <div className="card">
           <div className="card-header">Power Sources</div>
-          <div className="flex h-6 rounded-lg overflow-hidden bg-slate-800 mb-3">
+          <div className="flex h-6 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-800 mb-3">
             {rs.source_solar_pct > 0 && (
               <div
-                className="bg-amber-500 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-700"
+                className="bg-amber-400 dark:bg-amber-500 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-700"
                 style={{ width: `${rs.source_solar_pct}%` }}
               >
                 {rs.source_solar_pct >= 12 && `${rs.source_solar_pct}%`}
@@ -88,7 +88,7 @@ export default function DetailHome() {
             )}
             {rs.source_battery_pct > 0 && (
               <div
-                className="bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-700"
+                className="bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-700"
                 style={{ width: `${rs.source_battery_pct}%` }}
               >
                 {rs.source_battery_pct >= 12 && `${rs.source_battery_pct}%`}
@@ -96,7 +96,7 @@ export default function DetailHome() {
             )}
             {rs.source_grid_pct > 0 && (
               <div
-                className="bg-red-400 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-700"
+                className="bg-red-300 dark:bg-red-400 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-700"
                 style={{ width: `${rs.source_grid_pct}%` }}
               >
                 {rs.source_grid_pct >= 12 && `${rs.source_grid_pct}%`}

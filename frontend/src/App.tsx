@@ -14,6 +14,8 @@ import {
   Activity,
   LogOut,
   Trophy,
+  Home,
+  Battery,
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Rules from './pages/Rules'
@@ -33,6 +35,10 @@ import { apiFetch } from './hooks/useApi'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/detail/solar', icon: Sun, label: 'Solar' },
+  { to: '/detail/home', icon: Home, label: 'Home' },
+  { to: '/detail/grid', icon: Zap, label: 'Grid' },
+  { to: '/detail/battery', icon: Battery, label: 'Battery' },
   { to: '/vehicle', icon: Car, label: 'Vehicle' },
   { to: '/forecast', icon: CloudSun, label: 'Forecast' },
   { to: '/value', icon: DollarSign, label: 'Value' },
@@ -182,7 +188,12 @@ export default function App() {
         {/* Mobile Bottom Navigation — visible only on small screens */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 z-50">
           <div className="flex justify-around items-center h-14">
-            {navItems.slice(0, 5).map(({ to, icon: Icon, label }) => (
+            {[
+              { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+              { to: '/vehicle', icon: Car, label: 'Vehicle' },
+              { to: '/value', icon: DollarSign, label: 'Value' },
+              { to: '/achievements', icon: Trophy, label: 'Badges' },
+            ].map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}
