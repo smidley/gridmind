@@ -87,11 +87,23 @@ def init():
 def enable(peak_start: int = 17, peak_end: int = 21, buffer: int = 15, min_reserve: int = 5):
     """Enable GridMind Optimize mode."""
     _state["enabled"] = True
-    _state["phase"] = "idle"
     _state["peak_start_hour"] = peak_start
     _state["peak_end_hour"] = peak_end
     _state["buffer_minutes"] = buffer
     _state["min_reserve_pct"] = min_reserve
+
+    # Immediately check if we're in peak hours
+    try:
+        tz = ZoneInfo(setup_store.get_timezone() or settings.timezone)
+        current_hour = datetime.now(tz).hour
+        if peak_start <= current_hour < peak_end:
+            _state["phase"] = "peak_hold"
+            logger.info("GridMind Optimize enabled during peak hours — entering peak_hold")
+        else:
+            _state["phase"] = "idle"
+    except Exception:
+        _state["phase"] = "idle"
+
     # Persist all settings
     setup_store.set("gridmind_optimize_enabled", True)
     setup_store.set("gridmind_optimize_peak_start", peak_start)
