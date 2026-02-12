@@ -29,14 +29,10 @@ export default function DetailGrid() {
   const exporting = status && status.grid_power < -50
   const netCredit = (rs.grid_exported_kwh || 0) - (rs.grid_imported_kwh || 0)
 
-  const chartData = readings?.readings?.map((r: any) => {
-    const kw = Math.round((r.grid_power || 0) / 100) / 10
-    return {
-      time: formatChartTime(r.timestamp, range),
-      importing: kw > 0 ? kw : 0,
-      exporting: kw < 0 ? Math.abs(kw) : 0,
-    }
-  }) || []
+  const chartData = readings?.readings?.map((r: any) => ({
+    time: formatChartTime(r.timestamp, range),
+    grid: Math.round((r.grid_power || 0) / 100) / 10,
+  })) || []
 
   return (
     <div className="p-6 space-y-6">
@@ -107,23 +103,33 @@ export default function DetailGrid() {
       )}
 
       {/* Grid Power Chart */}
-      {chartData.length > 0 && (
+      {chartData.length > 0 && (() => {
+        // Calculate where zero falls in the chart's Y range for the gradient split
+        const values = chartData.map((d: any) => d.grid)
+        const maxVal = Math.max(...values, 0.1)
+        const minVal = Math.min(...values, -0.1)
+        const range = maxVal - minVal
+        // Zero point as a fraction from top (0) to bottom (1)
+        const zeroPoint = range > 0 ? maxVal / range : 0.5
+
+        return (
         <div className="card">
           <div className="card-header">Grid Power ({rs.period_label || ''})</div>
-          <div className="flex gap-4 text-[10px] text-slate-500 mb-2">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-400" /> Importing</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-400" /> Exporting</span>
-          </div>
+          <p className="text-xs text-slate-500 mb-2">Above zero = importing, below zero = exporting</p>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData}>
               <defs>
-                <linearGradient id="gridImportGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f87171" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#f87171" stopOpacity={0.02} />
+                <linearGradient id="gridSplitFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f87171" stopOpacity={0.25} />
+                  <stop offset={`${(zeroPoint * 100).toFixed(1)}%`} stopColor="#f87171" stopOpacity={0.03} />
+                  <stop offset={`${(zeroPoint * 100).toFixed(1)}%`} stopColor="#34d399" stopOpacity={0.03} />
+                  <stop offset="100%" stopColor="#34d399" stopOpacity={0.25} />
                 </linearGradient>
-                <linearGradient id="gridExportGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#34d399" stopOpacity={0.02} />
+                <linearGradient id="gridSplitStroke" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f87171" />
+                  <stop offset={`${(zeroPoint * 100).toFixed(1)}%`} stopColor="#f87171" />
+                  <stop offset={`${(zeroPoint * 100).toFixed(1)}%`} stopColor="#34d399" />
+                  <stop offset="100%" stopColor="#34d399" />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -131,17 +137,15 @@ export default function DetailGrid() {
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
-                formatter={(v: number, name: string) => [
-                  `${v.toFixed(1)} kW`,
-                  name === 'importing' ? 'Importing' : 'Exporting',
-                ]}
+                formatter={(v: number) => [`${Math.abs(v).toFixed(1)} kW`, v >= 0 ? 'Importing' : 'Exporting']}
               />
-              <Area type="monotone" dataKey="importing" stroke="#f87171" fill="url(#gridImportGrad)" strokeWidth={1.5} dot={false} />
-              <Area type="monotone" dataKey="exporting" stroke="#34d399" fill="url(#gridExportGrad)" strokeWidth={1.5} dot={false} />
+              <ReferenceLine y={0} stroke="#475569" strokeDasharray="3 3" />
+              <Area type="monotone" dataKey="grid" stroke="url(#gridSplitStroke)" fill="url(#gridSplitFill)" strokeWidth={1.5} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      )}
+        )
+      })()}
 
       {/* Rate Schedule */}
       {tariff?.configured && (
