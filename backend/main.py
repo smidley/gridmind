@@ -143,7 +143,7 @@ async def app_auth_status():
 
 
 @app.post("/api/app-auth/login")
-async def app_auth_login(data: LoginRequest, response: Response):
+async def app_auth_login(data: LoginRequest, request: Request, response: Response):
     """Log in with username and password."""
     from services.app_auth import verify_password, create_session_token, is_auth_enabled
 
@@ -154,13 +154,18 @@ async def app_auth_login(data: LoginRequest, response: Response):
         return JSONResponse(status_code=401, content={"detail": "Invalid username or password"})
 
     token = create_session_token(data.username)
+    # Auto-detect HTTPS from request headers (reverse proxy sets X-Forwarded-Proto)
+    is_https = (
+        request.headers.get("x-forwarded-proto") == "https"
+        or request.url.scheme == "https"
+    )
     response.set_cookie(
         key="gridmind_session",
         value=token,
         httponly=True,
-        samesite="lax",
+        samesite="lax" if not is_https else "none",
         max_age=60 * 60 * 24 * 30,  # 30 days
-        secure=False,  # Set to True if using HTTPS
+        secure=is_https,
     )
 
     return {"status": "ok", "username": data.username}
