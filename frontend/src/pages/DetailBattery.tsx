@@ -18,7 +18,7 @@ import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
 import BatteryGauge from '../components/BatteryGauge'
-import TimeRangeSelector, { getTimeRange } from '../components/TimeRangeSelector'
+import TimeRangeSelector, { getTimeRange, formatChartTime } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
 
@@ -47,7 +47,7 @@ export default function DetailBattery() {
   const discharging = status && status.battery_power > 50
 
   const chartData = readings?.readings?.map((r: any) => ({
-    time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    time: formatChartTime(r.timestamp, range),
     soc: r.battery_soc,
     power: Math.round((r.battery_power || 0) / 100) / 10,
   })) || []

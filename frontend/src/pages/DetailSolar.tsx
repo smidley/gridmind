@@ -6,7 +6,7 @@ import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
 import SolarGoal from '../components/SolarGoal'
-import TimeRangeSelector, { getTimeRange } from '../components/TimeRangeSelector'
+import TimeRangeSelector, { getTimeRange, formatChartTime } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
 
@@ -29,7 +29,7 @@ export default function DetailSolar() {
   const rs = rangeStats || {}
 
   const chartData = readings?.readings?.map((r: any) => ({
-    time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    time: formatChartTime(r.timestamp, range),
     solar: Math.round((r.solar_power || 0) / 100) / 10,
   })) || []
 

@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
-import TimeRangeSelector, { getTimeRange } from '../components/TimeRangeSelector'
+import TimeRangeSelector, { getTimeRange, formatChartTime } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
 
@@ -30,7 +30,7 @@ export default function DetailGrid() {
   const netCredit = (rs.grid_exported_kwh || 0) - (rs.grid_imported_kwh || 0)
 
   const chartData = readings?.readings?.map((r: any) => ({
-    time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    time: formatChartTime(r.timestamp, range),
     grid: Math.round((r.grid_power || 0) / 100) / 10,
   })) || []
 

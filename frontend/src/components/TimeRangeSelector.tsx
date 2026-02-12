@@ -42,3 +42,13 @@ export default function TimeRangeSelector({ value, onChange }: Props) {
 export function getTimeRange(id: string): TimeRange {
   return TIME_RANGES.find(r => r.id === id) || TIME_RANGES[0]
 }
+
+/** Format a reading timestamp for chart display based on the selected range */
+export function formatChartTime(timestamp: string, rangeId: string): string {
+  const d = new Date(timestamp)
+  if (rangeId === '7d') {
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+           d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}

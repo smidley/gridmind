@@ -54,7 +54,9 @@ def _resolve_since(since_param: str | None, hours: int) -> datetime:
             tz = ZoneInfo("America/New_York")
         local_now = datetime.now(tz)
         midnight_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-        return midnight_local.astimezone(None).replace(tzinfo=None)  # Convert to UTC naive
+        # Convert local midnight to UTC for database query
+        midnight_utc = midnight_local.astimezone(ZoneInfo("UTC"))
+        return midnight_utc.replace(tzinfo=None)  # Naive UTC for SQLite comparison
     return datetime.utcnow() - timedelta(hours=hours)
 
 
