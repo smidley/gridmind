@@ -14,6 +14,8 @@ import {
   Zap,
   Brain,
   Trash2,
+  Bell,
+  Send,
 } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 
@@ -90,6 +92,122 @@ function AuthConfig() {
         <button onClick={saveAuth} disabled={saving || !username || !password} className="btn-primary text-sm px-4">
           {saving ? 'Saving...' : authStatus?.auth_enabled ? 'Update' : 'Enable'}
         </button>
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {success && <p className="text-xs text-emerald-400">{success}</p>}
+    </div>
+  )
+}
+
+/** Inline component for notification configuration */
+function NotificationConfig() {
+  const { data: config, refetch } = useApi<any>('/settings/notifications')
+  const [smtpHost, setSmtpHost] = useState('')
+  const [smtpPort, setSmtpPort] = useState('587')
+  const [smtpUser, setSmtpUser] = useState('')
+  const [smtpPass, setSmtpPass] = useState('')
+  const [smtpFrom, setSmtpFrom] = useState('')
+  const [email, setEmail] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    if (config && !loaded) {
+      setSmtpHost(config.smtp_host || '')
+      setSmtpPort(String(config.smtp_port || 587))
+      setSmtpUser(config.smtp_username || '')
+      setSmtpFrom(config.smtp_from || '')
+      setEmail(config.email || '')
+      setWebhookUrl(config.webhook_url || '')
+      setLoaded(true)
+    }
+  }, [config, loaded])
+
+  const save = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      await apiFetch('/settings/notifications', {
+        method: 'POST',
+        body: JSON.stringify({
+          smtp_host: smtpHost, smtp_port: parseInt(smtpPort) || 587,
+          smtp_username: smtpUser, smtp_password: smtpPass,
+          smtp_from: smtpFrom, email, webhook_url: webhookUrl,
+        }),
+      })
+      setSuccess('Notification settings saved')
+      setSmtpPass('')
+      refetch()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const test = async () => {
+    setTesting(true); setError(''); setSuccess('')
+    try {
+      const result = await apiFetch('/settings/notifications/test', { method: 'POST' })
+      const results = result.results || []
+      const summary = results.map((r: any) => `${r.channel}: ${r.success ? 'OK' : 'Failed'}`).join(', ')
+      setSuccess(`Test sent! ${summary}`)
+    } catch (e: any) { setError(e.message) }
+    finally { setTesting(false) }
+  }
+
+  return (
+    <div className="space-y-4">
+      {config?.configured && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+          <Check className="w-4 h-4 text-emerald-400" />
+          <span className="text-sm text-emerald-400 font-medium">Notifications configured</span>
+        </div>
+      )}
+
+      <div>
+        <label className="text-xs text-slate-500 block mb-1">Webhook URL (Slack, Discord, or generic)</label>
+        <input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://hooks.slack.com/..." className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm" />
+      </div>
+
+      <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
+        <p className="text-xs text-slate-500 mb-3 font-medium">Email (SMTP)</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] text-slate-500">SMTP Host</label>
+            <input value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} placeholder="smtp.gmail.com" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-500">SMTP Port</label>
+            <input value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} placeholder="587" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-500">Username</label>
+            <input value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} placeholder="user@gmail.com" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-500">Password {config?.smtp_password_set && <span className="text-emerald-400">(set)</span>}</label>
+            <input type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} placeholder={config?.smtp_password_set ? '••••••••' : 'App password'} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-500">From Email</label>
+            <input value={smtpFrom} onChange={(e) => setSmtpFrom(e.target.value)} placeholder="gridmind@yourdomain.com" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-500">Send To</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button onClick={save} disabled={saving} className="btn-primary text-sm">{saving ? 'Saving...' : 'Save'}</button>
+        {config?.configured && (
+          <button onClick={test} disabled={testing} className="flex items-center gap-1.5 px-4 py-2 text-sm text-slate-500 hover:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-lg transition-colors">
+            <Send className="w-3.5 h-3.5" />
+            {testing ? 'Sending...' : 'Send Test'}
+          </button>
+        )}
       </div>
       {error && <p className="text-xs text-red-400">{error}</p>}
       {success && <p className="text-xs text-emerald-400">{success}</p>}
@@ -1181,6 +1299,18 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Notifications */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-1">
+          <Bell className="w-4 h-4 text-blue-400" />
+          <span className="card-header mb-0">Notifications</span>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          Get notified about grid outages, optimizer activity, and automation events via email or webhooks (Slack/Discord).
+        </p>
+        <NotificationConfig />
+      </div>
 
       {/* OpenAI Configuration */}
       <div className="card">

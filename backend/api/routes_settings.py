@@ -631,3 +631,65 @@ async def set_app_setting(key: str, data: AppSettingUpdate, db: AsyncSession = D
         db.add(setting)
     await db.commit()
     return {"key": key, "value": data.value}
+
+
+# --- Notification Settings ---
+
+
+class NotificationConfig(BaseModel):
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    email: str = ""
+    webhook_url: str = ""
+
+
+@router.get("/notifications")
+async def get_notification_config():
+    """Get notification configuration."""
+    from services import setup_store
+    return {
+        "smtp_host": setup_store.get("notify_smtp_host", ""),
+        "smtp_port": setup_store.get("notify_smtp_port", 587),
+        "smtp_username": setup_store.get("notify_smtp_username", ""),
+        "smtp_password_set": bool(setup_store.get_raw("notify_smtp_password", "")),
+        "smtp_from": setup_store.get("notify_smtp_from", ""),
+        "email": setup_store.get("notify_email", ""),
+        "webhook_url": setup_store.get("notify_webhook_url", ""),
+        "configured": bool(setup_store.get("notify_smtp_host") and setup_store.get("notify_email")) or bool(setup_store.get("notify_webhook_url")),
+    }
+
+
+@router.post("/notifications")
+async def save_notification_config(data: NotificationConfig):
+    """Save notification configuration."""
+    from services import setup_store
+    updates = {
+        "notify_smtp_host": data.smtp_host,
+        "notify_smtp_port": data.smtp_port,
+        "notify_smtp_username": data.smtp_username,
+        "notify_smtp_from": data.smtp_from,
+        "notify_email": data.email,
+        "notify_webhook_url": data.webhook_url,
+    }
+    # Only update password if provided (non-empty)
+    if data.smtp_password:
+        updates["notify_smtp_password"] = data.smtp_password
+    setup_store.update(updates)
+    return {"status": "ok"}
+
+
+@router.post("/notifications/test")
+async def test_notification():
+    """Send a test notification via all configured channels."""
+    from services.notifications import send_notification, is_configured
+    if not is_configured():
+        raise HTTPException(status_code=400, detail="No notification channels configured")
+    results = await send_notification(
+        "Test Notification",
+        "This is a test notification from GridMind. If you received this, notifications are working!",
+        "info",
+    )
+    return {"results": [{"channel": r[0], "success": r[1]} for r in results]}
