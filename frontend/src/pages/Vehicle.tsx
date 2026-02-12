@@ -200,6 +200,24 @@ export default function VehiclePage() {
         )}
       </div>
 
+      {/* Asleep / stale data notice */}
+      {isAsleep && cs && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-sm">
+          <div className="flex items-center gap-2 text-slate-500">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Vehicle is asleep. Data may be stale. Wake to get the latest status.</span>
+          </div>
+          <button
+            onClick={() => doAction('/vehicle/wake').then(() => setTimeout(refetch, 5000))}
+            disabled={actionLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-500/15 text-violet-500 hover:bg-violet-500/25 transition-colors shrink-0 ml-3"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Wake & Refresh
+          </button>
+        </div>
+      )}
+
       {actionError && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 text-sm">
           <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -300,11 +318,12 @@ export default function VehiclePage() {
                 <div className={`stat-value ${
                   cs.charging_state === 'Complete' ? 'text-blue-400' :
                   cs.charging_state === 'Stopped' ? 'text-amber-400' :
+                  cs.charging_state === 'NoPower' ? 'text-amber-400' :
                   'text-slate-500'
                 }`}>
                   {cs.charging_state === 'Complete' ? 'Complete' :
                    cs.charging_state === 'Stopped' ? 'Plugged In' :
-                   cs.charging_state === 'NoPower' ? 'No Power' :
+                   cs.charging_state === 'NoPower' ? 'Plugged In (No Power)' :
                    'Unplugged'}
                 </div>
                 <div className="stat-label">
