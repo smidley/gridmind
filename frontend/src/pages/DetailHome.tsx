@@ -40,7 +40,7 @@ export default function DetailHome() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
             <ArrowLeft className="w-5 h-5 text-slate-500" />
@@ -103,7 +103,7 @@ export default function DetailHome() {
               </div>
             )}
           </div>
-          <div className="flex gap-6 text-xs">
+          <div className="flex flex-wrap gap-4 sm:gap-6 text-xs">
             <div className="flex items-center gap-1.5">
               <Sun className="w-3 h-3 text-amber-400" />
               <span className="text-amber-400 font-medium">{rs.source_solar_pct}%</span>

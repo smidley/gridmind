@@ -186,47 +186,101 @@ export default function App() {
         </main>
 
         {/* Mobile Bottom Navigation — visible only on small screens */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 z-50">
-          <div className="flex justify-around items-center h-14">
-            {[
-              { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-              { to: '/vehicle', icon: Car, label: 'Vehicle' },
-              { to: '/value', icon: DollarSign, label: 'Value' },
-              { to: '/achievements', icon: Trophy, label: 'Badges' },
-            ].map(({ to, icon: Icon, label }) => (
+        <MobileNav onLogout={handleLogout} />
+      </div>
+    </BrowserRouter>
+  )
+}
+
+/** Mobile bottom nav with expandable "More" menu for all pages */
+function MobileNav({ onLogout }: { onLogout: () => void }) {
+  const [moreOpen, setMoreOpen] = useState(false)
+
+  const primaryItems = [
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/detail/solar', icon: Sun, label: 'Solar' },
+    { to: '/detail/battery', icon: Battery, label: 'Battery' },
+    { to: '/vehicle', icon: Car, label: 'Vehicle' },
+  ]
+
+  const moreItems = [
+    { to: '/detail/home', icon: Home, label: 'Home' },
+    { to: '/detail/grid', icon: Zap, label: 'Grid' },
+    { to: '/forecast', icon: CloudSun, label: 'Forecast' },
+    { to: '/value', icon: DollarSign, label: 'Value' },
+    { to: '/rules', icon: Zap, label: 'Automation' },
+    { to: '/history', icon: History, label: 'History' },
+    { to: '/achievements', icon: Trophy, label: 'Achievements' },
+    { to: '/settings', icon: Settings, label: 'Settings' },
+  ]
+
+  return (
+    <>
+      {/* More menu overlay */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-40" onClick={() => setMoreOpen(false)}>
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+          <div className="absolute bottom-16 left-2 right-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl p-3 grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
+            {moreItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}
-                end={to === '/'}
+                onClick={() => setMoreOpen(false)}
                 className={({ isActive }) =>
-                  `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg min-w-0 ${
+                  `flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-center ${
                     isActive
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-slate-400 dark:text-slate-500'
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`
                 }
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-[9px] font-medium leading-none truncate">{label}</span>
+                <span className="text-[10px] font-medium leading-none">{label}</span>
               </NavLink>
             ))}
-            {/* More menu: Settings + remaining items */}
+            <button
+              onClick={() => { onLogout(); setMoreOpen(false) }}
+              className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/5"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-[10px] font-medium leading-none">Sign Out</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 z-50">
+        <div className="flex justify-around items-center h-14">
+          {primaryItems.map(({ to, icon: Icon, label }) => (
             <NavLink
-              to="/settings"
+              key={to}
+              to={to}
+              end={to === '/'}
+              onClick={() => setMoreOpen(false)}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg ${
+                `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg min-w-0 ${
                   isActive
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-slate-400 dark:text-slate-500'
                 }`
               }
             >
-              <Settings className="w-5 h-5" />
-              <span className="text-[9px] font-medium leading-none">Settings</span>
+              <Icon className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none truncate">{label}</span>
             </NavLink>
-          </div>
-        </nav>
-      </div>
-    </BrowserRouter>
+          ))}
+          <button
+            onClick={() => setMoreOpen(!moreOpen)}
+            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg ${
+              moreOpen ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'
+            }`}
+          >
+            <Activity className="w-5 h-5" />
+            <span className="text-[9px] font-medium leading-none">More</span>
+          </button>
+        </div>
+      </nav>
+    </>
   )
 }

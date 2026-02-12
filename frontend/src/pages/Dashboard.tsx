@@ -511,7 +511,7 @@ export default function Dashboard() {
                 <BarChart3 className="w-4 h-4 text-amber-400" />
                 <span className="card-header mb-0">7-Day Solar Forecast</span>
               </div>
-              <div className="grid grid-cols-7 gap-1.5">
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                 {forecast.week.map((day: any) => {
                   const dayName = new Date(day.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short' })
                   const isToday = day.date === new Date().toISOString().slice(0, 10)
