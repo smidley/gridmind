@@ -72,7 +72,7 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold">Dashboard</h2>
           <p className="text-sm text-slate-500">Real-time Powerwall monitoring</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative group flex items-center gap-2 cursor-help">
           {connected ? (
             <span className="flex items-center gap-1.5 text-xs text-emerald-400">
               <Wifi className="w-3.5 h-3.5" /> Live
@@ -82,6 +82,18 @@ export default function Dashboard() {
               <WifiOff className="w-3.5 h-3.5" /> Offline
             </span>
           )}
+          <span className="text-[10px] text-slate-500">WebSocket</span>
+          {/* Tooltip */}
+          <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-xs text-slate-500 dark:text-slate-400">
+            {connected ? (
+              <p><span className="text-emerald-400 font-medium">Connected</span> — Real-time data is streaming. Power flow and stats update instantly.</p>
+            ) : (
+              <>
+                <p className="mb-2"><span className="text-slate-400 font-medium">Disconnected</span> — Data updates via polling instead of real-time streaming.</p>
+                <p>If you're using a reverse proxy, enable <span className="font-medium text-slate-300">WebSocket support</span> in your proxy settings for the GridMind host.</p>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
