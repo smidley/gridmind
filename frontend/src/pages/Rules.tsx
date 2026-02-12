@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Plus, Power, PowerOff, Clock, Battery, Zap, Wifi, Sun, Trash2, BookOpen } from 'lucide-react'
+import { Plus, Power, PowerOff, Clock, Battery, Zap, Wifi, Sun, Trash2, BookOpen, Activity, Car, Timer } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import RuleBuilder from '../components/RuleBuilder'
 import AutomationPresets from '../components/AutomationPresets'
 
@@ -71,6 +72,8 @@ function formatAction(action: any): string {
 export default function Rules() {
   const { data: rules, loading, refetch } = useApi<Rule[]>('/rules')
   const { data: logs } = useApi<any[]>('/rules/log/recent')
+  const { data: optimizeStatus } = useAutoRefresh<any>('/settings/optimize/status', 60000)
+  const { data: evSchedule } = useApi<any>('/vehicle/schedule')
   const [showBuilder, setShowBuilder] = useState(false)
   const [showPresets, setShowPresets] = useState(false)
 
@@ -113,6 +116,83 @@ export default function Rules() {
           onCreated={() => { setShowBuilder(false); refetch() }}
           onCancel={() => setShowBuilder(false)}
         />
+      )}
+
+      {/* Active Automations Status */}
+      {(optimizeStatus?.enabled || (evSchedule && evSchedule.strategy !== 'off')) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* GridMind Optimize */}
+          {optimizeStatus?.enabled && (
+            <div className="card border-emerald-500/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                  <Activity className={`w-5 h-5 ${
+                    optimizeStatus.phase === 'dumping' ? 'text-amber-500' :
+                    optimizeStatus.phase === 'peak_hold' ? 'text-blue-500' :
+                    'text-emerald-500'
+                  }`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">GridMind Optimize</span>
+                    <span className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-medium">Active</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Peak: {optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00
+                    {optimizeStatus.peak_start_hour >= 12 ? ' PM' : ' AM'} –{' '}
+                    {optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00
+                    {optimizeStatus.peak_end_hour >= 12 ? ' PM' : ' AM'}
+                    {' · '}
+                    {optimizeStatus.phase === 'dumping' ? 'Exporting' :
+                     optimizeStatus.phase === 'peak_hold' ? 'Holding' :
+                     optimizeStatus.phase === 'complete' ? 'Complete' :
+                     'Waiting for peak'}
+                  </p>
+                </div>
+                <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${
+                  optimizeStatus.phase === 'dumping' ? 'bg-amber-500/15 text-amber-500' :
+                  optimizeStatus.phase === 'peak_hold' ? 'bg-blue-500/15 text-blue-500' :
+                  optimizeStatus.phase === 'complete' ? 'bg-emerald-500/15 text-emerald-500' :
+                  'bg-emerald-500/10 text-emerald-500'
+                }`}>
+                  {optimizeStatus.phase === 'dumping' ? 'Exporting' :
+                   optimizeStatus.phase === 'peak_hold' ? 'Holding' :
+                   optimizeStatus.phase === 'complete' ? 'Complete' :
+                   'Waiting'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* EV Smart Schedule */}
+          {evSchedule && evSchedule.strategy !== 'off' && (
+            <div className="card border-violet-500/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center">
+                  <Car className="w-5 h-5 text-violet-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">EV Smart Schedule</span>
+                    <span className="text-[10px] bg-violet-500/15 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded font-medium">Active</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {evSchedule.strategy === 'tou_aware' ? 'TOU-Aware: charge off-peak only' :
+                     evSchedule.strategy === 'solar_surplus' ? `Solar Surplus: threshold ${evSchedule.solar_surplus_threshold_kw} kW` :
+                     evSchedule.strategy === 'departure' ? `Departure: ${evSchedule.departure_time}, target ${evSchedule.departure_target_soc}%` :
+                     evSchedule.strategy}
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-violet-500/10 text-violet-500">
+                  {evSchedule.strategy === 'tou_aware' ? 'TOU' :
+                   evSchedule.strategy === 'solar_surplus' ? 'Solar' :
+                   evSchedule.strategy === 'departure' ? 'Depart' :
+                   evSchedule.strategy}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Rules List */}
