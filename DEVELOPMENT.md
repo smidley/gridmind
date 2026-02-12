@@ -1,6 +1,6 @@
 # GridMind Development Guide
 
-## Current State (v1.0.0)
+## Current State (v1.1.0)
 
 ### Tech Stack
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy (async SQLite), APScheduler
@@ -63,11 +63,48 @@
 17. Setup wizard with key generation and Fleet API registration
 18. GitHub Actions CI (multi-arch Docker to GHCR)
 19. Unraid Community Apps template
+20. EV charging integration (vehicle discovery, charge monitoring, controls, smart scheduling)
+
+### EV Charging Architecture (v1.1.0)
+- `backend/tesla/vehicle_commands.py` - Fleet API vehicle endpoints (list, data, charge controls, wake)
+- `backend/tesla/models.py` - VehicleSummary, ChargeState, VehicleStatus Pydantic models
+- `backend/database.py` - VehicleChargeReading time-series table
+- `backend/services/vehicle_collector.py` - Adaptive polling (2m charging, 10m plugged, 30m idle, 60m asleep)
+- `backend/api/routes_vehicle.py` - `/api/vehicle/*` REST endpoints
+- `backend/automation/charge_scheduler.py` - Smart scheduling: TOU-aware, solar surplus, departure planner
+- `frontend/src/pages/Vehicle.tsx` - Vehicle page with gauge, stats, controls, charts, schedule panel
+- `frontend/src/components/ChargeGauge.tsx` - SOC gauge with charge limit marker and shimmer
+- Dashboard EV tile with SOC bar, charge status, range
+- Sidebar nav item for Vehicle page
+- WebSocket extended with `_type` field for multiplexed powerwall/vehicle messages
+
+### Powerwall Health Monitoring (v1.1.0)
+- `backend/api/routes_health.py` - `/api/powerwall/health`, `/health/throughput`, `/health/alerts`
+- Health endpoint: system info, connectivity (grid/island), backup time remaining, hardware inventory
+- Throughput: daily charge/discharge history, lifetime cycles, self-powered %, energy totals
+- Alerts: detects grid outages, low SOC events, storm watch from reading history (7 day window)
+- Frontend: Battery detail page enhanced with health cards, alerts, throughput chart, hardware inventory
+
+### OpenAI Integration (v1.1.0)
+- `backend/services/ai_insights.py` - OpenAI-powered insight generation and anomaly detection
+- `backend/api/routes_ai.py` - `/api/ai/status`, `/ai/configure`, `/ai/insights`, `/ai/anomalies`
+- Settings UI: OpenAI API key config (stored in setup_store, masked)
+- Dashboard: AI Insights card (achievements, tips, warnings) + anomaly alerts
+- Uses gpt-4o-mini for cost efficiency; insights cached 1h, anomalies cached 30min
+- Insights: analyzes 7 days of daily summaries + today's data + forecast
+- Anomalies: compares recent readings against 30-day baseline, flags deviations
 
 ### Remaining Backlog
-1. **OpenAI integration** - AI insights, natural language rules, anomaly detection
-2. **EV charging integration** - Vehicle charge state, smart scheduling (scopes already added)
-3. **Powerwall health monitoring** - Diagnostics, alerts, connectivity
+(All original items complete)
+
+### EV Charging Notes
+- **Vehicle polling**: Adaptive — collector runs every 30s but internally skips based on state (uses `should_poll_now()`)
+- **Vehicle sleep**: 408 response means vehicle is asleep; don't wake unless user requests it
+- **Smart schedule config**: Stored in `setup_store` under `ev_schedule` key
+- **WebSocket multiplexing**: Messages now include `_type: "powerwall"` or `_type: "vehicle"` field
+- **Charge scheduler strategies**: TOU-aware (pause during peak), solar surplus (amps proportional to surplus), departure planner (calculate start time from target SOC)
+- **Mode manager**: EV scheduler registered at same priority as automation (doesn't conflict with Powerwall controls)
+- **Vehicle scopes**: `vehicle_device_data` + `vehicle_charging_cmds` already in OAuth scope string
 
 ### Known Considerations
 - Off-grid mode restore: saves/restores export_rule from Tesla config

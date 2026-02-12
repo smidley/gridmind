@@ -4,10 +4,11 @@ Tracks which "controller" currently owns the Powerwall settings and blocks
 conflicting changes from other controllers.
 
 Controllers:
-- "manual"     : User making changes via Settings UI
-- "offgrid"    : Off-Grid mode
-- "optimizer"  : GridMind Optimize
-- "automation" : Automation rule engine
+- "manual"       : User making changes via Settings UI
+- "automation"   : Automation rule engine
+- "ev_scheduler" : EV smart charge scheduler
+- "optimizer"    : GridMind Optimize
+- "offgrid"      : Off-Grid mode
 """
 
 import logging
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 CONTROLLER_PRIORITY = {
     "manual": 0,
     "automation": 1,
+    "ev_scheduler": 1,  # Same as automation -- doesn't conflict with Powerwall controls
     "optimizer": 2,
     "offgrid": 3,  # Highest -- off-grid overrides everything
 }
@@ -99,4 +101,26 @@ def check_automation_allowed() -> tuple[bool, str]:
         return False, "Off-Grid Mode is active -- automation rules are paused"
     if active == "optimizer":
         return False, "GridMind Optimize is controlling the Powerwall -- automation rules are paused"
+    return True, ""
+
+
+def is_ev_scheduler_active() -> bool:
+    """Check if the EV smart charge scheduler is actively controlling the vehicle."""
+    schedule = setup_store.get("ev_schedule", {})
+    if not isinstance(schedule, dict):
+        return False
+    return schedule.get("strategy", "off") != "off"
+
+
+def check_ev_manual_allowed() -> tuple[bool, str]:
+    """Check if manual EV charge controls are allowed.
+
+    Unlike Powerwall controls, the EV scheduler doesn't fully block manual
+    changes -- it just warns the user that their changes may be overridden.
+    """
+    if is_ev_scheduler_active():
+        from automation.charge_scheduler import get_state
+        state = get_state()
+        strategy = state.get("strategy", "off")
+        return True, f"EV smart scheduler ({strategy}) is active. Manual changes may be overridden."
     return True, ""

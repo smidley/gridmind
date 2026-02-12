@@ -164,6 +164,28 @@ class AppSettings(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
+# --- Vehicle Data Models ---
+
+
+class VehicleChargeReading(Base):
+    """Time-series vehicle charge readings."""
+
+    __tablename__ = "vehicle_charge_readings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    vehicle_id = Column(String(50), nullable=False)  # Tesla vehicle ID
+    battery_level = Column(Float, nullable=True)  # SOC 0-100
+    battery_range = Column(Float, nullable=True)  # Rated range in miles
+    charging_state = Column(String(30), nullable=True)  # Disconnected/Stopped/Charging/Complete
+    charge_rate = Column(Float, nullable=True)  # Charge speed in mph or kW
+    charger_power = Column(Float, nullable=True)  # Power in kW
+    charge_energy_added = Column(Float, nullable=True)  # kWh added this session
+    charge_limit_soc = Column(Integer, nullable=True)  # Target charge %
+    solar_fraction = Column(Float, nullable=True)  # 0.0-1.0, fraction of charge from solar
+
+
 # --- Database Engine ---
 
 engine = create_async_engine(settings.database_url, echo=settings.debug)

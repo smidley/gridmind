@@ -1,6 +1,18 @@
 import { useNavigate } from 'react-router-dom'
-import { Battery, ArrowLeft } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import {
+  Battery,
+  ArrowLeft,
+  Shield,
+  Wifi,
+  WifiOff,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  Cpu,
+  Zap,
+} from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -14,6 +26,10 @@ export default function DetailBattery() {
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: siteConfig } = useApi('/site/config')
   const { data: readings } = useApi('/history/readings?hours=24&resolution=5')
+  const { data: health } = useApi<any>('/powerwall/health')
+  const { data: throughput } = useApi<any>('/powerwall/health/throughput?days=30')
+  const { data: alerts } = useAutoRefresh<any>('/powerwall/health/alerts', 120000)
+  const { data: capacity } = useApi<any>('/powerwall/health/capacity')
 
   const charging = status && status.battery_power < -50
   const discharging = status && status.battery_power > 50
@@ -122,6 +138,355 @@ export default function DetailBattery() {
               <Area type="monotone" dataKey="power" stroke="#3b82f6" fill="#3b82f620" strokeWidth={1.5} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Alerts */}
+      {alerts?.alerts?.length > 0 && (
+        <div className="space-y-2">
+          {alerts.alerts.map((a: any, i: number) => (
+            <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${
+              a.severity === 'critical'
+                ? 'border-red-500/30 bg-red-500/5'
+                : a.severity === 'warning'
+                ? 'border-amber-500/30 bg-amber-500/5'
+                : 'border-blue-500/30 bg-blue-500/5'
+            }`}>
+              {a.severity === 'critical' ? (
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              ) : a.severity === 'warning' ? (
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              ) : (
+                <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-medium ${
+                  a.severity === 'critical' ? 'text-red-400' :
+                  a.severity === 'warning' ? 'text-amber-400' : 'text-blue-400'
+                }`}>{a.message}</p>
+                {a.started && (
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {new Date(a.started).toLocaleString()}
+                    {a.ended ? ` — ${new Date(a.ended).toLocaleString()}` : ' — ongoing'}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Health Status */}
+      {health && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Connectivity */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              {health.connectivity.grid_connected ? (
+                <Wifi className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-400" />
+              )}
+              <span className="card-header mb-0">Grid</span>
+            </div>
+            <div className={`text-lg font-bold ${health.connectivity.grid_connected ? 'text-emerald-400' : 'text-red-400'}`}>
+              {health.connectivity.grid_connected ? 'Connected' : 'Islanded'}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {health.connectivity.storm_mode_active && (
+                <span className="text-amber-400">Storm Watch Active</span>
+              )}
+              {!health.connectivity.storm_mode_active && health.connectivity.storm_mode_capable && (
+                <span>Storm Watch ready</span>
+              )}
+            </div>
+          </div>
+
+          {/* Backup Time */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-4 h-4 text-blue-400" />
+              <span className="card-header mb-0">Backup</span>
+            </div>
+            <div className="text-lg font-bold text-blue-400">
+              {health.battery.backup_time_remaining_hours != null
+                ? `${health.battery.backup_time_remaining_hours.toFixed(1)}h`
+                : '—'}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              Estimated backup time · {health.battery.backup_reserve_pct}% reserve
+            </div>
+          </div>
+
+          {/* System Age */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="w-4 h-4 text-slate-400" />
+              <span className="card-header mb-0">Installation</span>
+            </div>
+            <div className="text-lg font-bold text-slate-300">
+              {health.system.days_since_install != null
+                ? health.system.days_since_install < 365
+                  ? `${health.system.days_since_install} days`
+                  : `${(health.system.days_since_install / 365).toFixed(1)} years`
+                : '—'}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {health.system.utility} · {health.system.tariff_id}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lifetime Stats */}
+      {throughput?.totals && (
+        <div className="card">
+          <div className="card-header">Lifetime Statistics ({throughput.totals.days_tracked} days tracked)</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-slate-500">Total Charged</span>
+              <p className="text-lg font-bold text-emerald-400">{throughput.totals.total_charged_kwh.toLocaleString()} kWh</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Total Discharged</span>
+              <p className="text-lg font-bold text-blue-400">{throughput.totals.total_discharged_kwh.toLocaleString()} kWh</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Battery Cycles</span>
+              <p className="text-lg font-bold text-slate-300">{throughput.totals.total_cycles}</p>
+              <p className="text-[10px] text-slate-500">{throughput.totals.avg_daily_cycles}/day avg</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Self-Powered</span>
+              <p className="text-lg font-bold text-amber-400">{throughput.totals.self_powered_pct}%</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4">
+            <div>
+              <span className="text-slate-500">Total Solar</span>
+              <p className="font-medium">{throughput.totals.total_solar_kwh.toLocaleString()} kWh</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Total Exported</span>
+              <p className="font-medium">{throughput.totals.total_exported_kwh.toLocaleString()} kWh</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Total Imported</span>
+              <p className="font-medium">{throughput.totals.total_imported_kwh.toLocaleString()} kWh</p>
+            </div>
+            <div>
+              <span className="text-slate-500">Total Consumed</span>
+              <p className="font-medium">{throughput.totals.total_consumed_kwh.toLocaleString()} kWh</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Battery Health / Capacity */}
+      {capacity && (
+        <div className="card">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4.5 h-4.5 text-emerald-400" />
+            <span className="card-header mb-0">Battery Health</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            {/* Estimated Capacity */}
+            <div>
+              <span className="text-xs text-slate-500">Estimated Capacity</span>
+              {capacity.latest_estimate ? (
+                <>
+                  <p className="text-lg font-bold text-emerald-400">
+                    {capacity.latest_estimate.estimated_capacity_kwh} kWh
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    of {capacity.nominal_capacity_kwh} kWh nominal
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-slate-500">—</p>
+                  <p className="text-[10px] text-slate-500">Needs a deep cycle (30%+ swing)</p>
+                </>
+              )}
+            </div>
+
+            {/* Health Percentage */}
+            <div>
+              <span className="text-xs text-slate-500">Health</span>
+              {capacity.latest_estimate ? (
+                <>
+                  <p className={`text-lg font-bold ${
+                    capacity.latest_estimate.health_pct >= 95 ? 'text-emerald-400' :
+                    capacity.latest_estimate.health_pct >= 85 ? 'text-lime-400' :
+                    capacity.latest_estimate.health_pct >= 70 ? 'text-amber-400' :
+                    'text-red-400'
+                  }`}>
+                    {capacity.latest_estimate.health_pct}%
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {capacity.latest_estimate.health_pct >= 95 ? 'Excellent' :
+                     capacity.latest_estimate.health_pct >= 85 ? 'Good' :
+                     capacity.latest_estimate.health_pct >= 70 ? 'Fair' : 'Degraded'}
+                  </p>
+                </>
+              ) : (
+                <p className="text-lg font-bold text-slate-500">—</p>
+              )}
+            </div>
+
+            {/* Round-Trip Efficiency */}
+            <div>
+              <span className="text-xs text-slate-500">Round-Trip Efficiency</span>
+              <p className={`text-lg font-bold ${
+                (capacity.avg_efficiency_pct || 0) >= 88 ? 'text-emerald-400' :
+                (capacity.avg_efficiency_pct || 0) >= 80 ? 'text-amber-400' :
+                'text-red-400'
+              }`}>
+                {capacity.avg_efficiency_pct ? `${capacity.avg_efficiency_pct}%` : '—'}
+              </p>
+              <p className="text-[10px] text-slate-500">Energy out / energy in</p>
+            </div>
+
+            {/* Data Points */}
+            <div>
+              <span className="text-xs text-slate-500">Cycle Samples</span>
+              <p className="text-lg font-bold text-slate-400">{capacity.data_points}</p>
+              <p className="text-[10px] text-slate-500">Deep cycles analyzed</p>
+            </div>
+          </div>
+
+          {/* Capacity Trend Chart */}
+          {capacity.capacity_trend?.length > 1 && (
+            <div className="mt-4">
+              <p className="text-xs text-slate-500 mb-2">Estimated Capacity Over Time</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={capacity.capacity_trend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#475569"
+                    fontSize={9}
+                    tickLine={false}
+                    tickFormatter={(d: string) => d.slice(5)}
+                  />
+                  <YAxis
+                    stroke="#475569"
+                    fontSize={10}
+                    tickLine={false}
+                    domain={['dataMin - 2', 'dataMax + 2']}
+                    tickFormatter={(v) => `${v}`}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                    formatter={(v: number) => [`${v.toFixed(1)} kWh`, 'Capacity']}
+                  />
+                  <Line type="monotone" dataKey="estimated_capacity_kwh" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Efficiency Trend Chart */}
+          {capacity.efficiency_trend?.length > 1 && (
+            <div className="mt-4">
+              <p className="text-xs text-slate-500 mb-2">Round-Trip Efficiency Over Time</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={capacity.efficiency_trend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#475569"
+                    fontSize={9}
+                    tickLine={false}
+                    tickFormatter={(d: string) => d.slice(5)}
+                  />
+                  <YAxis
+                    stroke="#475569"
+                    fontSize={10}
+                    tickLine={false}
+                    domain={[75, 100]}
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                    formatter={(v: number) => [`${v.toFixed(1)}%`, 'Efficiency']}
+                  />
+                  <Line type="monotone" dataKey="efficiency_pct" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: '#8b5cf6' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {capacity.data_points === 0 && (
+            <p className="text-xs text-slate-500 italic mt-2">
+              Capacity estimation requires at least one deep charge cycle (30%+ SOC swing).
+              As GridMind collects more daily data, health trends will appear here.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Daily Throughput Chart */}
+      {throughput?.days?.length > 0 && (
+        <div className="card">
+          <div className="card-header">Daily Battery Throughput (30 days)</div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={throughput.days}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis
+                dataKey="date"
+                stroke="#475569"
+                fontSize={9}
+                tickLine={false}
+                tickFormatter={(d: string) => d.slice(5)}
+                interval="preserveStartEnd"
+              />
+              <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}`} />
+              <Tooltip
+                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                formatter={(v: number, name: string) => [
+                  `${v.toFixed(1)} kWh`,
+                  name === 'charged_kwh' ? 'Charged' : 'Discharged',
+                ]}
+              />
+              <Bar dataKey="charged_kwh" fill="#10b981" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="discharged_kwh" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex gap-4 mt-2 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Charged</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500" /> Discharged</span>
+          </div>
+        </div>
+      )}
+
+      {/* Hardware Inventory */}
+      {health?.hardware?.length > 0 && (
+        <div className="card">
+          <div className="flex items-center gap-2 mb-3">
+            <Cpu className="w-4 h-4 text-slate-400" />
+            <span className="card-header mb-0">Hardware</span>
+          </div>
+          <div className="space-y-3">
+            {health.hardware.map((hw: any, i: number) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${hw.active ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  <div>
+                    <p className="text-sm font-medium">{hw.name}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">{hw.serial}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-slate-500">{hw.part_number}</p>
+                  {hw.firmware && (
+                    <p className="text-[10px] text-slate-500 font-mono">{hw.firmware}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

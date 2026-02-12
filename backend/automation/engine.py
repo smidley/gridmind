@@ -13,6 +13,7 @@ from database import async_session, AutomationRule, RuleExecutionLog
 from automation.rules import evaluate_rule
 from automation.actions import execute_actions
 from services.collector import collect_data, update_daily_summary, get_latest_status
+from services.vehicle_collector import collect_vehicle_data
 from services.weather import fetch_solar_forecast
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,25 @@ def setup_scheduler():
         IntervalTrigger(hours=6),
         id="solar_forecast",
         name="Solar Forecast Update",
+        replace_existing=True,
+    )
+
+    # Vehicle data collection - every 30 seconds (adaptive polling handled internally)
+    scheduler.add_job(
+        collect_vehicle_data,
+        IntervalTrigger(seconds=30),
+        id="vehicle_collector",
+        name="Vehicle Data Collector",
+        replace_existing=True,
+    )
+
+    # EV charge scheduler - every 2 minutes
+    from automation.charge_scheduler import evaluate as charge_scheduler_evaluate
+    scheduler.add_job(
+        charge_scheduler_evaluate,
+        IntervalTrigger(minutes=2),
+        id="ev_charge_scheduler",
+        name="EV Charge Scheduler",
         replace_existing=True,
     )
 

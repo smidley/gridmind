@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Sun, Home, Zap, Battery } from 'lucide-react'
+import { useEffect, useRef, useMemo } from 'react'
+import { Sun, Home, Zap, Battery, Car } from 'lucide-react'
 import type { PowerwallStatus } from '../hooks/useWebSocket'
 
 interface TariffInfo {
@@ -12,6 +12,9 @@ interface TariffInfo {
 interface Props {
   status: PowerwallStatus
   tariff?: TariffInfo | null
+  evChargingWatts?: number  // Vehicle charger power in watts (0 or undefined = no EV / not charging)
+  evSoc?: number            // Vehicle battery level 0-100
+  evName?: string           // Vehicle display name
 }
 
 function formatPower(watts: number): string {
@@ -35,12 +38,20 @@ interface FlowPath {
   watts: number
 }
 
-/** Canvas particle renderer - draws on a canvas overlaying the component */
+/** Canvas particle renderer - draws on a canvas overlaying the component.
+ *  Uses refs for paths/positions so the animation loop doesn't tear down on every data update.
+ */
 function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePositions: Record<string, { x: number; y: number }> }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Map<string, Particle[]>>(new Map())
   const animRef = useRef<number>(0)
   const sizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 })
+  // Store paths and positions in refs so the animation loop always reads current values
+  // without needing to restart the effect
+  const pathsRef = useRef(paths)
+  pathsRef.current = paths
+  const nodePositionsRef = useRef(nodePositions)
+  nodePositionsRef.current = nodePositions
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -71,9 +82,21 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
       const { w, h } = sizeRef.current
       ctx.clearRect(0, 0, w, h)
 
-      paths.forEach((path) => {
-        const fromNode = nodePositions[path.fromKey]
-        const toNode = nodePositions[path.toKey]
+      const currentPaths = pathsRef.current
+      const currentPositions = nodePositionsRef.current
+
+      // Clean stale particle entries
+      const activeKeys = new Set(currentPaths.map(p => `${p.fromKey}-${p.toKey}`))
+      particlesRef.current.forEach((_, key) => {
+        if (!activeKeys.has(key)) particlesRef.current.delete(key)
+      })
+
+      // Detect light/dark mode for appropriate line colors
+      const isDark = document.documentElement.classList.contains('dark')
+
+      currentPaths.forEach((path) => {
+        const fromNode = currentPositions[path.fromKey]
+        const toNode = currentPositions[path.toKey]
         if (!fromNode || !toNode) return
 
         const fromX = fromNode.x * w
@@ -83,31 +106,37 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
 
         const key = `${path.fromKey}-${path.toKey}`
 
-        // Draw track line
+        // Draw track line — fainter in light mode
         ctx.beginPath()
         ctx.moveTo(fromX, fromY)
         ctx.lineTo(toX, toY)
-        ctx.strokeStyle = path.active ? 'rgba(51, 65, 85, 0.4)' : 'rgba(30, 41, 59, 0.3)'
+        if (isDark) {
+          ctx.strokeStyle = path.active ? 'rgba(51, 65, 85, 0.4)' : 'rgba(30, 41, 59, 0.3)'
+        } else {
+          ctx.strokeStyle = path.active ? 'rgba(148, 163, 184, 0.25)' : 'rgba(203, 213, 225, 0.3)'
+        }
         ctx.lineWidth = 1.5
         ctx.stroke()
 
-        // Subtle color glow on active paths
+        // Subtle color glow on active paths — reduced in light mode
         if (path.active) {
           const colorMatch = path.color.match(/(\d+),\s*(\d+),\s*(\d+)/)
           if (colorMatch) {
             const cr = colorMatch[1], cg = colorMatch[2], cb = colorMatch[3]
+            const wideAlpha = isDark ? 0.08 : 0.04
+            const tightAlpha = isDark ? 0.15 : 0.08
             // Soft wide glow
             ctx.beginPath()
             ctx.moveTo(fromX, fromY)
             ctx.lineTo(toX, toY)
-            ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.08)`
+            ctx.strokeStyle = `rgba(${cr},${cg},${cb},${wideAlpha})`
             ctx.lineWidth = 12
             ctx.stroke()
             // Tighter glow
             ctx.beginPath()
             ctx.moveTo(fromX, fromY)
             ctx.lineTo(toX, toY)
-            ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.15)`
+            ctx.strokeStyle = `rgba(${cr},${cg},${cb},${tightAlpha})`
             ctx.lineWidth = 4
             ctx.stroke()
           }
@@ -175,29 +204,34 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
           const edgeFade = Math.min(t * 4, (1 - t) * 4, 1)
           const alpha = p.opacity * edgeFade
 
-          // Outer glow
-          const grad1 = ctx.createRadialGradient(x, y, 0, x, y, p.size * 5)
-          grad1.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.25})`)
+          // Outer glow — smaller and subtler in light mode
+          const glowScale = isDark ? 5 : 3
+          const outerAlpha = isDark ? alpha * 0.25 : alpha * 0.12
+          const grad1 = ctx.createRadialGradient(x, y, 0, x, y, p.size * glowScale)
+          grad1.addColorStop(0, `rgba(${r},${g},${b},${outerAlpha})`)
           grad1.addColorStop(1, 'rgba(0,0,0,0)')
           ctx.beginPath()
-          ctx.arc(x, y, p.size * 5, 0, Math.PI * 2)
+          ctx.arc(x, y, p.size * glowScale, 0, Math.PI * 2)
           ctx.fillStyle = grad1
           ctx.fill()
 
           // Core glow
+          const coreAlpha = isDark ? alpha * 0.9 : alpha * 0.7
           const grad2 = ctx.createRadialGradient(x, y, 0, x, y, p.size * 1.8)
-          grad2.addColorStop(0, `rgba(255,255,255,${alpha * 0.6})`)
-          grad2.addColorStop(0.3, `rgba(${r},${g},${b},${alpha * 0.9})`)
+          grad2.addColorStop(0, isDark ? `rgba(255,255,255,${alpha * 0.6})` : `rgba(${r},${g},${b},${alpha * 0.8})`)
+          grad2.addColorStop(0.3, `rgba(${r},${g},${b},${coreAlpha})`)
           grad2.addColorStop(1, 'rgba(0,0,0,0)')
           ctx.beginPath()
           ctx.arc(x, y, p.size * 1.8, 0, Math.PI * 2)
           ctx.fillStyle = grad2
           ctx.fill()
 
-          // Bright center
+          // Bright center — white in dark mode, colored in light mode
           ctx.beginPath()
           ctx.arc(x, y, p.size * 0.5, 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(255,255,255,${alpha * 0.95})`
+          ctx.fillStyle = isDark
+            ? `rgba(255,255,255,${alpha * 0.95})`
+            : `rgba(${r},${g},${b},${alpha * 0.95})`
           ctx.fill()
         })
 
@@ -212,8 +246,9 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
     return () => {
       cancelAnimationFrame(animRef.current)
       window.removeEventListener('resize', resize)
+      particlesRef.current.clear()
     }
-  }, [paths, nodePositions])
+  }, []) // Runs once — reads current paths/positions from refs
 
   return (
     <canvas
@@ -223,7 +258,7 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
   )
 }
 
-export default function PowerFlowDiagram({ status, tariff }: Props) {
+export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, evSoc, evName }: Props) {
   const solarActive = status.solar_power > 50
   const gridImporting = status.grid_power > 50
   const gridExporting = status.grid_power < -50
@@ -231,9 +266,19 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
   const batteryCharging = status.battery_power < -50
   const batteryDischarging = status.battery_power > 50
   const homeActive = status.home_power > 50
+  const evCharging = evChargingWatts > 50
+  const showEv = evSoc !== undefined
 
   // Node positions as fractions of the container (0-1)
-  const nodePositions: Record<string, { x: number; y: number }> = {
+  // Layout: Solar (top), EV (left-mid), Battery (right-mid), Home (bottom-left), Grid (bottom-right)
+  // If no EV, use original centered layout
+  const nodePositions: Record<string, { x: number; y: number }> = showEv ? {
+    solar:   { x: 0.5,  y: 0.10 },
+    ev:      { x: 0.12, y: 0.48 },
+    battery: { x: 0.5,  y: 0.48 },
+    home:    { x: 0.22, y: 0.88 },
+    grid:    { x: 0.78, y: 0.88 },
+  } : {
     solar:   { x: 0.5,  y: 0.12 },
     battery: { x: 0.5,  y: 0.52 },
     home:    { x: 0.22, y: 0.84 },
@@ -245,6 +290,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
   const BATTERY_COLOR = 'rgb(96, 165, 250)'    // blue
   const GRID_COLOR_IMPORT = 'rgb(248, 113, 113)' // red
   const GRID_COLOR_EXPORT = 'rgb(52, 211, 153)'  // emerald
+  const EV_COLOR      = 'rgb(167, 139, 250)'    // violet
 
   const flowPaths: FlowPath[] = [
     // Solar -> Battery
@@ -263,8 +309,23 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
     { fromKey: 'grid', toKey: 'battery', color: GRID_COLOR_IMPORT, active: gridImporting && batteryCharging, watts: Math.min(status.grid_power, Math.abs(status.battery_power)) },
   ]
 
+  // EV flow paths - power flows from sources to EV when charging
+  // EV is part of the home load, so flows come from whichever sources are active
+  if (showEv) {
+    flowPaths.push(
+      // Solar -> EV (solar powers the charger)
+      { fromKey: 'solar', toKey: 'ev', color: SOLAR_COLOR, active: solarActive && evCharging, watts: evCharging ? Math.min(status.solar_power, evChargingWatts) : 0 },
+      // Battery -> EV (battery powers the charger)
+      { fromKey: 'battery', toKey: 'ev', color: BATTERY_COLOR, active: batteryDischarging && evCharging, watts: evCharging ? Math.min(Math.abs(status.battery_power), evChargingWatts) : 0 },
+      // Grid -> EV (grid powers the charger)
+      { fromKey: 'grid', toKey: 'ev', color: GRID_COLOR_IMPORT, active: gridImporting && evCharging, watts: evCharging ? Math.min(status.grid_power, evChargingWatts) : 0 },
+    )
+  }
+
+  const diagramHeight = showEv ? 450 : 420
+
   return (
-    <div className="relative w-full" style={{ height: 420 }}>
+    <div className="relative w-full" style={{ height: diagramHeight }}>
       {/* Particle canvas */}
       <ParticleCanvas paths={flowPaths} nodePositions={nodePositions} />
 
@@ -275,10 +336,11 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
         const tileBase = `flex flex-col items-center justify-center rounded-xl border transition-all duration-500`
         const tileInactive = 'border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-900/95'
         const tileStyle = { width: tileW, height: tileH }
+        const evTileStyle = { width: 110, height: 100 }
 
         return (<>
       {/* Solar - top center */}
-      <div className="absolute z-10" style={{ left: '50%', top: '12%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: '50%', top: `${nodePositions.solar.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
         <div className={`${tileBase} ${
           solarActive ? 'border-amber-400/40 bg-amber-50 shadow-lg shadow-amber-500/10 dark:bg-amber-950/80 dark:shadow-amber-500/20' : tileInactive
         }`} style={tileStyle}>
@@ -291,8 +353,30 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
         </div>
       </div>
 
+      {/* EV - left of battery (only shown when vehicle data available) */}
+      {showEv && (
+        <div className="absolute z-10" style={{ left: `${nodePositions.ev.x * 100}%`, top: `${nodePositions.ev.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
+          <div className={`${tileBase} ${
+            evCharging
+              ? 'border-violet-400/40 bg-violet-50 shadow-lg shadow-violet-500/10 dark:bg-violet-950/80 dark:shadow-violet-500/20'
+              : 'border-violet-400/20 bg-violet-50/50 dark:border-violet-800/30 dark:bg-violet-950/40'
+          }`} style={evTileStyle}>
+            <Car className={`w-5 h-5 mb-1 ${evCharging ? 'text-violet-500 dark:text-violet-400' : 'text-violet-400/60 dark:text-violet-500/60'}`} />
+            <span className={`text-lg font-bold tabular-nums ${evCharging ? 'text-violet-600 dark:text-violet-400' : 'text-violet-500/70 dark:text-violet-400/70'}`}>
+              {evCharging ? formatPower(evChargingWatts) : `${evSoc}%`}
+            </span>
+            <span className="text-[10px] text-violet-400/60 dark:text-violet-500/50 font-medium uppercase tracking-wider mt-0.5">
+              {evName || 'EV'}
+            </span>
+            <span className={`text-[9px] ${evCharging ? 'text-violet-500/70 dark:text-violet-400/70' : 'text-violet-400/50 dark:text-violet-500/40'}`}>
+              {evCharging ? `Charging · ${evSoc}%` : `${evSoc}%`}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Battery - center */}
-      <div className="absolute z-10" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: '50%', top: `${nodePositions.battery.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
         <div className={`${tileBase} ${
           batteryCharging || batteryDischarging ? 'border-blue-400/40 bg-blue-50 shadow-lg shadow-blue-500/10 dark:bg-blue-950/80 dark:shadow-blue-500/20' : tileInactive
         }`} style={tileStyle}>
@@ -310,7 +394,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
       </div>
 
       {/* Home - bottom left */}
-      <div className="absolute z-10" style={{ left: '22%', top: '84%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: `${nodePositions.home.x * 100}%`, top: `${nodePositions.home.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
         <div className={`${tileBase} ${
           homeActive ? 'border-cyan-400/40 bg-cyan-50 shadow-lg shadow-cyan-500/10 dark:bg-cyan-950/80 dark:shadow-cyan-500/20' : tileInactive
         }`} style={tileStyle}>
@@ -324,7 +408,7 @@ export default function PowerFlowDiagram({ status, tariff }: Props) {
       </div>
 
       {/* Grid - bottom right */}
-      <div className="absolute z-10" style={{ left: '78%', top: '84%', transform: 'translate(-50%, -50%)' }}>
+      <div className="absolute z-10" style={{ left: `${nodePositions.grid.x * 100}%`, top: `${nodePositions.grid.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
         <div className={`${tileBase} ${
           gridImporting ? 'border-red-400/40 bg-red-50 shadow-lg shadow-red-500/10 dark:bg-red-950/80 dark:shadow-red-500/20'
           : gridExporting ? 'border-emerald-400/40 bg-emerald-50 shadow-lg shadow-emerald-500/10 dark:bg-emerald-950/80 dark:shadow-emerald-500/20'

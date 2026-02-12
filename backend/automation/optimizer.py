@@ -60,11 +60,26 @@ def init():
     """Restore optimizer state from persistent storage on startup."""
     if setup_store.get("gridmind_optimize_enabled"):
         _state["enabled"] = True
-        _state["phase"] = "idle"
         _state["peak_start_hour"] = int(setup_store.get("gridmind_optimize_peak_start") or 17)
         _state["peak_end_hour"] = int(setup_store.get("gridmind_optimize_peak_end") or 21)
         _state["buffer_minutes"] = int(setup_store.get("gridmind_optimize_buffer") or 15)
         _state["min_reserve_pct"] = int(setup_store.get("gridmind_optimize_min_reserve") or 5)
+
+        # Check if we're currently in peak hours and set phase accordingly
+        # so the dashboard doesn't show "Waiting for Peak" for the first 2 minutes
+        try:
+            tz = ZoneInfo(setup_store.get_timezone() or settings.timezone)
+            now = datetime.now(tz)
+            current_hour = now.hour
+            if _state["peak_start_hour"] <= current_hour < _state["peak_end_hour"]:
+                _state["phase"] = "peak_hold"
+                logger.info("GridMind Optimize restored: currently in peak hours, entering peak_hold")
+            else:
+                _state["phase"] = "idle"
+                logger.info("GridMind Optimize restored: outside peak hours")
+        except Exception:
+            _state["phase"] = "idle"
+
         logger.info("GridMind Optimize restored from config: enabled, peak %d:00-%d:00",
                      _state["peak_start_hour"], _state["peak_end_hour"])
 

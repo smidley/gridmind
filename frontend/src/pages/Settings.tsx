@@ -12,8 +12,71 @@ import {
   Sun,
   Activity,
   Zap,
+  Brain,
+  Trash2,
 } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
+
+/** Inline component for OpenAI API key configuration */
+function AIKeyConfig() {
+  const [key, setKey] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const { data: aiStatus, refetch } = useApi<any>('/ai/status')
+
+  const saveKey = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      await apiFetch('/ai/configure', { method: 'POST', body: JSON.stringify({ api_key: key }) })
+      setSuccess('API key saved')
+      setKey('')
+      refetch()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const removeKey = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      await apiFetch('/ai/configure', { method: 'DELETE' })
+      setSuccess('API key removed')
+      refetch()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {aiStatus?.configured ? (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm text-emerald-400 font-medium">OpenAI configured</span>
+          </div>
+          <button onClick={removeKey} disabled={saving} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300">
+            <Trash2 className="w-3 h-3" /> Remove
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="sk-..."
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+          />
+          <button onClick={saveKey} disabled={saving || !key} className="btn-primary text-sm px-4">
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {success && <p className="text-xs text-emerald-400">{success}</p>}
+    </div>
+  )
+}
 
 export default function SettingsPage() {
   const { data: modeStatus } = useApi<any>('/mode-status')
@@ -1026,6 +1089,15 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* OpenAI Configuration */}
+      <div className="card">
+        <div className="card-header">AI Insights (OpenAI)</div>
+        <p className="text-xs text-slate-500 mb-4">
+          Add your OpenAI API key to enable AI-powered energy insights and anomaly detection on the dashboard.
+        </p>
+        <AIKeyConfig />
+      </div>
 
       {/* Site Info */}
       {siteConfig && (

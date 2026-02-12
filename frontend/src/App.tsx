@@ -9,6 +9,7 @@ import {
   Monitor,
   CloudSun,
   DollarSign,
+  Car,
   Activity,
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
@@ -21,10 +22,12 @@ import DetailSolar from './pages/DetailSolar'
 import DetailGrid from './pages/DetailGrid'
 import DetailHome from './pages/DetailHome'
 import DetailBattery from './pages/DetailBattery'
+import VehiclePage from './pages/Vehicle'
 import { useTheme } from './hooks/useTheme'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/vehicle', icon: Car, label: 'Vehicle' },
   { to: '/forecast', icon: CloudSun, label: 'Forecast' },
   { to: '/value', icon: DollarSign, label: 'Value' },
   { to: '/rules', icon: Zap, label: 'Automation' },
@@ -98,7 +101,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v1.0.0</span>
+              <span>GridMind v1.1.0</span>
             </a>
           </div>
         </nav>
@@ -107,6 +110,7 @@ export default function App() {
         <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/vehicle" element={<VehiclePage />} />
             <Route path="/forecast" element={<ForecastPage />} />
             <Route path="/value" element={<ValuePage />} />
             <Route path="/rules" element={<Rules />} />

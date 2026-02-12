@@ -14,10 +14,14 @@ from config import settings
 from database import init_db
 from automation.engine import setup_scheduler, shutdown_scheduler
 from services.collector import register_status_listener, unregister_status_listener
+from services.vehicle_collector import register_vehicle_listener, unregister_vehicle_listener
 from api.routes_status import router as status_router
 from api.routes_rules import router as rules_router
 from api.routes_history import router as history_router
 from api.routes_settings import router as settings_router
+from api.routes_vehicle import router as vehicle_router
+from api.routes_health import router as health_router
+from api.routes_ai import router as ai_router
 
 # Configure logging
 logging.basicConfig(
@@ -81,6 +85,9 @@ app.include_router(status_router)
 app.include_router(rules_router)
 app.include_router(history_router)
 app.include_router(settings_router)
+app.include_router(vehicle_router)
+app.include_router(health_router)
+app.include_router(ai_router)
 
 
 # --- WebSocket for real-time updates ---
@@ -90,19 +97,31 @@ connected_clients: set[WebSocket] = set()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time Powerwall status updates."""
+    """WebSocket endpoint for real-time Powerwall and vehicle status updates."""
     await websocket.accept()
     connected_clients.add(websocket)
     logger.info("WebSocket client connected (%d total)", len(connected_clients))
 
     async def on_status_update(status):
-        """Broadcast status to this client."""
+        """Broadcast Powerwall status to this client."""
         try:
-            await websocket.send_json(status.model_dump(mode="json"))
+            data = status.model_dump(mode="json")
+            data["_type"] = "powerwall"
+            await websocket.send_json(data)
+        except Exception:
+            pass
+
+    async def on_vehicle_update(vehicle_status):
+        """Broadcast vehicle status to this client."""
+        try:
+            data = vehicle_status.model_dump(mode="json")
+            data["_type"] = "vehicle"
+            await websocket.send_json(data)
         except Exception:
             pass
 
     register_status_listener(on_status_update)
+    register_vehicle_listener(on_vehicle_update)
 
     try:
         while True:
@@ -116,6 +135,7 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         connected_clients.discard(websocket)
         unregister_status_listener(on_status_update)
+        unregister_vehicle_listener(on_vehicle_update)
         logger.info("WebSocket client disconnected (%d remaining)", len(connected_clients))
 
 
@@ -145,6 +165,8 @@ async def health():
         "setup_persisted": setup_exists,
         "optimize_enabled": bool(setup_store.get("gridmind_optimize_enabled")),
         "offgrid_active": bool(setup_store.get("offgrid_active")),
+        "selected_vehicle_id": setup_store.get("selected_vehicle_id"),
+        "ev_schedule_strategy": (setup_store.get("ev_schedule") or {}).get("strategy", "off"),
     }
 
 
