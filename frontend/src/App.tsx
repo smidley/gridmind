@@ -156,6 +156,16 @@ export default function App() {
             </button>
 
             <a
+              href="https://buymeacoffee.com/smidley"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-xs text-amber-500/70 hover:text-amber-500 transition-colors w-full"
+            >
+              <span>☕</span>
+              <span>Buy Me a Coffee</span>
+            </a>
+
+            <a
               href="https://github.com/smidley/gridmind"
               target="_blank"
               rel="noreferrer"

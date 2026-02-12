@@ -1355,6 +1355,20 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Support */}
+      <div className="card text-center py-6">
+        <p className="text-sm text-slate-500 mb-3">Enjoying GridMind? Consider supporting the project.</p>
+        <a
+          href="https://buymeacoffee.com/smidley"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-900 font-medium text-sm rounded-lg transition-colors"
+        >
+          <span>☕</span>
+          Buy Me a Coffee
+        </a>
+      </div>
     </div>
   )
 }
