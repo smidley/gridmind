@@ -362,6 +362,44 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+
+              {/* Calculation breakdown — shown during peak phases */}
+              {enabled && optimizeStatus.last_calculation && (isHolding || isDumping || isPoweringHome) && (() => {
+                const calc = optimizeStatus.last_calculation
+                return (
+                  <div className="mt-4 pt-3 border-t border-slate-200/30 dark:border-slate-800/50">
+                    <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-2">How It's Thinking</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <span className="text-slate-500">Available Energy</span>
+                        <p className="font-bold text-blue-400">{calc.available_kwh} kWh</p>
+                        <p className="text-[10px] text-slate-600">at {calc.battery_soc.toFixed(0)}% SOC</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Home Load</span>
+                        <p className="font-bold text-cyan-400">{calc.home_load_kw} kW</p>
+                        <p className="text-[10px] text-slate-600">rolling average</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Net Export Rate</span>
+                        <p className="font-bold text-emerald-400">{calc.net_export_kw} kW</p>
+                        <p className="text-[10px] text-slate-600">to grid after home</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Time Needed</span>
+                        <p className="font-bold text-amber-400">{calc.minutes_needed > 60 ? `${Math.floor(calc.minutes_needed / 60)}h ${Math.round(calc.minutes_needed % 60)}m` : `${Math.round(calc.minutes_needed)}m`}</p>
+                        <p className="text-[10px] text-slate-600">to fully export</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500">
+                      <span>Peak remaining: {calc.minutes_remaining > 60 ? `${Math.floor(calc.minutes_remaining / 60)}h ${Math.round(calc.minutes_remaining % 60)}m` : `${Math.round(calc.minutes_remaining)}m`}</span>
+                      <span>Buffer: {optimizeStatus.buffer_minutes}m safety margin</span>
+                      <span>Trigger: {isHolding ? `starts when ≤${Math.round(calc.trigger_at_minutes)}m remain` : `triggered at ${Math.round(calc.trigger_at_minutes)}m`}</span>
+                      <span>Decision: <span className={`font-medium ${calc.decision === 'dump' ? 'text-amber-400' : calc.decision === 'hold' ? 'text-blue-400' : 'text-slate-400'}`}>{calc.decision === 'dump' ? 'Export now' : calc.decision === 'hold' ? 'Keep holding' : calc.decision}</span></span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             </div>
             )
