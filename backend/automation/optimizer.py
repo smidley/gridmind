@@ -303,7 +303,7 @@ async def _check_dump_timing(status, now: datetime):
 
 async def _start_dump(estimated_finish: datetime):
     """Start the battery dump to grid."""
-    from tesla.commands import set_grid_import_export, set_backup_reserve
+    from tesla.commands import set_grid_import_export, set_backup_reserve, set_operation_mode
     from services.notifications import send_notification
 
     _state["phase"] = "dumping"
@@ -311,6 +311,9 @@ async def _start_dump(estimated_finish: datetime):
     _state["estimated_finish"] = estimated_finish.strftime("%H:%M")
 
     try:
+        # Switch to autonomous (Time-Based Control) so the Powerwall actively exports
+        # Self-consumption mode only supplements home load — it won't push to grid
+        await set_operation_mode("autonomous")
         # Allow battery export to grid
         await set_grid_import_export(customer_preferred_export_rule="battery_ok")
         # Set reserve to minimum to allow full dump
