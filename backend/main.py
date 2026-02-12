@@ -6,9 +6,11 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from config import settings
 from database import init_db
@@ -79,6 +81,129 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- App Authentication ---
+
+# Paths that don't require authentication
+AUTH_EXEMPT_PATHS = {
+    "/api/app-auth/login",
+    "/api/app-auth/status",
+    "/api/health",
+    "/auth/callback",
+    "/ws",
+}
+AUTH_EXEMPT_PREFIXES = ("/assets/", "/favicon")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class SetPasswordRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """Check authentication for all API routes when auth is enabled."""
+    from services.app_auth import is_auth_enabled, verify_session_token
+
+    # Skip auth check if not enabled
+    if not is_auth_enabled():
+        return await call_next(request)
+
+    path = request.url.path
+
+    # Skip exempt paths
+    if path in AUTH_EXEMPT_PATHS or any(path.startswith(p) for p in AUTH_EXEMPT_PREFIXES):
+        return await call_next(request)
+
+    # SPA routes (non-API, non-asset) serve index.html — let frontend handle auth
+    if not path.startswith("/api/"):
+        return await call_next(request)
+
+    # Check session cookie
+    token = request.cookies.get("gridmind_session")
+    if token and verify_session_token(token):
+        return await call_next(request)
+
+    return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+
+
+@app.get("/api/app-auth/status")
+async def app_auth_status():
+    """Check if app authentication is enabled and if the current session is valid."""
+    from services.app_auth import is_auth_enabled, verify_session_token
+
+    return {
+        "auth_enabled": is_auth_enabled(),
+    }
+
+
+@app.post("/api/app-auth/login")
+async def app_auth_login(data: LoginRequest, response: Response):
+    """Log in with username and password."""
+    from services.app_auth import verify_password, create_session_token, is_auth_enabled
+
+    if not is_auth_enabled():
+        return {"status": "ok", "message": "Authentication not enabled"}
+
+    if not verify_password(data.username, data.password):
+        return JSONResponse(status_code=401, content={"detail": "Invalid username or password"})
+
+    token = create_session_token(data.username)
+    response.set_cookie(
+        key="gridmind_session",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,  # 30 days
+        secure=False,  # Set to True if using HTTPS
+    )
+
+    return {"status": "ok", "username": data.username}
+
+
+@app.post("/api/app-auth/logout")
+async def app_auth_logout(response: Response):
+    """Log out by clearing the session cookie."""
+    response.delete_cookie("gridmind_session")
+    return {"status": "ok"}
+
+
+@app.post("/api/app-auth/set-password")
+async def app_auth_set_password(data: SetPasswordRequest, request: Request):
+    """Set or update the login password. Requires existing session if auth is already enabled."""
+    from services.app_auth import is_auth_enabled, verify_session_token, set_password
+
+    # If auth is already enabled, require a valid session
+    if is_auth_enabled():
+        token = request.cookies.get("gridmind_session")
+        if not token or not verify_session_token(token):
+            return JSONResponse(status_code=401, content={"detail": "Must be logged in to change password"})
+
+    try:
+        set_password(data.username, data.password)
+        return {"status": "ok"}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"detail": str(e)})
+
+
+@app.post("/api/app-auth/disable")
+async def app_auth_disable(request: Request):
+    """Disable authentication entirely."""
+    from services.app_auth import is_auth_enabled, verify_session_token, remove_password
+
+    if is_auth_enabled():
+        token = request.cookies.get("gridmind_session")
+        if not token or not verify_session_token(token):
+            return JSONResponse(status_code=401, content={"detail": "Must be logged in to disable auth"})
+
+    remove_password()
+    return {"status": "ok"}
+
 
 # Register API routes
 app.include_router(status_router)

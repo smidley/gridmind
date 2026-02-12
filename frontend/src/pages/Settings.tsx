@@ -17,6 +17,86 @@ import {
 } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 
+/** Inline component for app authentication configuration */
+function AuthConfig() {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const { data: authStatus, refetch } = useApi<any>('/app-auth/status')
+
+  const saveAuth = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      await apiFetch('/app-auth/set-password', { method: 'POST', body: JSON.stringify({ username, password }) })
+      setSuccess('Login credentials saved. Authentication is now enabled.')
+      setUsername(''); setPassword('')
+      refetch()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const disableAuth = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      await apiFetch('/app-auth/disable', { method: 'POST' })
+      setSuccess('Authentication disabled')
+      refetch()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {authStatus?.auth_enabled ? (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm text-emerald-400 font-medium">Authentication enabled</span>
+          </div>
+          <button onClick={disableAuth} disabled={saving} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300">
+            <Trash2 className="w-3 h-3" /> Disable
+          </button>
+        </div>
+      ) : (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <span className="text-sm text-amber-400 font-medium">No authentication</span>
+          </div>
+          <p className="text-xs text-slate-500">Anyone with access to this URL can view and control your system.</p>
+        </div>
+      )}
+
+      <p className="text-xs text-slate-500">Set a username and password to require login.</p>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Username"
+          autoComplete="off"
+          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          autoComplete="new-password"
+          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+        />
+        <button onClick={saveAuth} disabled={saving || !username || !password} className="btn-primary text-sm px-4">
+          {saving ? 'Saving...' : authStatus?.auth_enabled ? 'Update' : 'Enable'}
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {success && <p className="text-xs text-emerald-400">{success}</p>}
+    </div>
+  )
+}
+
 /** Inline component for OpenAI API key configuration */
 function AIKeyConfig() {
   const [key, setKey] = useState('')
@@ -399,6 +479,18 @@ export default function SettingsPage() {
         <p className="text-sm text-slate-500">
           {needsSetup ? 'Complete the setup to get started' : 'Tesla connection and Powerwall configuration'}
         </p>
+      </div>
+
+      {/* App Authentication */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-1">
+          <Shield className="w-4 h-4 text-blue-400" />
+          <span className="card-header mb-0">App Authentication</span>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          Require login to access GridMind. Recommended when exposing to the network.
+        </p>
+        <AuthConfig />
       </div>
 
       {/* Step 1: Tesla API Credentials */}

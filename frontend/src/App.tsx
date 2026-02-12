@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   DollarSign,
   Car,
   Activity,
+  LogOut,
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Rules from './pages/Rules'
@@ -23,7 +25,9 @@ import DetailGrid from './pages/DetailGrid'
 import DetailHome from './pages/DetailHome'
 import DetailBattery from './pages/DetailBattery'
 import VehiclePage from './pages/Vehicle'
+import Login from './pages/Login'
 import { useTheme } from './hooks/useTheme'
+import { apiFetch } from './hooks/useApi'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -37,6 +41,37 @@ const navItems = [
 
 export default function App() {
   const { theme, setTheme, resolved } = useTheme()
+  const [authChecked, setAuthChecked] = useState(false)
+  const [needsLogin, setNeedsLogin] = useState(false)
+
+  // Check if auth is enabled and if we have a valid session
+  useEffect(() => {
+    fetch('/api/app-auth/status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.auth_enabled) {
+          // Try fetching a protected endpoint to test session
+          fetch('/api/status')
+            .then(r => {
+              setNeedsLogin(r.status === 401)
+              setAuthChecked(true)
+            })
+            .catch(() => { setNeedsLogin(true); setAuthChecked(true) })
+        } else {
+          setAuthChecked(true)
+        }
+      })
+      .catch(() => setAuthChecked(true))
+  }, [])
+
+  const handleLogin = () => {
+    setNeedsLogin(false)
+  }
+
+  const handleLogout = async () => {
+    await apiFetch('/app-auth/logout', { method: 'POST' }).catch(() => {})
+    setNeedsLogin(true)
+  }
 
   const cycleTheme = () => {
     const order = ['system', 'light', 'dark'] as const
@@ -45,6 +80,20 @@ export default function App() {
   }
 
   const ThemeIcon = theme === 'system' ? Monitor : theme === 'light' ? Sun : Moon
+
+  // Show loading while checking auth
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+        <Activity className="w-8 h-8 text-amber-500 animate-pulse" />
+      </div>
+    )
+  }
+
+  // Show login if auth is enabled and no valid session
+  if (needsLogin) {
+    return <Login onLogin={handleLogin} />
+  }
 
   return (
     <BrowserRouter>
@@ -91,6 +140,14 @@ export default function App() {
             >
               <ThemeIcon className="w-3.5 h-3.5" />
               <span className="capitalize">{theme === 'system' ? 'System' : theme} mode</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-400 dark:text-slate-500 dark:hover:text-red-400 transition-colors w-full"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
             </button>
 
             <a
