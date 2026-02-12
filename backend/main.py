@@ -142,17 +142,64 @@ async def app_auth_status():
     }
 
 
+# Login rate limiting — track failed attempts per IP
+_login_attempts: dict[str, list[float]] = {}  # IP -> list of failed attempt timestamps
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 900  # 15 minutes
+
+
+def _check_rate_limit(ip: str) -> tuple[bool, int]:
+    """Check if an IP is rate limited. Returns (allowed, seconds_remaining)."""
+    import time
+    now = time.time()
+    attempts = _login_attempts.get(ip, [])
+    # Remove attempts older than lockout window
+    attempts = [t for t in attempts if now - t < LOGIN_LOCKOUT_SECONDS]
+    _login_attempts[ip] = attempts
+    if len(attempts) >= LOGIN_MAX_ATTEMPTS:
+        remaining = int(LOGIN_LOCKOUT_SECONDS - (now - attempts[0]))
+        return False, max(remaining, 1)
+    return True, 0
+
+
+def _record_failed_attempt(ip: str):
+    """Record a failed login attempt."""
+    import time
+    _login_attempts.setdefault(ip, []).append(time.time())
+
+
+def _clear_attempts(ip: str):
+    """Clear failed attempts after successful login."""
+    _login_attempts.pop(ip, None)
+
+
 @app.post("/api/app-auth/login")
 async def app_auth_login(data: LoginRequest, request: Request, response: Response):
-    """Log in with username and password."""
+    """Log in with username and password. Rate limited: 5 attempts per 15 minutes."""
     from services.app_auth import verify_password, create_session_token, is_auth_enabled
 
     if not is_auth_enabled():
         return {"status": "ok", "message": "Authentication not enabled"}
 
-    if not verify_password(data.username, data.password):
-        return JSONResponse(status_code=401, content={"detail": "Invalid username or password"})
+    # Rate limit check
+    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    allowed, lockout_remaining = _check_rate_limit(client_ip)
+    if not allowed:
+        logger.warning("Login rate limited for IP %s (%ds remaining)", client_ip, lockout_remaining)
+        return JSONResponse(
+            status_code=429,
+            content={"detail": f"Too many failed attempts. Try again in {lockout_remaining // 60} minutes."},
+        )
 
+    if not verify_password(data.username, data.password):
+        _record_failed_attempt(client_ip)
+        attempts_left = LOGIN_MAX_ATTEMPTS - len(_login_attempts.get(client_ip, []))
+        return JSONResponse(
+            status_code=401,
+            content={"detail": f"Invalid username or password. {max(attempts_left, 0)} attempts remaining."},
+        )
+
+    _clear_attempts(client_ip)
     token = create_session_token(data.username)
     response.set_cookie(
         key="gridmind_session",
