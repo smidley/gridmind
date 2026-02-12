@@ -357,8 +357,35 @@ async def _start_dump(estimated_finish: datetime):
 
 
 async def _monitor_dump(status, now: datetime):
-    """Monitor dump progress."""
+    """Monitor dump progress and update calculation display."""
     min_reserve = _state["min_reserve_pct"]
+    cap = _get_capacity_info()
+    peak_end = _state["peak_end_hour"]
+
+    # Update last_calculation with current values so dashboard shows live info
+    available_pct = max(status.battery_soc - min_reserve, 0)
+    available_kwh = (available_pct / 100) * cap["capacity_kwh"]
+    home_kw = status.home_power / 1000
+    net_export_kw = max(cap["max_power_kw"] - home_kw, 0.1)
+    minutes_needed = (available_kwh / net_export_kw) * 60 if net_export_kw > 0 else 0
+    peak_end_time = now.replace(hour=peak_end, minute=0, second=0)
+    minutes_remaining = max((peak_end_time - now).total_seconds() / 60, 0)
+
+    # Update estimated finish
+    if net_export_kw > 0 and available_kwh > 0:
+        _state["estimated_finish"] = (now + timedelta(minutes=minutes_needed)).strftime("%H:%M")
+
+    _state["last_calculation"] = {
+        "time": now.isoformat(),
+        "battery_soc": round(status.battery_soc, 1),
+        "available_kwh": round(available_kwh, 1),
+        "home_load_kw": round(home_kw, 1),
+        "net_export_kw": round(net_export_kw, 1),
+        "minutes_needed": round(minutes_needed, 0),
+        "minutes_remaining": round(minutes_remaining, 0),
+        "trigger_at_minutes": 0,
+        "decision": "dump",
+    }
 
     if status.battery_soc <= min_reserve + 1:
         logger.info("GridMind Optimize: Dump complete, battery at %.1f%%", status.battery_soc)
