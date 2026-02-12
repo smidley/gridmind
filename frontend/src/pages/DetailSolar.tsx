@@ -10,26 +10,20 @@ function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1
 
 export default function DetailSolar() {
   const navigate = useNavigate()
-  const { status } = useWebSocket()
+  const { status: wsStatus } = useWebSocket()
+  const { data: polledStatus } = useAutoRefresh<any>('/status', 30000)
+  const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
+  const status = wsStatus || validPolled
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: forecast } = useApi('/history/forecast')
   const { data: vsActual } = useApi('/history/forecast/vs-actual')
   const { data: readings } = useApi('/history/readings?hours=24&resolution=5')
   const { data: solarConfig } = useApi('/settings/setup/solar')
 
-  // Prefer Tesla API data (from vs-actual) for the production chart since it has full day coverage.
-  // Fall back to local readings if Tesla data isn't available.
-  const chartData = vsActual?.hourly
-    ? vsActual.hourly
-        .filter((h: any) => h.actual_w > 0 || h.forecast_w > 0)
-        .map((h: any) => ({
-          time: `${h.hour > 12 ? h.hour - 12 : h.hour || 12}${h.hour >= 12 ? 'pm' : 'am'}`,
-          solar: Math.round((h.actual_w || 0) / 100) / 10,
-        }))
-    : readings?.readings?.map((r: any) => ({
-        time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        solar: Math.round((r.solar_power || 0) / 100) / 10,
-      })) || []
+  const chartData = readings?.readings?.map((r: any) => ({
+    time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    solar: Math.round((r.solar_power || 0) / 100) / 10,
+  })) || []
 
   return (
     <div className="p-6 space-y-6">

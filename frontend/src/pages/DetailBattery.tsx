@@ -22,7 +22,8 @@ function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1
 
 export default function DetailBattery() {
   const navigate = useNavigate()
-  const { status } = useWebSocket()
+  const { status: wsStatus } = useWebSocket()
+  const { data: polledStatus } = useAutoRefresh<any>('/status', 30000)
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: siteConfig } = useApi('/site/config')
   const { data: readings } = useApi('/history/readings?hours=24&resolution=5')
@@ -30,6 +31,10 @@ export default function DetailBattery() {
   const { data: throughput } = useApi<any>('/powerwall/health/throughput?days=30')
   const { data: alerts } = useAutoRefresh<any>('/powerwall/health/alerts', 120000)
   const { data: capacity } = useApi<any>('/powerwall/health/capacity')
+
+  // Use WebSocket data when available, fall back to API polling
+  const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
+  const status = wsStatus || validPolled
 
   const charging = status && status.battery_power < -50
   const discharging = status && status.battery_power > 50

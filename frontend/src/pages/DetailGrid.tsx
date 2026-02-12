@@ -9,7 +9,10 @@ function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1
 
 export default function DetailGrid() {
   const navigate = useNavigate()
-  const { status } = useWebSocket()
+  const { status: wsStatus } = useWebSocket()
+  const { data: polledStatus } = useAutoRefresh<any>('/status', 30000)
+  const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
+  const status = wsStatus || validPolled
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: tariff } = useApi('/site/tariff')
   const { data: value } = useAutoRefresh<any>('/history/value', 30000)

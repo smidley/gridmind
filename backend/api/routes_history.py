@@ -50,6 +50,9 @@ async def get_readings(
 ):
     """Get energy readings for the specified time window.
 
+    If local data doesn't cover the requested window (e.g., app was recently installed),
+    supplements with Tesla's power history API to provide full coverage.
+
     Args:
         hours: Number of hours to look back (1-168, default 24)
         resolution: Resolution in minutes (1-60, default 1 = every reading)
@@ -63,6 +66,50 @@ async def get_readings(
     )
     readings = result.scalars().all()
 
+    # Check if local data has sufficient coverage
+    local_hours_covered = 0
+    if readings:
+        first = readings[0].timestamp
+        last = readings[-1].timestamp
+        local_hours_covered = (last - first).total_seconds() / 3600
+
+    # If local data covers less than half the requested window, supplement with Tesla API
+    source = "local"
+    if local_hours_covered < hours * 0.5 and hours <= 24:
+        try:
+            from tesla.client import tesla_client
+            from tesla.commands import get_energy_history
+            if tesla_client.is_authenticated:
+                api_data = await _get_cached("power_history_readings", lambda: get_energy_history(period="day", kind="power"))
+                time_series = api_data.get("time_series", [])
+                if time_series:
+                    api_readings = []
+                    for entry in time_series:
+                        ts = entry.get("timestamp", "")
+                        try:
+                            from dateutil.parser import isoparse
+                            dt = isoparse(ts)
+                        except Exception:
+                            continue
+                        api_readings.append({
+                            "timestamp": ts,
+                            "battery_soc": None,
+                            "battery_power": entry.get("battery_power", 0),
+                            "solar_power": entry.get("solar_power", 0),
+                            "grid_power": entry.get("grid_power", 0),
+                            "home_power": entry.get("solar_power", 0) + entry.get("battery_power", 0) + entry.get("grid_power", 0),
+                            "grid_status": "connected",
+                        })
+                    if len(api_readings) > len(readings):
+                        source = "tesla"
+                        return {
+                            "count": len(api_readings),
+                            "source": source,
+                            "readings": api_readings,
+                        }
+        except Exception as e:
+            logger.debug("Could not supplement with Tesla data: %s", e)
+
     # Downsample if resolution > 1 minute
     if resolution > 1 and readings:
         sampled = []
@@ -75,6 +122,7 @@ async def get_readings(
 
     return {
         "count": len(readings),
+        "source": source,
         "readings": [
             {
                 "timestamp": r.timestamp.isoformat(),
