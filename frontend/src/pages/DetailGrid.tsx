@@ -119,7 +119,7 @@ export default function DetailGrid() {
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                 formatter={(v: number) => [`${v.toFixed(1)} kW`, v >= 0 ? 'Importing' : 'Exporting']}
               />
               <ReferenceLine y={0} stroke="#475569" strokeDasharray="3 3" />

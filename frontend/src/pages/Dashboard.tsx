@@ -84,13 +84,13 @@ export default function Dashboard() {
           )}
           <span className="text-[10px] text-slate-500">WebSocket</span>
           {/* Tooltip */}
-          <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-xs text-slate-500 dark:text-slate-400">
+          <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-xs text-slate-600 dark:text-slate-400">
             {connected ? (
-              <p><span className="text-emerald-400 font-medium">Connected</span> — Real-time data is streaming. Power flow and stats update instantly.</p>
+              <p><span className="text-emerald-500 dark:text-emerald-400 font-medium">Connected</span> — Real-time data is streaming. Power flow and stats update instantly.</p>
             ) : (
               <>
-                <p className="mb-2"><span className="text-slate-400 font-medium">Disconnected</span> — Data updates via polling instead of real-time streaming.</p>
-                <p>If you're using a reverse proxy, enable <span className="font-medium text-slate-300">WebSocket support</span> in your proxy settings for the GridMind host.</p>
+                <p className="mb-2"><span className="text-slate-500 dark:text-slate-400 font-medium">Disconnected</span> — Data updates via polling instead of real-time streaming.</p>
+                <p>If you're using a reverse proxy, enable <span className="font-medium text-slate-700 dark:text-slate-300">WebSocket support</span> in your proxy settings for the GridMind host.</p>
               </>
             )}
           </div>
@@ -201,7 +201,7 @@ export default function Dashboard() {
               </div>
 
               {/* Mini charge bar */}
-              <div className="relative w-full h-6 bg-slate-800 rounded-md overflow-hidden border border-slate-700 mb-2">
+              <div className="relative w-full h-6 bg-slate-200 dark:bg-slate-800 rounded-md overflow-hidden border border-slate-300 dark:border-slate-700 mb-2">
                 <div
                   className={`absolute top-0 bottom-0 left-0 transition-all duration-1000 ${
                     vehicleCS.battery_level <= 20 ? 'bg-orange-500' :
@@ -517,7 +517,7 @@ export default function Dashboard() {
                   const isToday = day.date === new Date().toISOString().slice(0, 10)
                   return (
                     <div key={day.date} className={`text-center p-2 rounded-lg ${
-                      isToday ? 'bg-amber-500/10 ring-1 ring-amber-500/30' : 'bg-slate-800/30'
+                      isToday ? 'bg-amber-500/10 ring-1 ring-amber-500/30' : 'bg-slate-100 dark:bg-slate-800/30'
                     }`}>
                       <div className={`text-[10px] font-medium ${isToday ? 'text-amber-400' : 'text-slate-500'}`}>
                         {isToday ? 'Today' : dayName}
@@ -551,7 +551,7 @@ export default function Dashboard() {
               </div>
               <div className="space-y-2">
                 {aiInsights.insights.map((insight: any, i: number) => (
-                  <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-800/30">
+                  <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800/30">
                     {insight.type === 'achievement' ? (
                       <Trophy className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     ) : insight.type === 'warning' ? (

@@ -535,7 +535,7 @@ export default function VehiclePage() {
 
             {/* Strategy-specific settings */}
             {sched.strategy === 'solar_surplus' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-800/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-100 dark:bg-slate-800/50">
                 <div>
                   <label className="text-xs text-slate-400 block mb-1">Min Surplus (kW)</label>
                   <input
@@ -545,7 +545,7 @@ export default function VehiclePage() {
                     max={10}
                     value={sched.solar_surplus_threshold_kw}
                     onChange={(e) => updateScheduleField('solar_surplus_threshold_kw', Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
                   />
                   <p className="text-[10px] text-slate-600 mt-1">Start charging when surplus exceeds this</p>
                 </div>
@@ -557,7 +557,7 @@ export default function VehiclePage() {
                     max={50}
                     value={sched.solar_surplus_min_soc}
                     onChange={(e) => updateScheduleField('solar_surplus_min_soc', Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
                   />
                   <p className="text-[10px] text-slate-600 mt-1">Always charge below this level</p>
                 </div>
@@ -565,14 +565,14 @@ export default function VehiclePage() {
             )}
 
             {sched.strategy === 'departure' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-800/50">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-100 dark:bg-slate-800/50">
                 <div>
                   <label className="text-xs text-slate-400 block mb-1">Departure Time</label>
                   <input
                     type="time"
                     value={sched.departure_time}
                     onChange={(e) => updateScheduleField('departure_time', e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
@@ -583,7 +583,7 @@ export default function VehiclePage() {
                     max={100}
                     value={sched.departure_target_soc}
                     onChange={(e) => updateScheduleField('departure_target_soc', Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
@@ -595,7 +595,7 @@ export default function VehiclePage() {
                     max={200}
                     value={sched.battery_capacity_kwh}
                     onChange={(e) => updateScheduleField('battery_capacity_kwh', Number(e.target.value))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
                   />
                   <p className="text-[10px] text-slate-600 mt-1">Vehicle battery size</p>
                 </div>
@@ -603,7 +603,7 @@ export default function VehiclePage() {
             )}
 
             {sched.strategy === 'tou_aware' && (
-              <div className="p-4 rounded-xl bg-slate-800/50 text-sm text-slate-400">
+              <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/50 text-sm text-slate-500 dark:text-slate-400">
                 <p>Automatically pauses charging during peak TOU periods and resumes during off-peak.</p>
                 <p className="mt-1 text-[10px] text-slate-600">Uses your Tesla tariff rate schedule.</p>
               </div>
@@ -611,7 +611,7 @@ export default function VehiclePage() {
 
             {/* Hybrid Charge Limit — available with any active strategy */}
             {sched.strategy !== 'off' && (
-              <div className="p-4 rounded-xl bg-slate-800/50">
+              <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/50">
                 <div className="flex items-center gap-2 mb-3">
                   <Sun className="w-4 h-4 text-amber-400" />
                   <span className="text-sm font-medium">Solar Charge Limit</span>
@@ -651,7 +651,7 @@ export default function VehiclePage() {
                   <div className="space-y-4">
                     {/* Visual bar showing the two zones */}
                     <div className="relative">
-                      <div className="flex h-8 rounded-lg overflow-hidden bg-slate-900 border border-slate-700">
+                      <div className="flex h-8 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700">
                         <div
                           className="bg-gradient-to-r from-violet-600 to-violet-500 flex items-center justify-center text-[10px] font-bold text-white"
                           style={{ width: `${sched.grid_charge_limit}%` }}
@@ -742,7 +742,7 @@ export default function VehiclePage() {
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                 formatter={(v: number) => [`${v}%`, 'SOC']}
               />
               <Line type="monotone" dataKey="soc" stroke="#8b5cf6" strokeWidth={2} dot={false} />
@@ -761,7 +761,7 @@ export default function VehiclePage() {
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v} kW`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                 formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Power']}
               />
               <Area type="monotone" dataKey="power" stroke="#10b981" fill="#10b98120" strokeWidth={1.5} dot={false} />

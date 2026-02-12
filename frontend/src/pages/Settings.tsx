@@ -662,18 +662,18 @@ export default function SettingsPage() {
                     <details className="mb-3">
                       <summary className="text-xs text-blue-400 cursor-pointer hover:underline">Quick guide: GitHub Pages (free, 2 minutes)</summary>
                       <ol className="text-xs text-slate-400 mt-2 ml-4 space-y-1 list-decimal">
-                        <li>Go to your GitHub Pages repo (e.g., <code className="text-slate-300">username.github.io</code>)</li>
-                        <li>Create a file at <code className="text-slate-300">.well-known/appspecific/com.tesla.3p.public-key.pem</code></li>
+                        <li>Go to your GitHub Pages repo (e.g., <code className="text-slate-600 dark:text-slate-300">username.github.io</code>)</li>
+                        <li>Create a file at <code className="text-slate-600 dark:text-slate-300">.well-known/appspecific/com.tesla.3p.public-key.pem</code></li>
                         <li>Paste the public key content below into that file</li>
-                        <li>Add an empty <code className="text-slate-300">.nojekyll</code> file in the repo root (so GitHub serves dotfiles)</li>
-                        <li>Verify it's live at <code className="text-slate-300">https://username.github.io/.well-known/appspecific/com.tesla.3p.public-key.pem</code></li>
+                        <li>Add an empty <code className="text-slate-600 dark:text-slate-300">.nojekyll</code> file in the repo root (so GitHub serves dotfiles)</li>
+                        <li>Verify it's live at <code className="text-slate-600 dark:text-slate-300">https://username.github.io/.well-known/appspecific/com.tesla.3p.public-key.pem</code></li>
                       </ol>
                     </details>
                     <div className="relative">
-                      <pre className="bg-slate-900 p-3 rounded text-xs text-slate-300 font-mono overflow-x-auto">{publicKey}</pre>
+                      <pre className="bg-slate-100 dark:bg-slate-900 p-3 rounded text-xs text-slate-700 dark:text-slate-300 font-mono overflow-x-auto">{publicKey}</pre>
                       <button
                         onClick={() => { navigator.clipboard.writeText(publicKey); setConnectSuccess('Public key copied to clipboard!'); setTimeout(() => setConnectSuccess(''), 2000) }}
-                        className="absolute top-2 right-2 text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300"
+                        className="absolute top-2 right-2 text-xs bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 px-2 py-1 rounded text-slate-600 dark:text-slate-300"
                       >
                         Copy
                       </button>
@@ -803,7 +803,7 @@ export default function SettingsPage() {
 
         {geocodeResult && (
           <div className="bg-slate-200/50 dark:bg-slate-800 rounded-lg p-4 mb-3">
-            <p className="text-sm font-medium text-slate-200 mb-2">{geocodeResult.display_name}</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">{geocodeResult.display_name}</p>
             <div className="flex gap-6 text-sm text-slate-400 mb-3">
               <span>Lat: {geocodeResult.latitude.toFixed(4)}</span>
               <span>Lon: {geocodeResult.longitude.toFixed(4)}</span>

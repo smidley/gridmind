@@ -398,7 +398,7 @@ export default function ValuePage() {
                     </Pie>
                     <Tooltip content={<PieTooltip />} />
                     <Legend
-                      formatter={(legendValue) => <span className="text-slate-300 text-xs">{legendValue}</span>}
+                      formatter={(legendValue) => <span className="text-slate-600 dark:text-slate-300 text-xs">{legendValue}</span>}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -438,9 +438,9 @@ export default function ValuePage() {
                                 {period}
                               </span>
                             </td>
-                            <td className="text-right py-2.5 px-4 text-slate-300">{data.exported_kwh.toFixed(1)} kWh</td>
+                            <td className="text-right py-2.5 px-4 text-slate-600 dark:text-slate-300">{data.exported_kwh.toFixed(1)} kWh</td>
                             <td className="text-right py-2.5 px-4 text-emerald-400">+${data.export_value.toFixed(2)}</td>
-                            <td className="text-right py-2.5 px-4 text-slate-300">{data.imported_kwh.toFixed(1)} kWh</td>
+                            <td className="text-right py-2.5 px-4 text-slate-600 dark:text-slate-300">{data.imported_kwh.toFixed(1)} kWh</td>
                             <td className="text-right py-2.5 px-4 text-red-400">-${data.import_cost.toFixed(2)}</td>
                             <td className={`text-right py-2.5 pl-4 font-medium ${net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                               {net >= 0 ? '+' : '-'}${Math.abs(net).toFixed(2)}

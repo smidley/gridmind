@@ -217,7 +217,7 @@ export default function ForecastPage() {
                   <YAxis stroke="#475569" fontSize={10} tickLine={false}
                     tickFormatter={(v) => `${(v / 1000).toFixed(1)}kW`} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '12px' }}
+                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                     formatter={(v: number, name: string) => [
                       `${(v / 1000).toFixed(2)} kW`,
                       name === 'forecast' ? 'Forecast' : 'Actual'

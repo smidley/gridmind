@@ -241,7 +241,7 @@ export default function DetailBattery() {
               <Clock className="w-4 h-4 text-slate-400" />
               <span className="card-header mb-0">Installation</span>
             </div>
-            <div className="text-lg font-bold text-slate-300">
+            <div className="text-lg font-bold text-slate-700 dark:text-slate-300">
               {health.system.days_since_install != null
                 ? health.system.days_since_install < 365
                   ? `${health.system.days_since_install} days`
@@ -270,7 +270,7 @@ export default function DetailBattery() {
             </div>
             <div>
               <span className="text-slate-500">Battery Cycles</span>
-              <p className="text-lg font-bold text-slate-300">{throughput.totals.total_cycles}</p>
+              <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{throughput.totals.total_cycles}</p>
               <p className="text-[10px] text-slate-500">{throughput.totals.avg_daily_cycles}/day avg</p>
             </div>
             <div>
@@ -356,12 +356,12 @@ export default function DetailBattery() {
 
           {/* Health Explanation */}
           {capacity.latest_estimate && (
-            <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-800/50 mb-4">
+            <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800/50 mb-4">
               <p className="text-xs text-slate-400 leading-relaxed">
-                <span className="font-medium text-slate-300">How this is calculated: </span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">How this is calculated: </span>
                 On {capacity.latest_estimate.date}, the battery cycled from {capacity.latest_estimate.min_soc}% to {capacity.latest_estimate.max_soc}% ({capacity.latest_estimate.soc_swing_pct}% swing),
                 using {capacity.latest_estimate.charged_kwh} kWh. Accounting for ~92% round-trip efficiency,
-                that estimates an effective capacity of <span className="font-medium text-slate-300">{capacity.latest_estimate.estimated_capacity_kwh} kWh</span> out
+                that estimates an effective capacity of <span className="font-medium text-slate-700 dark:text-slate-300">{capacity.latest_estimate.estimated_capacity_kwh} kWh</span> out
                 of {capacity.nominal_capacity_kwh} kWh nominal = <span className={`font-medium ${
                   capacity.latest_estimate.health_pct >= 95 ? 'text-emerald-400' :
                   capacity.latest_estimate.health_pct >= 85 ? 'text-lime-400' :
@@ -429,7 +429,7 @@ export default function DetailBattery() {
                     tickFormatter={(v) => `${v}`}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                     formatter={(v: number) => [`${v.toFixed(1)} kWh`, 'Capacity']}
                   />
                   <Line type="monotone" dataKey="estimated_capacity_kwh" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} />
@@ -460,7 +460,7 @@ export default function DetailBattery() {
                     tickFormatter={(v) => `${v}%`}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                     formatter={(v: number) => [`${v.toFixed(1)}%`, 'Efficiency']}
                   />
                   <Line type="monotone" dataKey="efficiency_pct" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: '#8b5cf6' }} />
@@ -495,7 +495,7 @@ export default function DetailBattery() {
               />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                 formatter={(v: number, name: string) => [
                   `${v.toFixed(1)} kWh`,
                   name === 'charged_kwh' ? 'Charged' : 'Discharged',
@@ -521,7 +521,7 @@ export default function DetailBattery() {
           </div>
           <div className="space-y-3">
             {health.hardware.map((hw: any, i: number) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-800/50">
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-100 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800/50">
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${hw.active ? 'bg-emerald-400' : 'bg-red-400'}`} />
                   <div>

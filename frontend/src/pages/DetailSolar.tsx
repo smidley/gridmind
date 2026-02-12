@@ -92,7 +92,7 @@ export default function DetailSolar() {
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px', background: '#1e293b', border: '1px solid #334155' }}
+                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                 formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Solar']}
               />
               <Area type="monotone" dataKey="solar" stroke="#fbbf24" fill="url(#solarDetailGrad)" strokeWidth={2} dot={false} />

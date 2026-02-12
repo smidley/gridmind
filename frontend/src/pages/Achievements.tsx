@@ -77,7 +77,7 @@ export default function Achievements() {
             <span className="text-sm font-medium">{pct}% Complete</span>
             <span className="text-xs text-slate-500">{earnedCount} / {totalCount}</span>
           </div>
-          <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+          <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-1000"
               style={{ width: `${pct}%` }}
@@ -107,13 +107,13 @@ export default function Achievements() {
                     className={`relative p-4 rounded-xl border transition-all ${
                       earned
                         ? `${colors.earned} ${colors.bg} shadow-lg ${colors.glow}`
-                        : 'border-slate-700/50 bg-slate-800/20 opacity-50'
+                        : 'border-slate-300/50 bg-slate-200/50 dark:border-slate-700/50 dark:bg-slate-800/20 opacity-50'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       {/* Badge icon */}
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        earned ? colors.bg : 'bg-slate-800'
+                        earned ? colors.bg : 'bg-slate-200 dark:bg-slate-800'
                       }`}>
                         {earned ? (
                           <Icon className={`w-5 h-5 ${colors.icon}`} />
@@ -124,10 +124,10 @@ export default function Achievements() {
 
                       {/* Content */}
                       <div className="min-w-0">
-                        <p className={`text-sm font-bold ${earned ? 'text-slate-200' : 'text-slate-500'}`}>
+                        <p className={`text-sm font-bold ${earned ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
                           {a.title}
                         </p>
-                        <p className={`text-xs mt-0.5 ${earned ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <p className={`text-xs mt-0.5 ${earned ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-600'}`}>
                           {a.description}
                         </p>
                         {earned && a.earned_value && (
