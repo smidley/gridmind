@@ -23,16 +23,16 @@ GridMind gives you full control over your Tesla Powerwall with a beautiful real-
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/dashboard-dark.png" alt="Dashboard (Dark)" width="400" /><br><em>Dashboard with power flow</em></td>
-    <td><img src="docs/screenshots/dashboard-light.png" alt="Dashboard (Light)" width="400" /><br><em>Light mode</em></td>
+    <td><img src="dashboard_dark.png" alt="Dashboard (Dark)" width="400" /><br><em>Dashboard with power flow</em></td>
+    <td><img src="dashboard_light.png" alt="Dashboard (Light)" width="400" /><br><em>Light mode</em></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/vehicle.png" alt="Vehicle" width="400" /><br><em>EV charging & Wall Connector</em></td>
-    <td><img src="docs/screenshots/battery-health.png" alt="Battery Health" width="400" /><br><em>Battery health & diagnostics</em></td>
+    <td><img src="vehicle.png" alt="Vehicle" width="400" /><br><em>EV charging & Wall Connector</em></td>
+    <td><img src="battery.png" alt="Battery Health" width="400" /><br><em>Battery health & diagnostics</em></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/home-sources.png" alt="Home Sources" width="400" /><br><em>Home power source breakdown</em></td>
-    <td><img src="docs/screenshots/achievements.png" alt="Achievements" width="400" /><br><em>Achievements & badges</em></td>
+    <td><img src="home.png" alt="Home Sources" width="400" /><br><em>Home power source breakdown</em></td>
+    <td><img src="achievements.png" alt="Achievements" width="400" /><br><em>Achievements & badges</em></td>
   </tr>
 </table>
 
