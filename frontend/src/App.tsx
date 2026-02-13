@@ -173,7 +173,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v1.1.3</span>
+              <span>GridMind v1.1.4</span>
             </a>
           </div>
         </nav>
@@ -255,6 +255,14 @@ class ErrorBoundary extends Component<
 /** Mobile bottom nav with expandable "More" menu for all pages */
 function MobileNav({ onLogout }: { onLogout: () => void }) {
   const [moreOpen, setMoreOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
+
+  const cycleTheme = () => {
+    const order = ['system', 'light', 'dark'] as const
+    const idx = order.indexOf(theme)
+    setTheme(order[(idx + 1) % order.length])
+  }
+  const ThemeIcon = theme === 'system' ? Monitor : theme === 'light' ? Sun : Moon
 
   const primaryItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -297,6 +305,13 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
                 <span className="text-[10px] font-medium leading-none">{label}</span>
               </NavLink>
             ))}
+            <button
+              onClick={() => { cycleTheme() }}
+              className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <ThemeIcon className="w-5 h-5" />
+              <span className="text-[10px] font-medium leading-none capitalize">{theme === 'system' ? 'System' : theme}</span>
+            </button>
             <button
               onClick={() => { onLogout(); setMoreOpen(false) }}
               className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/5"
