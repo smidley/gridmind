@@ -1,4 +1,14 @@
-"""Vehicle data collector - polls Tesla vehicle charge state and stores in database."""
+"""Vehicle data collector - polls Tesla vehicle charge state and stores in database.
+
+Uses Wall Connector signals from Powerwall (always available, no car wake needed)
+as the primary indicator of charging activity.  Only polls the vehicle API when:
+  - WC shows the car is charging (car is already awake)
+  - WC shows the car is plugged in (moderate polling for SOC updates)
+  - Initial startup with no cached data
+  - User explicitly requests a wake
+
+When the car is asleep and WC shows nothing connected, the API is not called at all.
+"""
 
 import logging
 import time
@@ -20,10 +30,10 @@ _last_poll_time: float = 0
 _consecutive_errors: int = 0
 
 # Adaptive polling intervals (seconds)
-POLL_CHARGING = 120       # 2 min when actively charging
+POLL_CHARGING = 120       # 2 min when actively charging (car is awake)
 POLL_PLUGGED_IN = 600     # 10 min when plugged in but not charging
-POLL_DISCONNECTED = 1800  # 30 min when not plugged in
-POLL_ASLEEP = 3600        # 60 min when vehicle is asleep (avoid waking)
+POLL_DISCONNECTED = 1800  # 30 min when not plugged in but car was recently online
+POLL_ASLEEP = 7200        # 2 hours fallback when car is asleep and WC is idle
 POLL_ERROR_BACKOFF = 300  # 5 min backoff on errors
 
 
@@ -48,34 +58,64 @@ def _get_selected_vehicle_id() -> str | None:
     return setup_store.get("selected_vehicle_id")
 
 
+def _get_wc_signals() -> tuple[float, int]:
+    """Get Wall Connector power and state from the latest Powerwall status.
+
+    Returns (wc_power_watts, wc_state_code).
+    These update every 30s from Powerwall live_status — no car wake needed.
+    """
+    energy = get_energy_status()
+    if energy is None:
+        return 0.0, 0
+    wc_power = getattr(energy, "wall_connector_power", 0) or 0
+    wc_state = getattr(energy, "wall_connector_state", 0) or 0
+    return wc_power, wc_state
+
+
 def _get_poll_interval() -> int:
-    """Determine the appropriate polling interval based on current state."""
+    """Determine the appropriate polling interval.
+
+    Priority:
+      1. WC signals (always fresh from Powerwall, no car wake)
+      2. Cached vehicle state (may be stale)
+    """
     global _consecutive_errors
 
     if _consecutive_errors >= 3:
         return POLL_ERROR_BACKOFF
 
+    wc_power, wc_state = _get_wc_signals()
+    wc_charging = wc_power > 50
+    wc_connected = wc_state > 2  # States 4+ = car plugged in
+
+    # WC shows active charging → car is awake, poll for SOC/charge details
+    if wc_charging:
+        return POLL_CHARGING
+
+    # WC shows car plugged in but not charging → moderate polling for SOC
+    if wc_connected:
+        return POLL_PLUGGED_IN
+
+    # WC shows nothing connected — fall back to vehicle state
     status = _latest_vehicle_status
     if status is None:
-        return POLL_DISCONNECTED
+        # No data yet — do an initial poll
+        return 0
 
-    # Check vehicle state
     if status.vehicle.state == "asleep":
-        # Don't wake the vehicle just to check charge state
+        # Car is asleep AND WC confirms nothing is happening — long interval
         return POLL_ASLEEP
 
     if status.charge_state is None:
-        # No charge data available (missing scopes) — poll slowly
         return POLL_DISCONNECTED
 
+    # Vehicle was recently online — use vehicle-reported state
     cs = status.charge_state.charging_state
     if cs == "Charging":
         return POLL_CHARGING
     elif cs in ("Stopped", "Complete"):
-        # Plugged in but not actively charging
         return POLL_PLUGGED_IN
     else:
-        # Disconnected or unknown
         return POLL_DISCONNECTED
 
 
@@ -87,7 +127,13 @@ def should_poll_now() -> bool:
 
 
 async def collect_vehicle_data():
-    """Poll the vehicle and store a charge reading. Called by the scheduler."""
+    """Poll the vehicle and store a charge reading. Called by the scheduler.
+
+    Uses Wall Connector signals to avoid unnecessary API calls:
+    - WC idle + car asleep → skip entirely (no API call)
+    - WC charging → car must be awake, poll for details
+    - WC connected → moderate polling for SOC updates
+    """
     global _latest_vehicle_status, _last_poll_time, _consecutive_errors
 
     if not tesla_client.is_authenticated:
@@ -101,6 +147,20 @@ async def collect_vehicle_data():
 
     # Check adaptive polling interval
     if not should_poll_now():
+        return
+
+    wc_power, wc_state = _get_wc_signals()
+    wc_charging = wc_power > 50
+    wc_connected = wc_state > 2
+
+    # If car is known asleep and WC shows nothing connected, skip the API call entirely.
+    # This avoids pointless 408 responses and reduces API usage.
+    if (_latest_vehicle_status
+            and _latest_vehicle_status.vehicle.state == "asleep"
+            and not wc_connected
+            and not wc_charging):
+        _last_poll_time = time.time()
+        logger.debug("Vehicle asleep, WC idle — skipping API call")
         return
 
     try:
@@ -162,11 +222,20 @@ async def collect_vehicle_data():
     except TeslaAPIError as e:
         _consecutive_errors += 1
         if e.status_code == 408:
-            # Vehicle is asleep - update state but don't treat as hard error
-            if _latest_vehicle_status:
-                _latest_vehicle_status.vehicle.state = "asleep"
-            _last_poll_time = time.time()
-            logger.debug("Vehicle is asleep (408), will check again later")
+            if wc_charging:
+                # WC says charging but car returned 408 — car is waking up, retry soon
+                logger.info(
+                    "Vehicle returned 408 but WC shows %.0fW charging — retrying in 60s",
+                    wc_power,
+                )
+                _last_poll_time = time.time() - POLL_CHARGING + 60  # Retry in ~60s
+                _consecutive_errors = 0  # Don't count as a real error
+            else:
+                # Genuinely asleep and nothing happening
+                if _latest_vehicle_status:
+                    _latest_vehicle_status.vehicle.state = "asleep"
+                _last_poll_time = time.time()
+                logger.debug("Vehicle is asleep (408), WC idle — will check again later")
         else:
             logger.error("API error during vehicle collection: %s", e)
     except TeslaAuthError as e:

@@ -66,6 +66,17 @@ export default function Dashboard() {
   const vehicleInfo = vehicleStatus?.vehicle
   const hasVehicle = vehicleCS != null
 
+  // Wall Connector power comes from Powerwall live_status (updates every 30s, even when car is asleep).
+  // Use it as the primary EV charging power source since it's always fresh.
+  // Vehicle API data can be 60+ min stale when the car is asleep.
+  const wcPower = status?.wall_connector_power || 0
+  const wcCharging = wcPower > 50
+  const evChargingW = wcCharging
+    ? wcPower
+    : (hasVehicle && vehicleCS.charging_state === 'Charging')
+      ? (vehicleCS.charger_power || 0) * 1000
+      : 0
+
   // Storm alert: check if severe weather in next 24h (today or tomorrow)
   const [stormDismissed, setStormDismissed] = useState(false)
   const [reserveUpdating, setReserveUpdating] = useState(false)
@@ -182,7 +193,7 @@ export default function Dashboard() {
             <PowerFlowDiagram
               status={status}
               tariff={tariff}
-              evChargingWatts={hasVehicle && vehicleCS.charging_state === 'Charging' ? (vehicleCS.charger_power || 0) * 1000 : 0}
+              evChargingWatts={evChargingW}
               evSoc={hasVehicle ? vehicleCS.battery_level : undefined}
               evName={vehicleInfo?.display_name}
             />

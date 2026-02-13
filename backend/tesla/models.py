@@ -21,6 +21,8 @@ class PowerwallStatus(BaseModel):
     operation_mode: str  # "self_consumption" | "autonomous"
     backup_reserve: float  # Reserve percentage
     storm_mode: bool
+    wall_connector_power: float = 0  # Watts drawn by Wall Connector (from live_status)
+    wall_connector_state: int = 0    # WC state code (0-1=idle, 2=online, 4+=car connected)
 
 
 class EnergySite(BaseModel):

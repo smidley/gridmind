@@ -365,12 +365,27 @@ async def evaluate():
     if not vehicle_id:
         return
 
+    # Wall Connector signals from Powerwall (always fresh, no car wake needed)
+    energy_status = get_latest_status()
+    wc_power = getattr(energy_status, "wall_connector_power", 0) if energy_status else 0
+    wc_state = getattr(energy_status, "wall_connector_state", 0) if energy_status else 0
+    wc_connected = wc_state > 2
+    wc_charging = wc_power > 50
+
+    # If WC shows car isn't plugged in, skip — nothing to schedule
+    if not wc_connected and not wc_charging:
+        return
+
     # Get current vehicle status
     vehicle_status = get_latest_vehicle_status()
     if vehicle_status is None or vehicle_status.charge_state is None:
+        # No vehicle data but WC shows plugged in — can't make SOC decisions yet.
+        # The vehicle collector will poll soon since WC shows activity.
+        logger.debug("Charge scheduler: WC shows connected but no vehicle data yet, waiting")
         return
 
-    # Build a simple dict of charge state for strategy functions
+    # Build a simple dict of charge state for strategy functions.
+    # Enrich with WC signals for more accurate real-time charging state.
     cs = vehicle_status.charge_state
     charge_data = {
         "charging_state": cs.charging_state,
@@ -380,6 +395,15 @@ async def evaluate():
         "charger_actual_current": cs.charger_actual_current,
         "charge_current_request_max": cs.charge_current_request_max,
     }
+
+    # Override stale vehicle charging_state with WC ground truth.
+    # WC power updates every 30s; vehicle data can be 60+ min stale when asleep.
+    if wc_charging and charge_data["charging_state"] != "Charging":
+        charge_data["charging_state"] = "Charging"
+        charge_data["charger_power"] = wc_power / 1000  # Convert W → kW
+    elif wc_connected and not wc_charging and charge_data["charging_state"] == "Disconnected":
+        # WC says plugged in but vehicle data says Disconnected (stale)
+        charge_data["charging_state"] = "Stopped"
 
     # Apply hybrid charge limit logic first (works with any strategy or standalone)
     await _apply_hybrid_charge_limit(vehicle_id, charge_data, config)

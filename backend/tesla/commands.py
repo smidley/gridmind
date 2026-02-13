@@ -37,6 +37,14 @@ async def get_live_status() -> PowerwallStatus:
     backup_reserve = _cached_site_config.get("backup_reserve_percent", response.get("backup_reserve_percent", 0))
     storm_mode = _cached_site_config.get("storm_mode_enabled", response.get("storm_mode_active", False))
 
+    # Extract Wall Connector data from live_status (available even when vehicle is asleep)
+    wc_power = 0.0
+    wc_state = 0
+    for wc in response.get("wall_connectors", []):
+        wc_power += wc.get("wall_connector_power", 0) or 0
+        # Use highest state code across all WCs (higher = more active)
+        wc_state = max(wc_state, wc.get("wall_connector_state", 0) or 0)
+
     return PowerwallStatus(
         timestamp=datetime.utcnow(),
         battery_soc=response.get("percentage_charged", 0),
@@ -48,6 +56,8 @@ async def get_live_status() -> PowerwallStatus:
         operation_mode=operation_mode,
         backup_reserve=backup_reserve,
         storm_mode=storm_mode,
+        wall_connector_power=wc_power,
+        wall_connector_state=wc_state,
     )
 
 

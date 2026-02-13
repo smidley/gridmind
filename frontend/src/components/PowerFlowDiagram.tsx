@@ -267,7 +267,7 @@ export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, 
   const batteryDischarging = status.battery_power > 50
   const homeActive = status.home_power > 50
   const evCharging = evChargingWatts > 50
-  const showEv = evSoc !== undefined
+  const showEv = evSoc !== undefined || evCharging
 
   // Node positions as fractions of the container (0-1)
   // Layout: Solar (top), EV (left-mid), Battery (right-mid), Home (bottom-left), Grid (bottom-right)
@@ -363,13 +363,15 @@ export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, 
           }`} style={evTileStyle}>
             <Car className={`w-5 h-5 mb-1 ${evCharging ? 'text-violet-500 dark:text-violet-400' : 'text-violet-400/60 dark:text-violet-500/60'}`} />
             <span className={`text-lg font-bold tabular-nums ${evCharging ? 'text-violet-600 dark:text-violet-400' : 'text-violet-500/70 dark:text-violet-400/70'}`}>
-              {evCharging ? formatPower(evChargingWatts) : `${evSoc}%`}
+              {evCharging ? formatPower(evChargingWatts) : evSoc !== undefined ? `${evSoc}%` : '—'}
             </span>
             <span className="text-[10px] text-violet-400/60 dark:text-violet-500/50 font-medium uppercase tracking-wider mt-0.5">
               {evName || 'EV'}
             </span>
             <span className={`text-[9px] ${evCharging ? 'text-violet-500/70 dark:text-violet-400/70' : 'text-violet-400/50 dark:text-violet-500/40'}`}>
-              {evCharging ? `Charging · ${evSoc}%` : `${evSoc}%`}
+              {evCharging
+                ? evSoc !== undefined ? `Charging · ${evSoc}%` : 'Charging'
+                : evSoc !== undefined ? `${evSoc}%` : '—'}
             </span>
           </div>
         </div>

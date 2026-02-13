@@ -11,6 +11,8 @@ export interface PowerwallStatus {
   operation_mode: string
   backup_reserve: number
   storm_mode: boolean
+  wall_connector_power: number  // Watts drawn by Wall Connector (from Powerwall live_status)
+  wall_connector_state: number  // WC state code (0-1=idle, 2=online, 4+=car connected)
 }
 
 export interface VehicleChargeState {

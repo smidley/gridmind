@@ -92,6 +92,11 @@ def init():
             elif in_peak:
                 _state["phase"] = "peak_hold"
                 logger.info("GridMind Optimize restored: in peak hours, entering peak_hold")
+            elif saved_phase in ("peak_hold", "dumping", "complete"):
+                # Restarted after peak but settings were never restored —
+                # keep the phase so evaluate() triggers _end_peak() on next cycle
+                _state["phase"] = saved_phase
+                logger.info("GridMind Optimize restored: outside peak hours with phase '%s', will restore settings", saved_phase)
             else:
                 _state["phase"] = "idle"
                 logger.info("GridMind Optimize restored: outside peak hours")
@@ -192,16 +197,22 @@ async def evaluate():
         return
 
     # Before peak: ensure we're ready
+    # If phase is still peak_hold/dumping/complete, settings were never restored
+    # (e.g. container restarted overnight) — restore them now
     if hour < peak_start:
-        if _state["phase"] != "idle":
+        if _state["phase"] in ("peak_hold", "dumping", "complete"):
+            await _end_peak()
+        elif _state["phase"] != "idle":
             _set_phase("idle")
         return
 
     # After peak: restore and reset
+    # "complete" must be included — if the dump finished before peak ended,
+    # _monitor_dump sets phase to "complete" but doesn't restore settings.
+    # _end_peak() handles the full restore and sets phase back to "idle".
     if hour >= peak_end:
-        if _state["phase"] in ("peak_hold", "dumping"):
+        if _state["phase"] in ("peak_hold", "dumping", "complete"):
             await _end_peak()
-        _set_phase("complete" if hour < peak_end + 1 else "idle")
         return
 
     # During peak hours
