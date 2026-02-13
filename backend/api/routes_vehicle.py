@@ -237,6 +237,94 @@ async def vehicle_charge_amps(data: ChargingAmpsRequest):
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
 
 
+# --- Detailed Charge Status ---
+
+
+@router.get("/detailed-status")
+async def vehicle_detailed_status():
+    """Infer detailed charging status by combining vehicle, Powerwall, and Wall Connector data."""
+    from services.collector import get_latest_status as get_energy_status
+
+    cached = get_latest_vehicle_status()
+    energy = get_energy_status()
+
+    if not cached or not cached.charge_state:
+        # Check WC for plug state when vehicle data unavailable
+        wc_plugged = False
+        try:
+            live = await tesla_client.get(tesla_client._site_url("/live_status"))
+            for wc in live.get("response", {}).get("wall_connectors", []):
+                if wc.get("wall_connector_state", 0) > 2:
+                    wc_plugged = True
+                    break
+        except Exception:
+            pass
+
+        if wc_plugged:
+            return {"status": "plugged_in_asleep", "label": "Plugged In (Vehicle Asleep)", "detail": "Vehicle is asleep. Wake to see charge details."}
+        return {"status": "unknown", "label": "Unknown", "detail": "No vehicle data available."}
+
+    cs = cached.charge_state
+
+    # Active charging
+    if cs.charging_state == "Charging":
+        if energy and energy.solar_power > 500 and cs.charger_power > 0:
+            solar_kw = energy.solar_power / 1000
+            home_kw = energy.home_power / 1000
+            surplus = solar_kw - home_kw + cs.charger_power
+            if surplus > cs.charger_power * 0.5:
+                return {"status": "charging_solar", "label": "Charging on Solar", "detail": f"Primarily solar-powered ({solar_kw:.1f} kW solar)"}
+        if cs.off_peak_charging_enabled:
+            return {"status": "charging_offpeak", "label": "Charging (Off-Peak)", "detail": "Charging during off-peak TOU period"}
+        return {"status": "charging", "label": "Charging", "detail": f"{cs.charger_power:.1f} kW"}
+
+    # Complete
+    if cs.charging_state == "Complete":
+        return {"status": "complete", "label": "Charge Complete", "detail": f"{cs.battery_level}% — reached limit"}
+
+    # Plugged in but not charging — infer why
+    if cs.charging_state in ("Stopped", "NoPower"):
+        # Check if managed charging is active (Powerwall/solar priority)
+        if cs.managed_charging_active:
+            if energy and energy.battery_power < -500:
+                # Powerwall is charging — solar going to battery first
+                return {"status": "paused_powerwall", "label": "Paused for Powerwall", "detail": "Solar is charging the Powerwall first"}
+            return {"status": "managed", "label": "Managed Charging", "detail": "Charging is being managed by the energy system"}
+
+        # TOU/solar charging enabled but not charging
+        if cs.off_peak_charging_enabled:
+            if energy and energy.solar_power > 200:
+                solar_kw = energy.solar_power / 1000
+                home_kw = energy.home_power / 1000
+                surplus = solar_kw - home_kw
+                if surplus < 1.0:
+                    return {"status": "waiting_solar", "label": "Waiting for Solar", "detail": f"Need more surplus ({surplus:.1f} kW available, home using {home_kw:.1f} kW)"}
+                # Solar exists but not charging — likely Powerwall priority
+                if energy.battery_power < -500:
+                    return {"status": "paused_powerwall", "label": "Paused for Powerwall", "detail": f"Solar ({solar_kw:.1f} kW) is prioritizing Powerwall charging"}
+            else:
+                # No solar right now
+                return {"status": "waiting_solar", "label": "Waiting for Solar", "detail": "No solar production — will charge when sun returns"}
+
+        # Scheduled charging
+        if cs.scheduled_charging_mode == "StartAt":
+            return {"status": "scheduled", "label": "Scheduled", "detail": "Waiting for scheduled charge time"}
+        if cs.scheduled_charging_mode == "DepartBy":
+            return {"status": "scheduled_depart", "label": "Scheduled (Depart By)", "detail": "Will charge in time for departure"}
+
+        # At limit
+        if cs.battery_level >= cs.charge_limit_soc:
+            return {"status": "at_limit", "label": "At Charge Limit", "detail": f"{cs.battery_level}% of {cs.charge_limit_soc}% limit"}
+
+        # Generic stopped
+        if cs.charging_state == "NoPower":
+            return {"status": "no_power", "label": "Plugged In (No Power)", "detail": "Cable connected but no power available"}
+        return {"status": "stopped", "label": "Plugged In", "detail": "Plugged in, not charging"}
+
+    # Disconnected
+    return {"status": "disconnected", "label": "Unplugged", "detail": "No cable connected"}
+
+
 # --- Wall Connector ---
 
 

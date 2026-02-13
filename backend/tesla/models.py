@@ -119,6 +119,8 @@ class ChargeState(BaseModel):
     off_peak_charging_times: str = ""  # "all_week", "weekdays", etc.
     off_peak_hours_end_time: int = 0  # Minutes after midnight
     preconditioning_enabled: bool = False
+    managed_charging_active: bool = False  # Something is managing the charge (Powerwall/solar)
+    charge_enable_request: bool = True  # Whether charging is enabled/requested
 
 
 class VehicleStatus(BaseModel):

@@ -49,6 +49,7 @@ export default function VehiclePage() {
   const { data: readings } = useApi<any>('/vehicle/history?hours=24&resolution=5')
   const { data: chargeSource } = useAutoRefresh<any>('/vehicle/charge-source', 15000)
   const { data: wallConnector } = useAutoRefresh<any>('/vehicle/wall-connector', 30000)
+  const { data: detailedStatus } = useAutoRefresh<any>('/vehicle/detailed-status', 30000)
   const { data: solarMiles } = useAutoRefresh<any>('/vehicle/solar-miles', 60000)
 
   const [scheduleOpen, setScheduleOpen] = useState(false)
@@ -322,21 +323,23 @@ export default function VehiclePage() {
             <>
               <div className="card">
                 <div className="card-header">Status</div>
-                <div className={`stat-value ${
-                  cs.charging_state === 'Complete' ? 'text-blue-400' :
-                  cs.charging_state === 'Stopped' ? 'text-amber-400' :
-                  cs.charging_state === 'NoPower' ? 'text-amber-400' :
-                  wcPluggedIn ? 'text-amber-400' :
-                  'text-slate-500'
+                <div className={`stat-value text-sm ${
+                  detailedStatus?.status?.startsWith('charging') ? 'text-emerald-500 dark:text-emerald-400' :
+                  detailedStatus?.status === 'complete' || detailedStatus?.status === 'at_limit' ? 'text-blue-400' :
+                  detailedStatus?.status?.startsWith('paused') || detailedStatus?.status?.startsWith('waiting') ? 'text-amber-500 dark:text-amber-400' :
+                  detailedStatus?.status === 'disconnected' ? 'text-slate-500' :
+                  'text-amber-400'
                 }`}>
-                  {cs.charging_state === 'Complete' ? 'Complete' :
-                   cs.charging_state === 'Stopped' ? 'Plugged In' :
-                   cs.charging_state === 'NoPower' ? 'Plugged In (No Power)' :
-                   wcPluggedIn ? 'Plugged In (via WC)' :
-                   'Unplugged'}
+                  {detailedStatus?.label ||
+                   (cs.charging_state === 'Complete' ? 'Complete' :
+                    cs.charging_state === 'Stopped' ? 'Plugged In' :
+                    cs.charging_state === 'NoPower' ? 'Plugged In (No Power)' :
+                    wcPluggedIn ? 'Plugged In (via WC)' :
+                    'Unplugged')}
                 </div>
                 <div className="stat-label">
-                  {cs.conn_charge_cable && cs.conn_charge_cable !== '<invalid>' ? `Cable: ${cs.conn_charge_cable}` : 'No cable connected'}
+                  {detailedStatus?.detail ||
+                   (cs.conn_charge_cable && cs.conn_charge_cable !== '<invalid>' ? `Cable: ${cs.conn_charge_cable}` : 'No cable connected')}
                 </div>
               </div>
               <div className="card">

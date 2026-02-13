@@ -148,6 +148,8 @@ def _parse_vehicle_response(response: dict, vehicle_id: str) -> VehicleStatus:
         off_peak_charging_times=charge.get("off_peak_charging_times", ""),
         off_peak_hours_end_time=charge.get("off_peak_hours_end_time", 0),
         preconditioning_enabled=charge.get("preconditioning_enabled", False),
+        managed_charging_active=charge.get("managed_charging_active", False),
+        charge_enable_request=charge.get("charge_enable_request", True),
     )
 
     summary = VehicleSummary(
