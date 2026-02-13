@@ -22,11 +22,22 @@ export default function DetailSolar() {
 
   const { data: rangeStats } = useApi<any>(`/history/range-stats?${tr.apiParam}`)
   const { data: readings } = useApi<any>(`/history/readings?${tr.apiParam}&resolution=${tr.resolution}`)
-  const { data: forecast } = useApi('/history/forecast')
+  const { data: forecast, refetch: refetchForecast } = useApi('/history/forecast')
   const { data: vsActual } = useApi('/history/forecast/vs-actual')
   const { data: solarConfig } = useApi('/settings/setup/solar')
   const { data: weather } = useApi<any>('/history/weather')
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 60000)
+  const { data: valueData } = useApi<any>('/history/value')
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await (await import('../hooks/useApi')).apiFetch('/history/forecast/refresh', { method: 'POST' })
+      refetchForecast()
+    } catch (e) {}
+    setRefreshing(false)
+  }
 
   const rs = rangeStats || {}
 
@@ -45,11 +56,16 @@ export default function DetailSolar() {
           <Sun className="w-6 h-6 text-amber-500" />
           <h2 className="text-2xl font-bold">Solar</h2>
         </div>
-        <TimeRangeSelector value={range} onChange={setRange} />
+        <div className="flex items-center gap-2">
+          <TimeRangeSelector value={range} onChange={setRange} />
+          <button onClick={handleRefresh} disabled={refreshing} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors" title="Refresh forecast">
+            <RefreshCw className={`w-4 h-4 text-slate-500 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Live + Range Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
           <div className="card-header">Current Output</div>
           <div className="stat-value text-amber-500 dark:text-amber-400">{status ? formatPower(status.solar_power) : '—'}</div>
@@ -60,21 +76,78 @@ export default function DetailSolar() {
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
-          <div className="card-header">Forecast Today</div>
-          <div className="stat-value text-amber-500/70 dark:text-amber-400/70">{forecast?.today ? `${forecast.today.estimated_kwh} kWh` : '—'}</div>
-          <div className="stat-label">{forecast?.today?.condition?.replace('_', ' ')}</div>
-        </div>
-        <div className="card">
-          <div className="card-header">Forecast Tomorrow</div>
-          <div className="stat-value text-blue-500 dark:text-blue-400">{forecast?.tomorrow ? `${forecast.tomorrow.estimated_kwh} kWh` : '—'}</div>
-          <div className="stat-label">{forecast?.tomorrow?.condition?.replace('_', ' ')}</div>
+          <div className="card-header">Peak Output</div>
+          <div className="stat-value text-amber-500/70 dark:text-amber-400/70">
+            {readings?.readings?.length > 0 ? formatPower(Math.max(...readings.readings.map((r: any) => r.solar_power || 0))) : '—'}
+          </div>
+          <div className="stat-label">{rs.period_label || ''}</div>
         </div>
       </div>
 
-      {/* Solar Goal */}
-      {rs.solar_generated_kwh > 0 && forecast?.today && (
-        <div className="card">
-          <SolarGoal actual={rs.solar_generated_kwh} forecast={forecast.today.estimated_kwh} label="Today's Solar Goal" />
+      {/* Forecast Cards — Today + Tomorrow */}
+      {(forecast?.today || forecast?.tomorrow) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {forecast?.today && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-3">
+                <div className="card-header mb-0">Today's Forecast</div>
+                {forecast.today.condition === 'sunny' ? <Sun className="w-5 h-5 text-amber-400" /> :
+                 forecast.today.condition === 'partly_cloudy' ? <CloudSun className="w-5 h-5 text-amber-300" /> :
+                 <Cloud className="w-5 h-5 text-slate-400" />}
+              </div>
+              <div className="stat-value text-amber-400">{forecast.today.estimated_kwh} kWh</div>
+              <div className="stat-label">Estimated generation</div>
+              <div className="flex gap-4 mt-3 text-sm text-slate-400">
+                <span>Peak: {(forecast.today.peak_watts / 1000).toFixed(1)} kW</span>
+                <span>Cloud: {forecast.today.avg_cloud_cover.toFixed(0)}%</span>
+                <span className="capitalize">{forecast.today.condition.replace('_', ' ')}</span>
+              </div>
+              {todayTotals && (
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <SolarGoal actual={todayTotals.solar_generated_kwh} forecast={forecast.today.estimated_kwh} label="Generation Goal" />
+                </div>
+              )}
+              {valueData && !valueData.error && (
+                <div className="flex items-center gap-1.5 mt-3 text-sm font-medium text-emerald-400">
+                  <DollarSign className="w-3.5 h-3.5" />
+                  Actual value: +${valueData.net_value.toFixed(2)}
+                </div>
+              )}
+            </div>
+          )}
+          {forecast?.tomorrow && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-3">
+                <div className="card-header mb-0">Tomorrow's Forecast</div>
+                {forecast.tomorrow.condition === 'sunny' ? <Sun className="w-5 h-5 text-blue-400" /> :
+                 forecast.tomorrow.condition === 'partly_cloudy' ? <CloudSun className="w-5 h-5 text-blue-300" /> :
+                 <Cloud className="w-5 h-5 text-slate-400" />}
+              </div>
+              <div className="stat-value text-blue-400">{forecast.tomorrow.estimated_kwh} kWh</div>
+              <div className="stat-label">Estimated generation</div>
+              <div className="flex gap-4 mt-3 text-sm text-slate-400">
+                <span>Peak: {(forecast.tomorrow.peak_watts / 1000).toFixed(1)} kW</span>
+                <span>Cloud: {forecast.tomorrow.avg_cloud_cover.toFixed(0)}%</span>
+                <span className="capitalize">{forecast.tomorrow.condition.replace('_', ' ')}</span>
+              </div>
+              {forecast.today && (
+                <div className={`mt-3 text-sm font-medium ${
+                  forecast.tomorrow.estimated_kwh >= forecast.today.estimated_kwh ? 'text-emerald-400' : 'text-red-400'
+                }`}>
+                  {forecast.tomorrow.estimated_kwh >= forecast.today.estimated_kwh ? '+' : ''}
+                  {(forecast.tomorrow.estimated_kwh - forecast.today.estimated_kwh).toFixed(1)} kWh vs today
+                  ({forecast.tomorrow.estimated_kwh >= forecast.today.estimated_kwh ? 'more' : 'less'} sun)
+                </div>
+              )}
+              {valueData && !valueData.error && forecast.today && forecast.today.estimated_kwh > 0 && (
+                <div className="flex items-center gap-1.5 mt-2 text-sm font-medium text-blue-400">
+                  <DollarSign className="w-3.5 h-3.5" />
+                  Potential: ~${((valueData.net_value / forecast.today.estimated_kwh) * forecast.tomorrow.estimated_kwh).toFixed(2)}
+                  <span className="text-xs text-slate-500 font-normal">(estimated)</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

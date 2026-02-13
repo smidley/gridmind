@@ -21,7 +21,7 @@ import {
 import Dashboard from './pages/Dashboard'
 import Rules from './pages/Rules'
 import HistoryPage from './pages/History'
-import ForecastPage from './pages/Forecast'
+// Forecast page removed — content merged into Solar detail page
 import ValuePage from './pages/Value'
 import SettingsPage from './pages/Settings'
 import DetailSolar from './pages/DetailSolar'
@@ -182,7 +182,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/vehicle" element={<VehiclePage />} />
-            <Route path="/forecast" element={<ForecastPage />} />
+            {/* /forecast removed — content on Solar page now */}
             <Route path="/value" element={<ValuePage />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/history" element={<HistoryPage />} />
