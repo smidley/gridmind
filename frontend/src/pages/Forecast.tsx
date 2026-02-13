@@ -12,7 +12,7 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts'
-import { Sun, Cloud, CloudSun, RefreshCw, DollarSign } from 'lucide-react'
+import { Sun, Cloud, CloudSun, RefreshCw, DollarSign, CloudLightning, Wind, Droplets, AlertTriangle } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import SolarGoal from '../components/SolarGoal'
@@ -32,6 +32,7 @@ function formatHour(hour: number): string {
 
 export default function ForecastPage() {
   const { data: forecast, loading, refetch } = useApi<any>('/history/forecast')
+  const { data: weather } = useApi<any>('/history/weather')
   const { data: valueData } = useApi<any>('/history/value')
   const { data: tariff } = useApi<any>('/site/tariff')
   const { data: vsActual } = useApi<any>('/history/forecast/vs-actual')
@@ -317,6 +318,82 @@ export default function ForecastPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* 7-Day Weather Forecast */}
+      {weather?.days?.length > 0 && (
+        <div className="card">
+          <div className="card-header">7-Day Weather Forecast</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
+            {weather.days.map((day: any) => {
+              const isToday = day.date === new Date().toISOString().slice(0, 10)
+              const dayName = new Date(day.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short' })
+              return (
+                <div
+                  key={day.date}
+                  className={`p-3 rounded-xl text-center ${
+                    day.is_storm ? 'bg-red-500/10 border border-red-500/30 ring-1 ring-red-500/20' :
+                    day.is_severe ? 'bg-amber-500/10 border border-amber-500/30' :
+                    isToday ? 'bg-blue-500/5 border border-blue-500/20' :
+                    'bg-slate-100 dark:bg-slate-800/30 border border-transparent'
+                  }`}
+                >
+                  <div className={`text-[10px] font-medium ${isToday ? 'text-blue-400' : 'text-slate-500'}`}>
+                    {isToday ? 'Today' : dayName}
+                  </div>
+
+                  {/* Weather icon */}
+                  <div className="my-1.5">
+                    {day.is_storm ? (
+                      <CloudLightning className="w-6 h-6 mx-auto text-red-400" />
+                    ) : day.is_severe ? (
+                      <AlertTriangle className="w-6 h-6 mx-auto text-amber-400" />
+                    ) : day.weather_code <= 1 ? (
+                      <Sun className="w-6 h-6 mx-auto text-amber-400" />
+                    ) : day.weather_code <= 3 ? (
+                      <CloudSun className="w-6 h-6 mx-auto text-slate-400" />
+                    ) : day.precipitation_mm > 0 ? (
+                      <Droplets className="w-6 h-6 mx-auto text-blue-400" />
+                    ) : (
+                      <Cloud className="w-6 h-6 mx-auto text-slate-400" />
+                    )}
+                  </div>
+
+                  {/* Temps */}
+                  <div className="text-xs">
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{day.temp_high_f}°</span>
+                    <span className="text-slate-400 mx-0.5">/</span>
+                    <span className="text-slate-500">{day.temp_low_f}°</span>
+                  </div>
+
+                  {/* Description */}
+                  <div className={`text-[9px] mt-1 ${
+                    day.is_storm ? 'text-red-400 font-medium' :
+                    day.is_severe ? 'text-amber-400 font-medium' :
+                    'text-slate-500'
+                  }`}>
+                    {day.description}
+                  </div>
+
+                  {/* Wind */}
+                  {day.wind_max_kmh > 30 && (
+                    <div className="flex items-center justify-center gap-0.5 mt-1 text-[9px] text-slate-500">
+                      <Wind className="w-3 h-3" />
+                      {Math.round(day.wind_max_kmh * 0.621)} mph
+                    </div>
+                  )}
+
+                  {/* Storm Watch indicator */}
+                  {day.storm_watch_likely && (
+                    <div className="mt-1.5 text-[9px] bg-amber-500/15 text-amber-500 px-1.5 py-0.5 rounded font-medium">
+                      Storm Watch
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
     </div>
   )

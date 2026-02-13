@@ -701,3 +701,10 @@ async def refresh_forecast():
     from services.weather import fetch_solar_forecast
     forecasts = await fetch_solar_forecast()
     return {"refreshed": True, "hours": len(forecasts)}
+
+
+@router.get("/weather")
+async def weather_forecast():
+    """Get 7-day weather forecast with storm/severe weather indicators."""
+    from services.weather import get_weather_forecast
+    return await _get_cached("weather_forecast_7d", get_weather_forecast, ttl=3600)

@@ -266,3 +266,91 @@ async def get_forecast_summary() -> dict:
         "tomorrow": summarize_day(tomorrow_entries, tomorrow),
         "week": week,
     }
+
+
+# WMO weather codes that indicate severe/storm conditions
+STORM_CODES = {
+    95: "Thunderstorm",
+    96: "Thunderstorm with hail",
+    99: "Severe thunderstorm with hail",
+}
+SEVERE_CODES = {
+    65: "Heavy rain",
+    67: "Heavy freezing rain",
+    75: "Heavy snowfall",
+    77: "Snow grains",
+    82: "Violent rain showers",
+    86: "Heavy snow showers",
+    **STORM_CODES,
+}
+WEATHER_DESCRIPTIONS = {
+    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+    45: "Fog", 48: "Rime fog",
+    51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle",
+    61: "Light rain", 63: "Rain", 65: "Heavy rain",
+    66: "Light freezing rain", 67: "Heavy freezing rain",
+    71: "Light snow", 73: "Snow", 75: "Heavy snowfall",
+    77: "Snow grains", 80: "Light showers", 81: "Showers", 82: "Violent showers",
+    85: "Snow showers", 86: "Heavy snow showers",
+    95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Severe thunderstorm",
+}
+
+
+async def get_weather_forecast() -> dict:
+    """Get 7-day weather forecast with storm/severe weather indicators."""
+    latitude = setup_store.get_latitude()
+    longitude = setup_store.get_longitude()
+    timezone = setup_store.get_timezone()
+
+    if not latitude or not longitude:
+        return {"days": []}
+
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max",
+        "timezone": timezone,
+        "forecast_days": 7,
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(OPEN_METEO_URL, params=params, timeout=15.0)
+            response.raise_for_status()
+            data = response.json()
+    except Exception as e:
+        logger.error("Failed to fetch weather forecast: %s", e)
+        return {"days": []}
+
+    daily = data.get("daily", {})
+    dates = daily.get("time", [])
+    codes = daily.get("weather_code", [])
+    max_temps = daily.get("temperature_2m_max", [])
+    min_temps = daily.get("temperature_2m_min", [])
+    precip = daily.get("precipitation_sum", [])
+    wind_max = daily.get("wind_speed_10m_max", [])
+    gusts_max = daily.get("wind_gusts_10m_max", [])
+
+    days = []
+    for i, d in enumerate(dates):
+        code = codes[i] if i < len(codes) else 0
+        is_severe = code in SEVERE_CODES
+        is_storm = code in STORM_CODES
+
+        days.append({
+            "date": d,
+            "weather_code": code,
+            "description": WEATHER_DESCRIPTIONS.get(code, f"Code {code}"),
+            "temp_high_c": max_temps[i] if i < len(max_temps) else None,
+            "temp_low_c": min_temps[i] if i < len(min_temps) else None,
+            "temp_high_f": round(max_temps[i] * 9/5 + 32) if i < len(max_temps) and max_temps[i] is not None else None,
+            "temp_low_f": round(min_temps[i] * 9/5 + 32) if i < len(min_temps) and min_temps[i] is not None else None,
+            "precipitation_mm": precip[i] if i < len(precip) else 0,
+            "wind_max_kmh": wind_max[i] if i < len(wind_max) else 0,
+            "gusts_max_kmh": gusts_max[i] if i < len(gusts_max) else 0,
+            "is_severe": is_severe,
+            "is_storm": is_storm,
+            "storm_watch_likely": is_storm or (gusts_max[i] if i < len(gusts_max) else 0) > 80,
+        })
+
+    return {"days": days}

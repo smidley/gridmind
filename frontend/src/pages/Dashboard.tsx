@@ -465,18 +465,23 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Backup Duration */}
               {healthData?.battery?.backup_time_remaining_hours != null && (
-                <div className="card">
+                <div className={`card ${healthData.connectivity.storm_mode_active ? 'border-amber-500/30 ring-1 ring-amber-500/20' : ''}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <ShieldIcon className="w-4 h-4 text-blue-400" />
+                    <ShieldIcon className={`w-4 h-4 ${healthData.connectivity.storm_mode_active ? 'text-amber-400' : 'text-blue-400'}`} />
                     <span className="card-header mb-0">Backup Reserve</span>
+                    {healthData.connectivity.storm_mode_active && (
+                      <span className="text-[10px] bg-amber-500/15 text-amber-500 px-1.5 py-0.5 rounded font-medium animate-pulse">Storm Watch</span>
+                    )}
                   </div>
-                  <div className="stat-value text-blue-400">
+                  <div className={`stat-value ${healthData.connectivity.storm_mode_active ? 'text-amber-400' : 'text-blue-400'}`}>
                     {healthData.battery.backup_time_remaining_hours >= 24
                       ? `${(healthData.battery.backup_time_remaining_hours / 24).toFixed(1)} days`
                       : `${healthData.battery.backup_time_remaining_hours.toFixed(1)} hours`}
                   </div>
                   <div className="stat-label">
-                    Estimated backup at current usage · {healthData.battery.backup_reserve_pct}% reserve
+                    {healthData.connectivity.storm_mode_active
+                      ? 'Storm Watch active — battery reserved for backup'
+                      : `Estimated backup at current usage · ${healthData.battery.backup_reserve_pct}% reserve`}
                   </div>
                 </div>
               )}
