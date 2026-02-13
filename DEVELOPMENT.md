@@ -95,7 +95,10 @@
 - Anomalies: compares recent readings against 30-day baseline, flags deviations
 
 ### Remaining Backlog
-(All original items complete)
+1. **Multi-user accounts** — User registration, per-user data isolation, site switcher
+2. **Enphase integration** — Solar monitoring via Enphase Cloud API for non-Tesla homes
+3. **Multi-site support** — Manage multiple homes/solar systems from one instance
+4. **Multi-user SaaS architecture** — Cloud-hosted option with single Tesla/Enphase developer app for all users
 
 ### EV Charging Notes
 - **Vehicle polling**: Adaptive — collector runs every 30s but internally skips based on state (uses `should_poll_now()`)

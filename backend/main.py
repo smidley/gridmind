@@ -400,12 +400,43 @@ if os.path.isdir(frontend_dist):
     if os.path.isdir(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
-    # Serve other static files (favicon, etc.)
+    # Serve static files (favicon, PWA manifest, service worker, icons)
     @app.get("/favicon.svg")
     async def favicon():
         path = os.path.join(frontend_dist, "favicon.svg")
         if os.path.isfile(path):
             return FileResponse(path, media_type="image/svg+xml")
+
+    @app.get("/manifest.json")
+    async def pwa_manifest():
+        path = os.path.join(frontend_dist, "manifest.json")
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="application/manifest+json")
+
+    @app.get("/sw.js")
+    async def service_worker():
+        path = os.path.join(frontend_dist, "sw.js")
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="application/javascript",
+                                headers={"Service-Worker-Allowed": "/"})
+
+    @app.get("/icon-192.png")
+    async def icon_192():
+        path = os.path.join(frontend_dist, "icon-192.png")
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="image/png")
+
+    @app.get("/icon-512.png")
+    async def icon_512():
+        path = os.path.join(frontend_dist, "icon-512.png")
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="image/png")
+
+    @app.get("/apple-touch-icon.png")
+    async def apple_touch_icon():
+        path = os.path.join(frontend_dist, "apple-touch-icon.png")
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="image/png")
 
     # SPA catch-all: serve index.html for any unmatched route
     # This must be registered LAST so API routes take priority
