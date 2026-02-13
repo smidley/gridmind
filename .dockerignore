@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# IDE / Editor
+.cursor
+.vscode
+*.swp
+*.swo
+
+# Documentation
+*.md
+LICENSE
+
+# Data / runtime artifacts
+data/
+*.db
+*.pem
+*.json.bak
+
+# Node
+frontend/node_modules
+frontend/.cache
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+backend/.env
+
+# Docker
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# CI/CD
+.github

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Component, type ReactNode, type ErrorInfo } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -101,6 +101,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <div className="flex h-screen">
         {/* Desktop Sidebar — hidden on mobile */}
@@ -199,8 +200,57 @@ export default function App() {
         <MobileNav onLogout={handleLogout} />
       </div>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }
+
+/** Error boundary — catches unhandled React errors and shows a recovery UI */
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('GridMind error boundary caught:', error, info.componentStack)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 p-6">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+              <Activity className="w-8 h-8 text-red-500" />
+            </div>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Something went wrong</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              {this.state.error?.message || 'An unexpected error occurred.'}
+            </p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null })
+                window.location.href = '/'
+              }}
+              className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 
 /** Mobile bottom nav with expandable "More" menu for all pages */
 function MobileNav({ onLogout }: { onLogout: () => void }) {

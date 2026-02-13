@@ -35,7 +35,9 @@ export default function DetailSolar() {
     try {
       await (await import('../hooks/useApi')).apiFetch('/history/forecast/refresh', { method: 'POST' })
       refetchForecast()
-    } catch (e) {}
+    } catch (e: any) {
+      console.warn('Forecast refresh failed:', e?.message)
+    }
     setRefreshing(false)
   }
 

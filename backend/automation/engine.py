@@ -93,6 +93,16 @@ def setup_scheduler():
         replace_existing=True,
     )
 
+    # Periodic cleanup of expired login rate-limit entries
+    from main import _cleanup_login_attempts
+    scheduler.add_job(
+        _cleanup_login_attempts,
+        IntervalTrigger(minutes=30),
+        id="login_cleanup",
+        name="Login Rate-Limit Cleanup",
+        replace_existing=True,
+    )
+
     scheduler.start()
     logger.info("Automation scheduler started")
 

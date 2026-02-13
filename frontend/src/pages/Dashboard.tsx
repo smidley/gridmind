@@ -41,7 +41,7 @@ function formatEnergy(kwh: number): string {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { status: liveStatus, vehicleStatus: wsVehicle, connected } = useWebSocket()
-  const { data: polledStatus } = useApi<PowerwallStatus>('/status')
+  const { data: polledStatus, error: statusError } = useApi<PowerwallStatus>('/status')
   const { data: polledVehicle } = useApi<any>('/vehicle/status')
   const { data: forecast } = useApi('/history/forecast')
   const { data: setupStatus } = useApi<any>('/settings/setup/status')
@@ -92,8 +92,8 @@ export default function Dashboard() {
         body: JSON.stringify({ reserve_percent: 100 }),
       })
       setStormDismissed(true)
-    } catch (e) {
-      console.error('Failed to set reserve:', e)
+    } catch (e: any) {
+      alert(e?.message || 'Failed to set battery reserve. Check your connection.')
     } finally {
       setReserveUpdating(false)
     }
@@ -135,6 +135,14 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Connection error banner */}
+      {statusError && !status && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-sm">
+          <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+          <span className="text-red-600 dark:text-red-400">Could not connect to Powerwall: {statusError}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -166,21 +174,48 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {!status ? (
+      {!status && !polledStatus ? (
+        /* Loading skeleton or setup prompt */
+        setupStatus && !setupStatus.setup_complete ? (
+          <div className="card text-center py-16">
+            <Zap className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-slate-400 mb-2">Welcome to GridMind!</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Set up your Tesla API credentials and location to get started.
+            </p>
+            <button onClick={() => navigate('/settings')} className="btn-primary inline-flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Go to Settings
+            </button>
+          </div>
+        ) : (
+          /* Loading skeleton while waiting for first data */
+          <div className="space-y-4 animate-pulse">
+            <div className="card h-[420px] flex items-center justify-center">
+              <div className="text-center">
+                <Activity className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto mb-3 animate-pulse" />
+                <p className="text-sm text-slate-400 dark:text-slate-600">Connecting to Powerwall...</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="card h-28">
+                  <div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded mb-3" />
+                  <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded mb-2" />
+                  <div className="h-2 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      ) : !status ? (
         <div className="card text-center py-16">
           <Zap className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-400 mb-2">
-            {setupStatus && !setupStatus.setup_complete ? 'Welcome to GridMind!' : 'No Data Available'}
-          </h3>
+          <h3 className="text-lg font-medium text-slate-400 mb-2">No Data Available</h3>
           <p className="text-sm text-slate-500 mb-4">
-            {setupStatus && !setupStatus.setup_complete
-              ? 'Set up your Tesla API credentials and location to get started.'
-              : 'Complete Tesla authentication in Settings to start monitoring your Powerwall.'}
+            Complete Tesla authentication in Settings to start monitoring your Powerwall.
           </p>
-          <button
-            onClick={() => navigate('/settings')}
-            className="btn-primary inline-flex items-center gap-2"
-          >
+          <button onClick={() => navigate('/settings')} className="btn-primary inline-flex items-center gap-2">
             <Settings className="w-4 h-4" />
             Go to Settings
           </button>

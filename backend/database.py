@@ -3,6 +3,7 @@
 import datetime
 from sqlalchemy import (
     Column,
+    Index,
     Integer,
     Float,
     String,
@@ -146,7 +147,7 @@ class RuleExecutionLog(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
-    rule_id = Column(Integer, nullable=False)
+    rule_id = Column(Integer, nullable=False, index=True)
     rule_name = Column(String(200), nullable=False)
     trigger_type = Column(String(50), nullable=False)
     actions_executed = Column(JSON, nullable=False)
@@ -171,11 +172,14 @@ class VehicleChargeReading(Base):
     """Time-series vehicle charge readings."""
 
     __tablename__ = "vehicle_charge_readings"
+    __table_args__ = (
+        Index("ix_vehicle_charge_vid_ts", "vehicle_id", "timestamp"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
-    vehicle_id = Column(String(50), nullable=False)  # Tesla vehicle ID
+    vehicle_id = Column(String(50), nullable=False, index=True)  # Tesla vehicle ID
     battery_level = Column(Float, nullable=True)  # SOC 0-100
     battery_range = Column(Float, nullable=True)  # Rated range in miles
     charging_state = Column(String(30), nullable=True)  # Disconnected/Stopped/Charging/Complete

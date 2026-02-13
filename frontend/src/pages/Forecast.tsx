@@ -44,8 +44,8 @@ export default function ForecastPage() {
     try {
       await apiFetch('/history/forecast/refresh', { method: 'POST' })
       refetch()
-    } catch (e) {
-      console.error(e)
+    } catch (e: any) {
+      console.warn('Forecast refresh failed:', e?.message)
     }
     setRefreshing(false)
   }

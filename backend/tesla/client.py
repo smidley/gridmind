@@ -183,8 +183,18 @@ class TeslaFleetClient:
 
     # --- API Calls ---
 
-    async def _request(self, method: str, endpoint: str, **kwargs) -> dict:
-        """Make an authenticated API request with auto-retry on token expiry."""
+    async def _request(self, method: str, endpoint: str, _retry_count: int = 0, **kwargs) -> dict:
+        """Make an authenticated API request with retry logic.
+
+        Handles:
+          - 401: refresh token and retry (up to 2 attempts)
+          - 429: rate limited — exponential backoff and retry
+          - 503: service unavailable — backoff and retry
+        """
+        import asyncio
+
+        MAX_RETRIES = 3
+
         await self._ensure_token()
         client = await self.get_http_client()
 
@@ -195,12 +205,43 @@ class TeslaFleetClient:
 
         response = await client.request(method, endpoint, headers=headers, **kwargs)
 
-        # If unauthorized, try refreshing token once
+        # 401 Unauthorized — refresh token and retry
         if response.status_code == 401:
-            logger.warning("Got 401, attempting token refresh...")
-            await self.refresh_access_token()
-            headers["Authorization"] = f"Bearer {self._access_token}"
-            response = await client.request(method, endpoint, headers=headers, **kwargs)
+            if _retry_count < 2:
+                logger.warning("Got 401 on %s, refreshing token (attempt %d)...", endpoint, _retry_count + 1)
+                try:
+                    await self.refresh_access_token()
+                except TeslaAuthError:
+                    if _retry_count == 0:
+                        # Network blip during refresh — wait and try once more
+                        await asyncio.sleep(2)
+                        try:
+                            await self.refresh_access_token()
+                        except TeslaAuthError:
+                            raise
+                    else:
+                        raise
+                return await self._request(method, endpoint, _retry_count=_retry_count + 1, **kwargs)
+            # Exhausted retries
+            raise TeslaAPIError(
+                f"Authentication failed after {_retry_count + 1} attempts: {response.text}",
+                status_code=401,
+            )
+
+        # 429 Rate Limited / 503 Service Unavailable — backoff and retry
+        if response.status_code in (429, 503) and _retry_count < MAX_RETRIES:
+            # Use Retry-After header if present, otherwise exponential backoff
+            retry_after = response.headers.get("Retry-After")
+            if retry_after and retry_after.isdigit():
+                delay = min(int(retry_after), 60)
+            else:
+                delay = min(2 ** (_retry_count + 1), 30)  # 2s, 4s, 8s ... max 30s
+            logger.warning(
+                "Got %d on %s, retrying in %ds (attempt %d/%d)",
+                response.status_code, endpoint, delay, _retry_count + 1, MAX_RETRIES,
+            )
+            await asyncio.sleep(delay)
+            return await self._request(method, endpoint, _retry_count=_retry_count + 1, **kwargs)
 
         if response.status_code >= 400:
             raise TeslaAPIError(

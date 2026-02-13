@@ -74,10 +74,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS - allow frontend dev server
+# CORS - restrict to dev servers in debug mode, allow all in production
+# (production runs behind a reverse proxy on the same origin)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8080", "*"],
+    allow_origins=["http://localhost:5173", "http://localhost:8080"] if settings.debug else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -156,7 +157,10 @@ def _check_rate_limit(ip: str) -> tuple[bool, int]:
     attempts = _login_attempts.get(ip, [])
     # Remove attempts older than lockout window
     attempts = [t for t in attempts if now - t < LOGIN_LOCKOUT_SECONDS]
-    _login_attempts[ip] = attempts
+    if attempts:
+        _login_attempts[ip] = attempts
+    else:
+        _login_attempts.pop(ip, None)  # Clean up empty entries
     if len(attempts) >= LOGIN_MAX_ATTEMPTS:
         remaining = int(LOGIN_LOCKOUT_SECONDS - (now - attempts[0]))
         return False, max(remaining, 1)
@@ -172,6 +176,18 @@ def _record_failed_attempt(ip: str):
 def _clear_attempts(ip: str):
     """Clear failed attempts after successful login."""
     _login_attempts.pop(ip, None)
+
+
+def _cleanup_login_attempts():
+    """Periodic cleanup of expired login attempt records."""
+    import time
+    now = time.time()
+    expired = [ip for ip, attempts in _login_attempts.items()
+               if all(now - t >= LOGIN_LOCKOUT_SECONDS for t in attempts)]
+    for ip in expired:
+        del _login_attempts[ip]
+    if expired:
+        logger.debug("Cleaned up %d expired login rate-limit entries", len(expired))
 
 
 @app.post("/api/app-auth/login")
@@ -208,7 +224,7 @@ async def app_auth_login(data: LoginRequest, request: Request, response: Respons
         httponly=True,
         samesite="lax",
         max_age=60 * 60 * 24 * 30,  # 30 days
-        secure=False,  # Allow cookie on both HTTP and HTTPS
+        secure=not settings.debug,  # Secure in production (HTTPS via reverse proxy)
     )
 
     return {"status": "ok", "username": data.username}
@@ -282,8 +298,8 @@ async def websocket_endpoint(websocket: WebSocket):
             data = status.model_dump(mode="json")
             data["_type"] = "powerwall"
             await websocket.send_json(data)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("WebSocket send failed (powerwall): %s", e)
 
     async def on_vehicle_update(vehicle_status):
         """Broadcast vehicle status to this client."""
@@ -291,8 +307,8 @@ async def websocket_endpoint(websocket: WebSocket):
             data = vehicle_status.model_dump(mode="json")
             data["_type"] = "vehicle"
             await websocket.send_json(data)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("WebSocket send failed (vehicle): %s", e)
 
     register_status_listener(on_status_update)
     register_vehicle_listener(on_vehicle_update)
