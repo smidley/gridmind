@@ -179,9 +179,9 @@ export default function DetailHome() {
                       name === 'solar' ? 'Solar' : name === 'battery' ? 'Battery' : 'Grid',
                     ]}
                   />
-                  <Area type="monotone" dataKey="solar" stackId="1" stroke="#f59e0b" fill="url(#srcSolar)" strokeWidth={1.5} dot={false} />
-                  <Area type="monotone" dataKey="battery" stackId="1" stroke="#3b82f6" fill="url(#srcBattery)" strokeWidth={1.5} dot={false} />
                   <Area type="monotone" dataKey="grid" stackId="1" stroke="#f87171" fill="url(#srcGrid)" strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="battery" stackId="1" stroke="#3b82f6" fill="url(#srcBattery)" strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="solar" stackId="1" stroke="#f59e0b" fill="url(#srcSolar)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </>
