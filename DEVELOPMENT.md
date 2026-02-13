@@ -1,117 +1,227 @@
 # GridMind Development Guide
 
-## Current State (v1.1.0)
+## For AI Agents: Read This First
 
-### Tech Stack
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy (async SQLite), APScheduler
-- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Recharts, Lucide icons
-- **Deployment**: Docker (multi-stage), Docker Compose, GitHub Actions CI (GHCR)
-- **Unraid**: Template at `smidley/unRAID-CA-templates`
+This file contains everything you need to continue development on GridMind. Read it fully before making changes.
 
-### Project Location
+## Project Overview
+
+GridMind is a self-hosted Tesla Powerwall 3 automation and monitoring app. It runs as a single Docker container with a Python/FastAPI backend and React/TypeScript frontend. The user runs it on Unraid at `https://gridmind.smidley.xyz` behind Nginx Proxy Manager with HTTPS.
+
+## Project Location & Git Workflow
+
 - **Code**: `/Users/scottbrant/Documents/solar/gridmind`
-- **GitHub**: `smidley/gridmind` (use `gh auth switch --user smidley` before push)
-- **Work account**: `tiltScott` (always switch back after push)
+- **GitHub**: `smidley/gridmind` (personal account)
+- **Work account**: `tiltScott` (default Cursor account)
 - **Git config**: local user is `Scott Brant <smidley@gmail.com>`
 
-### Key Architecture
-- `backend/tesla/client.py` - Tesla Fleet API OAuth client (singleton `tesla_client`)
-- `backend/tesla/commands.py` - Powerwall control commands, caches site_info
-- `backend/automation/engine.py` - APScheduler: data collector (30s), rules (1m), optimizer (2m), forecast (6h)
-- `backend/automation/optimizer.py` - GridMind Optimize strategy engine
-- `backend/automation/rules.py` - Rule evaluation with cooldown
-- `backend/services/setup_store.py` - JSON file persistent config (`/app/data/setup.json`)
-- `backend/services/mode_manager.py` - Conflict prevention between modes
-- `backend/services/collector.py` - Polls Powerwall, stores readings, feeds WebSocket
-- `backend/services/weather.py` - Open-Meteo solar forecast with GTI
-- `backend/api/routes_*.py` - REST API endpoints
+**CRITICAL — Commit workflow:**
+```bash
+gh auth switch --user smidley    # Switch BEFORE commit/push
+git add -A && git commit -m "message"
+git push origin main
+gh auth switch --user tiltScott  # Switch BACK after push
+```
 
-### Tesla API Notes
-- **Battery power convention**: negative = charging, positive = discharging
-- **Grid power convention**: positive = importing, negative = exporting
-- **Export rule for TOU mode**: must be `battery_ok` (everything), not `pv_only`
-- **Tariff data**: comes from `site_info.tariff_content`, includes TOU periods and sell rates
-- **Energy history**: `calendar_history?period=day&kind=energy` for daily totals, `kind=power` for hourly
-- **Auth**: Fleet API requires domain registration + public key hosting (user has `smidley.github.io`)
+The user does NOT run locally anymore. All testing happens on Unraid. After pushing, the user updates the Docker container on their Unraid server to test changes. The CI builds multi-arch images automatically via GitHub Actions.
 
-### Important Patterns
-- **Version bump**: update 3 files: `backend/config.py`, `frontend/src/App.tsx`, `frontend/package.json`
-- **Rebuild**: `docker compose up -d --build` (container at localhost:8080)
-- **Commit**: switch to smidley, commit, push, switch back to tiltScott
-- **Caching**: Tesla API responses cached 2 min in `routes_history.py` (`_get_cached`)
-- **Auto-refresh**: frontend uses `useAutoRefresh` hook (30s for data, 60s for tariff)
-- **Theme**: Tailwind `dark:` classes, `useTheme` hook, body gets `dark` class
-- **All persistent data** in Docker volume at `/app/data/`
+## Tech Stack
 
-### Completed Features
-1. Real-time dashboard with canvas particle power flow animation
-2. Solar forecast (Open-Meteo GTI, calibrated to panel config)
-3. Forecast vs Actual overlay chart
-4. Solar generation goals (circular progress ring)
-5. Value/earnings page with hourly timeline, cumulative curve, export heatmap
-6. Monetary goals (MoneyGoal component)
-7. TOU rate display from Tesla tariff data (timezone-aware)
-8. Automation rules engine with CRUD API
-9. Automation presets (7 templates)
-10. GridMind Optimize (smart peak export strategy with dynamic dump timing)
-11. Off-Grid mode toggle
-12. Conflict prevention (mode_manager)
-13. Light/dark mode with system preference
-14. Battery gauge with SOC-tier colors, reserve hatching, shimmer animation
-15. Clickable detail pages (Solar, Grid, Home, Battery)
-16. Settings: Tesla credentials, location geocoding, solar panel config
-17. Setup wizard with key generation and Fleet API registration
-18. GitHub Actions CI (multi-arch Docker to GHCR)
-19. Unraid Community Apps template
-20. EV charging integration (vehicle discovery, charge monitoring, controls, smart scheduling)
+- **Backend**: Python 3.12, FastAPI, SQLAlchemy (async SQLite), APScheduler, httpx
+- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Recharts, Lucide icons
+- **Auth**: bcrypt + JWT session cookies, rate-limited login
+- **Deployment**: Docker (multi-stage Dockerfile), Docker Compose, GitHub Actions CI → GHCR
+- **Unraid**: Template at `smidley/unRAID-CA-templates` (PR #639 to selfhosters/unRAID-CA-templates)
+- **PWA**: manifest.json + service worker for installable app on iOS/Android
 
-### EV Charging Architecture (v1.1.0)
-- `backend/tesla/vehicle_commands.py` - Fleet API vehicle endpoints (list, data, charge controls, wake)
-- `backend/tesla/models.py` - VehicleSummary, ChargeState, VehicleStatus Pydantic models
-- `backend/database.py` - VehicleChargeReading time-series table
-- `backend/services/vehicle_collector.py` - Adaptive polling (2m charging, 10m plugged, 30m idle, 60m asleep)
-- `backend/api/routes_vehicle.py` - `/api/vehicle/*` REST endpoints
-- `backend/automation/charge_scheduler.py` - Smart scheduling: TOU-aware, solar surplus, departure planner
-- `frontend/src/pages/Vehicle.tsx` - Vehicle page with gauge, stats, controls, charts, schedule panel
-- `frontend/src/components/ChargeGauge.tsx` - SOC gauge with charge limit marker and shimmer
-- Dashboard EV tile with SOC bar, charge status, range
-- Sidebar nav item for Vehicle page
-- WebSocket extended with `_type` field for multiplexed powerwall/vehicle messages
+## Architecture
 
-### Powerwall Health Monitoring (v1.1.0)
-- `backend/api/routes_health.py` - `/api/powerwall/health`, `/health/throughput`, `/health/alerts`
-- Health endpoint: system info, connectivity (grid/island), backup time remaining, hardware inventory
-- Throughput: daily charge/discharge history, lifetime cycles, self-powered %, energy totals
-- Alerts: detects grid outages, low SOC events, storm watch from reading history (7 day window)
-- Frontend: Battery detail page enhanced with health cards, alerts, throughput chart, hardware inventory
+### Backend Structure
+```
+backend/
+├── main.py                      # FastAPI app, WebSocket, auth middleware, lifecycle
+├── config.py                    # Pydantic settings (GRIDMIND_ env prefix), version string
+├── database.py                  # SQLAlchemy models: EnergyReading, DailyEnergySummary,
+│                                  VehicleChargeReading, AutomationRule, SolarForecast, etc.
+├── tesla/
+│   ├── client.py                # Fleet API OAuth client (singleton tesla_client)
+│   ├── commands.py              # Powerwall read/write commands (cached site_config)
+│   ├── vehicle_commands.py      # Vehicle data, charge controls, wake, list
+│   └── models.py                # Pydantic models for Powerwall + Vehicle data
+├── automation/
+│   ├── engine.py                # APScheduler jobs: collector(30s), rules(1m), optimizer(2m),
+│   │                              vehicle_collector(30s), charge_scheduler(2m), forecast(6h)
+│   ├── optimizer.py             # GridMind Optimize: peak hold → dump strategy
+│   │                              Phase persisted to setup_store. Pre-optimize settings saved.
+│   ├── charge_scheduler.py      # EV smart scheduling: TOU-aware, solar surplus, departure
+│   ├── rules.py                 # Trigger/condition evaluation
+│   └── actions.py               # Executable actions (set mode, reserve, notify, etc.)
+├── services/
+│   ├── collector.py             # Powerwall data collection → DB + WebSocket broadcast
+│   ├── vehicle_collector.py     # Vehicle charge data (adaptive polling: 2m/10m/30m/60m)
+│   ├── ai_insights.py           # OpenAI insights + anomaly detection (gpt-4o-mini)
+│   ├── weather.py               # Open-Meteo: 7-day solar forecast (GTI) + weather codes
+│   ├── notifications.py         # Email (SMTP) + webhooks (Slack/Discord) — reads from setup_store
+│   ├── app_auth.py              # Password auth: bcrypt hash, JWT sessions, rate limiting
+│   ├── setup_store.py           # JSON persistent config (/app/data/setup.json)
+│   ├── mode_manager.py          # Conflict prevention between controllers
+│   └── geocoding.py             # Nominatim address lookup
+└── api/
+    ├── routes_status.py         # Live status, auth, site info, tariff
+    ├── routes_settings.py       # Setup, solar config, controls, notifications, optimize, offgrid
+    ├── routes_history.py        # Readings, daily, today, value, forecast, range-stats, weather
+    ├── routes_vehicle.py        # Vehicle status, controls, schedule, WC, charge-source, solar-miles
+    ├── routes_health.py         # Powerwall health, throughput, alerts, capacity, savings
+    ├── routes_ai.py             # AI insights config, insights, anomalies
+    ├── routes_achievements.py   # 22 badges evaluated from existing data
+    └── routes_rules.py          # Automation rules CRUD
+```
 
-### OpenAI Integration (v1.1.0)
-- `backend/services/ai_insights.py` - OpenAI-powered insight generation and anomaly detection
-- `backend/api/routes_ai.py` - `/api/ai/status`, `/ai/configure`, `/ai/insights`, `/ai/anomalies`
-- Settings UI: OpenAI API key config (stored in setup_store, masked)
-- Dashboard: AI Insights card (achievements, tips, warnings) + anomaly alerts
-- Uses gpt-4o-mini for cost efficiency; insights cached 1h, anomalies cached 30min
-- Insights: analyzes 7 days of daily summaries + today's data + forecast
-- Anomalies: compares recent readings against 30-day baseline, flags deviations
+### Frontend Structure
+```
+frontend/src/
+├── App.tsx                      # Router, sidebar nav, mobile nav (MobileNav component),
+│                                  auth check, theme toggle, logout
+├── pages/
+│   ├── Dashboard.tsx            # Power flow, tiles, EV tile, optimizer card, forecast,
+│   │                              backup/savings cards, AI insights, storm alert, status bar
+│   ├── DetailSolar.tsx          # Solar: time range, production chart, forecast cards (today/tomorrow),
+│   │                              vs-actual, tomorrow hourly, cloud cover, 7-day weather, system info
+│   ├── DetailHome.tsx           # Home: time range, power sources bar + stacked chart toggle,
+│   │                              consumption chart, peak/avg load
+│   ├── DetailGrid.tsx           # Grid: time range, import/export with split gradient chart, value
+│   ├── DetailBattery.tsx        # Battery: time range, gauge, health (capacity estimation, efficiency,
+│   │                              alerts, throughput chart, hardware inventory)
+│   ├── Vehicle.tsx              # EV: charge gauge with hybrid limits, detailed status inference,
+│   │                              Tesla schedule display, solar miles, charge source, WC status,
+│   │                              smart schedule config, stale data/wake handling
+│   ├── Value.tsx                # Financial: hourly timeline, cumulative curve, heatmap, TOU table
+│   ├── Rules.tsx                # Automation: rules list, optimizer/EV schedule status cards
+│   ├── Achievements.tsx         # 22 badges in 6 categories
+│   ├── History.tsx              # Historical data charts
+│   ├── Settings.tsx             # Tesla creds, location, solar config, auth, notifications, OpenAI,
+│   │                              controls, optimize, offgrid, buy me a coffee
+│   └── Login.tsx                # Login page (shown when auth enabled)
+├── components/
+│   ├── PowerFlowDiagram.tsx     # Canvas particle animation (5 nodes: Solar, EV, Battery, Home, Grid)
+│   │                              Uses refs for paths (no effect re-run on data update)
+│   │                              Light/dark mode aware particles and lines
+│   ├── BatteryGauge.tsx         # SOC bar with tier colors, reserve hatching, shimmer
+│   ├── ChargeGauge.tsx          # Vehicle SOC bar with hybrid limit markers (grid/solar zones)
+│   ├── SolarGoal.tsx            # Circular progress ring
+│   ├── TimeRangeSelector.tsx    # Pill bar: Today, 1h, 12h, 24h, 7d + formatChartTime helper
+│   ├── RuleBuilder.tsx          # Automation rule creation form
+│   ├── AutomationPresets.tsx    # 7 preset automation templates
+│   └── MoneyGoal.tsx            # Monetary goal ring
+└── hooks/
+    ├── useWebSocket.ts          # SINGLETON WebSocketManager class via useSyncExternalStore
+    │                              One connection shared across all pages. Ref counting.
+    │                              Reconnects on visibility change (phone unlock).
+    ├── useApi.ts                # One-time fetch with credentials: 'include'
+    ├── useAutoRefresh.ts        # Polling fetch with AbortController, mounted guard,
+    │                              visibility change auto-refresh
+    └── useTheme.ts              # System/light/dark theme with localStorage
+```
+
+## Key Patterns
+
+### Data Flow
+- **Powerwall**: collector.py (30s) → EnergyReading DB + WebSocket (`_type: "powerwall"`)
+- **Vehicle**: vehicle_collector.py (adaptive) → VehicleChargeReading DB + WebSocket (`_type: "vehicle"`)
+- **Frontend**: useWebSocket (singleton) for real-time, useApi/useAutoRefresh for REST fallback
+- **All detail pages**: WebSocket primary + API polling fallback (for when WS unavailable behind proxy)
+
+### Tesla API Conventions
+- **Battery power**: negative = charging, positive = discharging
+- **Grid power**: positive = importing, negative = exporting
+- **Vehicle scopes**: `vehicle_device_data` + `vehicle_charging_cmds` (must be on Tesla Developer App)
+- **408 response**: Vehicle is asleep — don't wake unless user requests it
+- **Wall Connector state**: comes from Powerwall live_status (no car wake needed). State 2 = available, >2 = car connected.
+
+### Optimizer Phase Persistence
+- All phase changes use `_set_phase()` which saves to `setup_store`
+- Pre-optimize settings (mode, reserve, export rule, grid charging) also persisted
+- On startup: reads saved phase from setup_store, validated against current time
+- Dump phase switches to `autonomous` mode (self_consumption won't export)
+
+### Theming
+- ALL colors must use `dark:` prefix pattern: `text-slate-700 dark:text-slate-300`
+- Chart tooltips: CSS-only in `index.css` (no inline contentStyle)
+- Chart grid lines: `stroke="#1e293b"` (TODO: should be theme-aware)
+- PowerFlowDiagram: detects `dark` class on documentElement for particle rendering
+
+### Authentication
+- Password + bcrypt hash stored in setup_store
+- JWT session cookie: `gridmind_session`, httponly, samesite=lax, secure=false
+- Rate limiting: 5 attempts per IP, 15-minute lockout
+- Auth middleware in main.py checks cookie on all `/api/` routes except exempt paths
+- Frontend: App.tsx checks auth on load, shows Login.tsx if needed
+- All fetch calls use `credentials: 'include'`
+
+### Version Bumping
+Update 3 files: `backend/config.py`, `frontend/src/App.tsx` (sidebar footer), `frontend/package.json`
+
+### Adding New Pages
+1. Create `frontend/src/pages/NewPage.tsx`
+2. Add route in `App.tsx` Routes section
+3. Add to `navItems` array (desktop sidebar)
+4. Add to `moreItems` in MobileNav component (mobile)
+5. Mobile bottom bar `primaryItems` only has 4 slots — use sparingly
+
+### Adding New API Endpoints
+1. Create or extend `backend/api/routes_*.py`
+2. Register router in `backend/main.py` with `app.include_router()`
+3. Add to `AUTH_EXEMPT_PATHS` in main.py if it shouldn't require login
+
+## Current State Summary
+
+### What's Built
+- Real-time dashboard with animated 5-node power flow (Solar, EV, Battery, Home, Grid)
+- EV charging: discovery, monitoring, controls, smart scheduling (TOU/solar/departure), hybrid limits
+- Wall Connector live status and plug detection (works while car sleeps)
+- Detailed charge status inference (Charging on Solar, Paused for Powerwall, Waiting for Solar, etc.)
+- Miles on Sunshine tracking
+- Tesla charge schedule display (TOU/solar from vehicle API)
+- Solar page: production, forecast cards, vs-actual, tomorrow hourly, cloud cover, 7-day weather
+- GridMind Optimize: peak export with live calculation breakdown
+- Powerwall health: capacity estimation, efficiency trending, alerts, throughput, hardware inventory
+- Battery health explanation with rating breakdown
+- OpenAI insights and anomaly detection
+- Achievements (22 badges across 6 categories)
+- Time range selector on all detail pages (Today/1h/12h/24h/7d)
+- Power source breakdown with stacked chart toggle
+- Grid chart with split gradient (red import / green export)
+- Cost savings calculator
+- 7-day solar + weather forecast with storm watch prediction
+- Storm alert banner with one-click 100% reserve
+- App authentication with rate limiting
+- Notification config in Settings UI (SMTP + webhooks)
+- PWA support (installable, offline app shell)
+- Mobile responsive with expandable More menu
+- Light/dark mode with full theme support
+- Auto-refresh on page visibility (phone unlock)
+- Buy Me a Coffee integration
 
 ### Remaining Backlog
-1. **Multi-user accounts** — User registration, per-user data isolation, site switcher
+1. **Multi-user accounts** — User registration, per-user data isolation, per-user Tesla/Enphase tokens
 2. **Enphase integration** — Solar monitoring via Enphase Cloud API for non-Tesla homes
 3. **Multi-site support** — Manage multiple homes/solar systems from one instance
-4. **Multi-user SaaS architecture** — Cloud-hosted option with single Tesla/Enphase developer app for all users
+4. **Multi-user SaaS architecture** — Cloud-hosted option with shared developer app, Stripe billing
 
-### EV Charging Notes
-- **Vehicle polling**: Adaptive — collector runs every 30s but internally skips based on state (uses `should_poll_now()`)
-- **Vehicle sleep**: 408 response means vehicle is asleep; don't wake unless user requests it
-- **Smart schedule config**: Stored in `setup_store` under `ev_schedule` key
-- **WebSocket multiplexing**: Messages now include `_type: "powerwall"` or `_type: "vehicle"` field
-- **Charge scheduler strategies**: TOU-aware (pause during peak), solar surplus (amps proportional to surplus), departure planner (calculate start time from target SOC)
-- **Mode manager**: EV scheduler registered at same priority as automation (doesn't conflict with Powerwall controls)
-- **Vehicle scopes**: `vehicle_device_data` + `vehicle_charging_cmds` already in OAuth scope string
+### Known Issues / Areas for Improvement
+- Chart grid lines (`stroke="#1e293b"`) don't adapt to light mode
+- Readings endpoint Tesla API fallback uses dateutil.parser which may not be installed
+- Optimizer `_check_dump_timing` uses rolling home load average — could be more sophisticated
+- Solar miles calculation is approximate (assumes 2-min intervals, 3.5 mi/kWh)
+- Some Settings page sections could use better form validation
 
-### Known Considerations
-- Off-grid mode restore: saves/restores export_rule from Tesla config
-- Optimizer restores export to `battery_ok` at peak end (not pv_only)
-- TOU bands in value chart: extend each band to next period start (no gaps)
-- Hours without Tesla energy data get correct TOU period from schedule
-- Setup store falls back to env vars if not set in JSON
+### User's Setup
+- **Powerwall**: Powerwall 3 + 1 Expansion (27 kWh, 11.5 kW)
+- **Vehicle**: Model Y (VIN: 7SAYGAEE6PF590793)
+- **Wall Connector**: Gen 3 (SAE cable)
+- **Location**: Portland, OR (PGE utility, POGE-SCH-7-TOD tariff)
+- **Solar**: Configured (tilt/azimuth/capacity in setup_store)
+- **Peak hours**: 5 PM - 9 PM
+- **Hosting**: Unraid with Docker, HTTPS via Nginx Proxy Manager
+- **Domain**: gridmind.smidley.xyz
+- **Buy Me a Coffee**: https://buymeacoffee.com/smidley

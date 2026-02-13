@@ -1,0 +1,44 @@
+---
+description: GridMind project context and development rules
+globs: **/*
+alwaysApply: true
+---
+
+# GridMind Development Rules
+
+## FIRST: Read DEVELOPMENT.md
+Before making ANY changes, read `/DEVELOPMENT.md` in the project root. It contains the full architecture, patterns, file map, git workflow, and backlog.
+
+## Git Workflow (CRITICAL)
+```bash
+gh auth switch --user smidley    # BEFORE commit/push
+git add -A && git commit -m "descriptive message"
+git push origin main
+gh auth switch --user tiltScott  # ALWAYS switch back
+```
+If push is rejected, use `git pull --rebase origin main` then push again.
+
+## The User's Setup
+- App runs on **Unraid** (not locally) — don't try to docker build/run locally
+- After pushing, tell the user to update the container on Unraid
+- Access via `https://gridmind.smidley.xyz` (HTTPS, behind reverse proxy)
+- WebSocket may not be available (reverse proxy needs WS support)
+
+## Key Patterns
+- **All colors must support both themes**: use `text-slate-700 dark:text-slate-300` pattern, never bare `text-slate-200`
+- **Chart tooltips**: CSS-only in `index.css` — do NOT add inline `contentStyle`
+- **API fetch**: always use `credentials: 'include'` for auth cookies
+- **Detail pages**: use WebSocket primary + API polling fallback (useAutoRefresh for /status)
+- **New pages**: add to navItems (desktop), moreItems in MobileNav (mobile), and Routes in App.tsx
+- **WebSocket**: singleton in useWebSocket.ts — do NOT create new connections per page
+- **Backgrounds**: `bg-slate-100 dark:bg-slate-800` not bare `bg-slate-800`
+- **Input fields**: `bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700`
+
+## Version Bump
+Update 3 files: `backend/config.py`, `frontend/src/App.tsx`, `frontend/package.json`
+
+## Tesla API
+- Battery power: negative = charging, positive = discharging
+- Grid power: positive = importing, negative = exporting
+- 408 = vehicle asleep (don't wake unless user asks)
+- Wall Connector state from Powerwall live_status (no car wake needed)
