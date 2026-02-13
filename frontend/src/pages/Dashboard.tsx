@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Sun,
@@ -40,7 +40,7 @@ function formatEnergy(kwh: number): string {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { status: liveStatus, vehicleStatus: wsVehicle, connected, lastDataTime } = useWebSocket()
+  const { status: liveStatus, vehicleStatus: wsVehicle, connected } = useWebSocket()
   // Powerwall status: poll every 30s as fallback when WebSocket is unavailable
   const { data: polledStatus, error: statusError } = useAutoRefresh<PowerwallStatus>('/status', 30000)
   const { data: polledVehicle } = useApi<any>('/vehicle/status')
@@ -78,19 +78,6 @@ export default function Dashboard() {
       ? (vehicleCS.charger_power || 0) * 1000
       : 0
 
-  // Data freshness indicator — tracks seconds since last update
-  const [secondsAgo, setSecondsAgo] = useState(0)
-  const lastDataRef = useRef(lastDataTime)
-  lastDataRef.current = lastDataTime
-  useEffect(() => {
-    const tick = () => {
-      const last = lastDataRef.current
-      setSecondsAgo(last ? Math.floor((Date.now() - last) / 1000) : 0)
-    }
-    tick()
-    const timer = setInterval(tick, 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   // Storm alert: check if severe weather in next 24h (today or tomorrow)
   const [stormDismissed, setStormDismissed] = useState(false)
@@ -164,25 +151,16 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold">Dashboard</h2>
           <p className="text-sm text-slate-500">Real-time Powerwall monitoring</p>
         </div>
-        <div className="relative group flex items-center gap-2 cursor-help text-right">
-          <div className="flex flex-col items-end gap-0.5">
-            {connected ? (
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                <Wifi className="w-3.5 h-3.5" /> Live
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                <WifiOff className="w-3.5 h-3.5" /> Polling
-              </span>
-            )}
-            {lastDataTime > 0 && (
-              <span className={`text-[10px] tabular-nums ${
-                secondsAgo > 120 ? 'text-red-400' : secondsAgo > 60 ? 'text-amber-400' : 'text-slate-500'
-              }`}>
-                {secondsAgo < 5 ? 'Just now' : `${secondsAgo}s ago`}
-              </span>
-            )}
-          </div>
+        <div className="relative group flex items-center gap-2 cursor-help">
+          {connected ? (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <Wifi className="w-3.5 h-3.5" /> Live
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-xs text-slate-500">
+              <WifiOff className="w-3.5 h-3.5" /> Polling
+            </span>
+          )}
           {/* Tooltip */}
           <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-xs text-slate-600 dark:text-slate-400">
             {connected ? (
