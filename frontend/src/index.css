@@ -8,6 +8,26 @@
   }
 }
 
+/* Safe area insets for PWA on phones with notches / rounded corners.
+   viewport-fit=cover is set in index.html; these ensure content
+   isn't clipped under the status bar, home indicator, or edge radius. */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* Bottom offset for elements that sit above the safe-area-aware nav bar */
+.above-safe-nav {
+  bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+/* Main content needs enough bottom padding for nav + safe area on mobile */
+@media (max-width: 767px) {
+  .main-content-mobile {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 @layer components {
   .card {
     @apply bg-slate-200/40 border border-slate-300/30 rounded-xl p-5

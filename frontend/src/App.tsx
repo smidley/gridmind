@@ -103,7 +103,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <BrowserRouter>
-      <div className="flex h-screen">
+      <div className="flex h-screen safe-top">
         {/* Desktop Sidebar — hidden on mobile */}
         <nav className="hidden md:flex w-64 bg-slate-100 border-r border-slate-200/60 flex-col dark:bg-slate-900 dark:border-slate-800">
           <div className="p-5 border-b border-slate-200/60 dark:border-slate-800">
@@ -173,13 +173,13 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v1.1.2</span>
+              <span>GridMind v1.1.3</span>
             </a>
           </div>
         </nav>
 
-        {/* Main Content — adds bottom padding on mobile for nav bar */}
-        <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950 pb-16 md:pb-0">
+        {/* Main Content — bottom padding accounts for nav bar + safe area on mobile */}
+        <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950 main-content-mobile md:pb-0">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/vehicle" element={<VehiclePage />} />
@@ -279,7 +279,7 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
       {moreOpen && (
         <div className="md:hidden fixed inset-0 z-40" onClick={() => setMoreOpen(false)}>
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-          <div className="absolute bottom-16 left-2 right-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl p-3 grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute above-safe-nav left-2 right-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl p-3 grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
             {moreItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
@@ -309,7 +309,7 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
       )}
 
       {/* Bottom bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 z-50 safe-bottom">
         <div className="flex justify-around items-center h-14">
           {primaryItems.map(({ to, icon: Icon, label }) => (
             <NavLink
