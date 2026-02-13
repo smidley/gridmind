@@ -34,8 +34,14 @@ If push is rejected, use `git pull --rebase origin main` then push again.
 - **Backgrounds**: `bg-slate-100 dark:bg-slate-800` not bare `bg-slate-800`
 - **Input fields**: `bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700`
 
-## Version Bump
-Update 3 files: `backend/config.py`, `frontend/src/App.tsx`, `frontend/package.json`
+## Version Bump (REQUIRED on every push)
+When committing changes that will be pushed to main, you MUST increment the version number.
+- Use **semver**: bump PATCH for fixes/cleanup, MINOR for new features, MAJOR for breaking changes.
+- Update ALL 3 files:
+  1. `backend/config.py` — `app_version` string
+  2. `frontend/package.json` — `"version"` field
+  3. `frontend/src/App.tsx` — version string in the sidebar footer (search for `GridMind v`)
+- Include the version bump in the same commit as the changes, not as a separate commit.
 
 ## Tesla API
 - Battery power: negative = charging, positive = discharging
