@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-100 text-slate-700 antialiased dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-stone-100 text-stone-700 antialiased dark:bg-slate-950 dark:text-slate-100;
   }
 }
 
@@ -30,12 +30,12 @@
 
 @layer components {
   .card {
-    @apply bg-slate-200/40 border border-slate-300/30 rounded-xl p-5
+    @apply bg-white/70 border border-stone-200/50 rounded-xl p-5
            dark:bg-slate-900 dark:border-slate-800 dark:shadow-none;
   }
 
   .card-header {
-    @apply text-sm font-medium text-slate-500 uppercase tracking-wider mb-3
+    @apply text-sm font-medium text-stone-500 uppercase tracking-wider mb-3
            dark:text-slate-400;
   }
 
@@ -44,12 +44,12 @@
   }
 
   .btn-primary {
-    @apply btn bg-slate-700 hover:bg-slate-800 text-white
+    @apply btn bg-stone-700 hover:bg-stone-800 text-white
            dark:bg-blue-600 dark:hover:bg-blue-500;
   }
 
   .btn-secondary {
-    @apply btn bg-slate-200/80 hover:bg-slate-300/80 text-slate-600 border border-slate-300/40
+    @apply btn bg-stone-200/80 hover:bg-stone-300/80 text-stone-600 border border-stone-300/40
            dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 dark:border-transparent;
   }
 
@@ -64,9 +64,9 @@
   }
 
   .input {
-    @apply bg-slate-100 border border-slate-300/60 rounded-lg px-3 py-2 text-slate-700
+    @apply bg-stone-50 border border-stone-300/60 rounded-lg px-3 py-2 text-stone-700
            focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400
-           placeholder:text-slate-400
+           placeholder:text-stone-400
            dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100
            dark:placeholder:text-slate-500;
   }
@@ -80,18 +80,18 @@
   }
 
   .stat-label {
-    @apply text-sm text-slate-500 mt-1 dark:text-slate-400;
+    @apply text-sm text-stone-500 mt-1 dark:text-slate-400;
   }
 }
 
 /* Recharts tooltip theme override — controls all chart tooltips */
 .recharts-default-tooltip {
-  background-color: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
-  color: #334155 !important;
+  background-color: #fafaf9 !important;
+  border-color: #d6d3d1 !important;
+  color: #44403c !important;
   border-radius: 8px !important;
   font-size: 12px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
 .dark .recharts-default-tooltip {

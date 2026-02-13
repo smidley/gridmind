@@ -89,7 +89,7 @@ export default function App() {
   // Show loading while checking auth
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-stone-100 dark:bg-slate-950">
         <Activity className="w-8 h-8 text-amber-500 animate-pulse" />
       </div>
     )
@@ -105,15 +105,15 @@ export default function App() {
     <BrowserRouter>
       <div className="flex h-screen safe-top">
         {/* Desktop Sidebar — hidden on mobile */}
-        <nav className="hidden md:flex w-64 bg-slate-100 border-r border-slate-200/60 flex-col dark:bg-slate-900 dark:border-slate-800">
-          <div className="p-5 border-b border-slate-200/60 dark:border-slate-800">
+        <nav className="hidden md:flex w-64 bg-stone-50 border-r border-stone-200/60 flex-col dark:bg-slate-900 dark:border-slate-800">
+          <div className="p-5 border-b border-stone-200/60 dark:border-slate-800">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-amber-500/20 flex items-center justify-center">
                 <Activity className="w-5 h-5 text-amber-500 dark:text-amber-400" />
               </div>
               <div>
                 <h1 className="text-lg font-bold text-slate-900 dark:text-white">GridMind</h1>
-                <p className="text-xs text-slate-400 dark:text-slate-500">Powerwall Automation</p>
+                <p className="text-xs text-stone-400 dark:text-slate-500">Powerwall Automation</p>
               </div>
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function App() {
                   `flex items-center gap-3 px-5 py-2.5 mx-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-blue-600/10 text-blue-600 dark:bg-blue-600/20 dark:text-blue-400'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800'
+                      : 'text-stone-500 hover:text-stone-900 hover:bg-stone-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800'
                   }`
                 }
               >
@@ -138,10 +138,10 @@ export default function App() {
             ))}
           </div>
 
-          <div className="p-4 border-t border-slate-200/60 dark:border-slate-800 space-y-3">
+          <div className="p-4 border-t border-stone-200/60 dark:border-slate-800 space-y-3">
             <button
               onClick={cycleTheme}
-              className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors w-full"
+              className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors w-full"
               title={`Theme: ${theme}`}
             >
               <ThemeIcon className="w-3.5 h-3.5" />
@@ -150,7 +150,7 @@ export default function App() {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-400 dark:text-slate-500 dark:hover:text-red-400 transition-colors w-full"
+              className="flex items-center gap-2 text-xs text-stone-400 hover:text-red-400 dark:text-slate-500 dark:hover:text-red-400 transition-colors w-full"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>
@@ -170,16 +170,16 @@ export default function App() {
               href="https://github.com/smidley/gridmind"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
+              className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v1.1.8</span>
+              <span>GridMind v1.1.9</span>
             </a>
           </div>
         </nav>
 
         {/* Main Content — bottom padding accounts for nav bar + safe area on mobile */}
-        <main className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950 main-content-mobile md:pb-0">
+        <main className="flex-1 overflow-auto bg-stone-100 dark:bg-slate-950 main-content-mobile md:pb-0">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/vehicle" element={<VehiclePage />} />
@@ -225,7 +225,7 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 p-6">
+        <div className="min-h-screen flex items-center justify-center bg-stone-100 dark:bg-slate-950 p-6">
           <div className="text-center max-w-md">
             <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-6">
               <Activity className="w-8 h-8 text-red-500" />
@@ -287,7 +287,7 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
       {moreOpen && (
         <div className="md:hidden fixed inset-0 z-40" onClick={() => setMoreOpen(false)}>
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-          <div className="absolute above-safe-nav left-2 right-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl p-3 grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute above-safe-nav left-2 right-2 bg-stone-50 dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 shadow-xl p-3 grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
             {moreItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
@@ -297,7 +297,7 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
                   `flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-center ${
                     isActive
                       ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      : 'text-stone-500 dark:text-slate-400 hover:bg-stone-100 dark:hover:bg-slate-800'
                   }`
                 }
               >
@@ -307,14 +307,14 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
             ))}
             <button
               onClick={() => { cycleTheme() }}
-              className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-stone-500 dark:text-slate-400 hover:bg-stone-100 dark:hover:bg-slate-800"
             >
               <ThemeIcon className="w-5 h-5" />
               <span className="text-[10px] font-medium leading-none capitalize">{theme === 'system' ? 'System' : theme}</span>
             </button>
             <button
               onClick={() => { onLogout(); setMoreOpen(false) }}
-              className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/5"
+              className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-stone-400 hover:text-red-400 hover:bg-red-500/5"
             >
               <LogOut className="w-5 h-5" />
               <span className="text-[10px] font-medium leading-none">Sign Out</span>
@@ -324,7 +324,7 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
       )}
 
       {/* Bottom bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 z-50 safe-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-stone-50/95 dark:bg-slate-900/95 backdrop-blur border-t border-stone-200 dark:border-slate-800 z-50 safe-bottom">
         <div className="flex justify-around items-center h-14">
           {primaryItems.map(({ to, icon: Icon, label }) => (
             <NavLink
@@ -336,7 +336,7 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
                 `flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg min-w-0 ${
                   isActive
                     ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-slate-400 dark:text-slate-500'
+                    : 'text-stone-400 dark:text-slate-500'
                 }`
               }
             >
@@ -347,7 +347,7 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
           <button
             onClick={() => setMoreOpen(!moreOpen)}
             className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg ${
-              moreOpen ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'
+              moreOpen ? 'text-blue-600 dark:text-blue-400' : 'text-stone-400 dark:text-slate-500'
             }`}
           >
             <Activity className="w-5 h-5" />

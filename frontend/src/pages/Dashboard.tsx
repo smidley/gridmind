@@ -162,7 +162,7 @@ export default function Dashboard() {
             </span>
           )}
           {/* Tooltip */}
-          <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-xs text-slate-600 dark:text-slate-400">
+          <div className="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-xs text-stone-600 dark:text-slate-400">
             {connected ? (
               <p><span className="text-emerald-500 dark:text-emerald-400 font-medium">Connected</span> — Real-time data is streaming. Power flow and stats update instantly.</p>
             ) : (
@@ -201,9 +201,9 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="card h-28">
-                  <div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded mb-3" />
-                  <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded mb-2" />
-                  <div className="h-2 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+                  <div className="h-3 w-20 bg-stone-200 dark:bg-slate-800 rounded mb-3" />
+                  <div className="h-6 w-24 bg-stone-200 dark:bg-slate-800 rounded mb-2" />
+                  <div className="h-2 w-16 bg-stone-200 dark:bg-slate-800 rounded" />
                 </div>
               ))}
             </div>

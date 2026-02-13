@@ -25,14 +25,15 @@ If push is rejected, use `git pull --rebase origin main` then push again.
 - WebSocket may not be available (reverse proxy needs WS support)
 
 ## Key Patterns
-- **All colors must support both themes**: use `text-slate-700 dark:text-slate-300` pattern, never bare `text-slate-200`
+- **Light/dark theme**: Light mode uses warm `stone` palette, dark mode uses cool `slate`. Example: `bg-stone-100 dark:bg-slate-950`, `text-stone-700 dark:text-slate-100`
+- **Never bare dark classes**: always pair light + dark, e.g. `bg-stone-50 dark:bg-slate-900`, never bare `bg-slate-800`
+- **Cards**: styled via `.card` class in index.css — `bg-white/70` light, `bg-slate-900` dark
 - **Chart tooltips**: CSS-only in `index.css` — do NOT add inline `contentStyle`
 - **API fetch**: always use `credentials: 'include'` for auth cookies
 - **Detail pages**: use WebSocket primary + API polling fallback (useAutoRefresh for /status)
 - **New pages**: add to navItems (desktop), moreItems in MobileNav (mobile), and Routes in App.tsx
 - **WebSocket**: singleton in useWebSocket.ts — do NOT create new connections per page
-- **Backgrounds**: `bg-slate-100 dark:bg-slate-800` not bare `bg-slate-800`
-- **Input fields**: `bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700`
+- **Input fields**: `bg-stone-50 dark:bg-slate-900 border border-stone-300/60 dark:border-slate-700`
 
 ## Version Bump (REQUIRED on every push)
 When committing changes that will be pushed to main, you MUST increment the version number.
