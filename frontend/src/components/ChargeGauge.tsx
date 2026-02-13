@@ -5,6 +5,8 @@ interface Props {
   power: number
   range: number
   displayName?: string
+  gridChargeLimit?: number   // Hybrid: charge from any source up to this %
+  solarChargeLimit?: number  // Hybrid: charge from solar only up to this %
 }
 
 function getBarColor(soc: number): { class: string; hex: string } {
@@ -22,15 +24,16 @@ function getStateLabel(state: string): { label: string; color: string } {
     case 'Complete': return { label: 'Complete', color: 'text-blue-400' }
     case 'Stopped': return { label: 'Plugged In', color: 'text-amber-400' }
     case 'Disconnected': return { label: 'Disconnected', color: 'text-slate-500' }
-    case 'NoPower': return { label: 'No Power', color: 'text-red-400' }
+    case 'NoPower': return { label: 'Plugged In (No Power)', color: 'text-amber-400' }
     default: return { label: state || 'Unknown', color: 'text-slate-500' }
   }
 }
 
-export default function ChargeGauge({ soc, chargeLimit, chargingState, power, range: rangeVal, displayName }: Props) {
+export default function ChargeGauge({ soc, chargeLimit, chargingState, power, range: rangeVal, displayName, gridChargeLimit, solarChargeLimit }: Props) {
   const charging = chargingState === 'Charging'
   const barColor = getBarColor(soc)
   const stateInfo = getStateLabel(chargingState)
+  const hasHybridLimits = (gridChargeLimit || 0) > 0 && (solarChargeLimit || 0) > 0
 
   // Shimmer when charging
   const shimmerDuration = charging ? `${Math.max(1.5, 3 - (power / 15) * 1.5)}s` : '0s'
@@ -45,7 +48,7 @@ export default function ChargeGauge({ soc, chargeLimit, chargingState, power, ra
       </div>
 
       {/* Charge bar */}
-      <div className="relative w-full h-10 bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
+      <div className="relative w-full h-10 bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700">
         <style>{`
           @keyframes evShimmer {
             0% { left: -100%; }
@@ -53,14 +56,47 @@ export default function ChargeGauge({ soc, chargeLimit, chargingState, power, ra
           }
         `}</style>
 
+        {/* Hybrid limit zone backgrounds (behind the fill bar) */}
+        {hasHybridLimits && (
+          <>
+            {/* Solar-only zone: between grid limit and solar limit */}
+            <div
+              className="absolute top-0 bottom-0 opacity-20"
+              style={{
+                left: `${gridChargeLimit}%`,
+                width: `${(solarChargeLimit || 100) - (gridChargeLimit || 0)}%`,
+                background: 'repeating-linear-gradient(45deg, #f59e0b, #f59e0b 2px, transparent 2px, transparent 6px)',
+              }}
+            />
+          </>
+        )}
+
         {/* Fill bar */}
         <div
           className={`absolute top-0 bottom-0 left-0 transition-all duration-1000 ${barColor.class}`}
           style={{ width: `${soc}%` }}
         />
 
-        {/* Charge limit marker */}
-        {chargeLimit > 0 && chargeLimit < 100 && (
+        {/* Hybrid limit markers */}
+        {hasHybridLimits && (
+          <>
+            {/* Grid charge limit marker (violet) */}
+            <div
+              className="absolute top-0 bottom-0"
+              style={{ left: `${gridChargeLimit}%`, width: '2px', backgroundColor: '#8b5cf6' }}
+            />
+            {/* Solar charge limit marker (amber) */}
+            {(solarChargeLimit || 0) < 100 && (
+              <div
+                className="absolute top-0 bottom-0"
+                style={{ left: `${solarChargeLimit}%`, width: '2px', backgroundColor: '#f59e0b' }}
+              />
+            )}
+          </>
+        )}
+
+        {/* Tesla charge limit marker (white, only show if no hybrid or different from hybrid) */}
+        {chargeLimit > 0 && chargeLimit < 100 && !hasHybridLimits && (
           <div
             className="absolute top-0 bottom-0"
             style={{ left: `${chargeLimit}%`, width: '2px', backgroundColor: '#ffffff60' }}
@@ -90,22 +126,30 @@ export default function ChargeGauge({ soc, chargeLimit, chargingState, power, ra
         </div>
       </div>
 
-      {/* Charge limit indicator */}
-      {chargeLimit > 0 && chargeLimit < 100 && (
+      {/* Limit indicators below bar */}
+      {hasHybridLimits ? (
+        <div className="relative w-full h-5 mt-1">
+          {/* Grid limit label */}
+          <div className="absolute top-0 flex justify-center" style={{ left: `${Math.max((gridChargeLimit || 0) - 6, 0)}%`, width: '12%' }}>
+            <span className="text-[9px] text-violet-400 leading-none whitespace-nowrap">⚡ {gridChargeLimit}%</span>
+          </div>
+          {/* Solar limit label */}
+          {(solarChargeLimit || 0) < 100 && (
+            <div className="absolute top-0 flex justify-center" style={{ left: `${Math.max((solarChargeLimit || 0) - 6, 0)}%`, width: '12%' }}>
+              <span className="text-[9px] text-amber-400 leading-none whitespace-nowrap">☀ {solarChargeLimit}%</span>
+            </div>
+          )}
+        </div>
+      ) : chargeLimit > 0 && chargeLimit < 100 ? (
         <div className="relative w-full h-4 mt-0.5">
-          <div
-            className="absolute top-0 flex justify-center"
-            style={{ left: `${Math.max(chargeLimit - 5, 0)}%`, width: '10%' }}
-          >
-            <span className="text-[9px] text-slate-500 leading-none whitespace-nowrap">
-              Limit {chargeLimit}%
-            </span>
+          <div className="absolute top-0 flex justify-center" style={{ left: `${Math.max(chargeLimit - 5, 0)}%`, width: '10%' }}>
+            <span className="text-[9px] text-slate-500 leading-none whitespace-nowrap">Limit {chargeLimit}%</span>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Status row */}
-      <div className={`flex justify-between ${chargeLimit > 0 && chargeLimit < 100 ? 'mt-1' : 'mt-3'} text-sm`}>
+      <div className={`flex justify-between ${(hasHybridLimits || (chargeLimit > 0 && chargeLimit < 100)) ? 'mt-1' : 'mt-3'} text-sm`}>
         <span className={stateInfo.color}>{stateInfo.label}</span>
         {charging ? (
           <span className="font-medium text-emerald-400">
@@ -118,13 +162,19 @@ export default function ChargeGauge({ soc, chargeLimit, chargingState, power, ra
         )}
       </div>
 
-      {/* Range */}
+      {/* Range + hybrid legend */}
       <div className="text-xs text-slate-500 mt-1">
         {Math.round(rangeVal)} mi range
         {charging && power > 0 && (
           <span className="text-slate-600"> &middot; {power.toFixed(1)} kW</span>
         )}
       </div>
+      {hasHybridLimits && (
+        <div className="flex gap-3 text-[9px] text-slate-500 mt-1">
+          <span><span className="text-violet-400">⚡</span> Any source to {gridChargeLimit}%</span>
+          <span><span className="text-amber-400">☀</span> Solar only to {solarChargeLimit}%</span>
+        </div>
+      )}
     </div>
   )
 }

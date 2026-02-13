@@ -240,6 +240,8 @@ export default function VehiclePage() {
             power={cs.charger_power}
             range={cs.battery_range}
             displayName={vehicle?.display_name}
+            gridChargeLimit={sched.grid_charge_limit || 0}
+            solarChargeLimit={sched.solar_charge_limit || 0}
           />
         </div>
       )}
