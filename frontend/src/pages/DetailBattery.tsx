@@ -134,7 +134,7 @@ export default function DetailBattery() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(1)}%`, 'SOC']} />
+              <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'SOC']} />
               <Line type="monotone" dataKey="soc" stroke="#3b82f6" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -151,7 +151,7 @@ export default function DetailBattery() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
-              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(1)} kW`, v >= 0 ? 'Discharging' : 'Charging']} />
+              <Tooltip formatter={(v: number) => [`${v.toFixed(1)} kW`, v >= 0 ? 'Discharging' : 'Charging']} />
               <Area type="monotone" dataKey="power" stroke="#3b82f6" fill="#3b82f620" strokeWidth={1.5} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
@@ -429,7 +429,7 @@ export default function DetailBattery() {
                     tickFormatter={(v) => `${v}`}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                   
                     formatter={(v: number) => [`${v.toFixed(1)} kWh`, 'Capacity']}
                   />
                   <Line type="monotone" dataKey="estimated_capacity_kwh" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} />
@@ -460,7 +460,7 @@ export default function DetailBattery() {
                     tickFormatter={(v) => `${v}%`}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                   
                     formatter={(v: number) => [`${v.toFixed(1)}%`, 'Efficiency']}
                   />
                   <Line type="monotone" dataKey="efficiency_pct" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: '#8b5cf6' }} />
@@ -495,7 +495,7 @@ export default function DetailBattery() {
               />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+               
                 formatter={(v: number, name: string) => [
                   `${v.toFixed(1)} kWh`,
                   name === 'charged_kwh' ? 'Charged' : 'Discharged',

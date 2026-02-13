@@ -173,7 +173,7 @@ export default function DetailHome() {
                   <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
                   <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                   
                     formatter={(v: number, name: string) => [
                       `${v.toFixed(1)} kW`,
                       name === 'solar' ? 'Solar' : name === 'battery' ? 'Battery' : 'Grid',
@@ -198,7 +198,7 @@ export default function DetailHome() {
                 <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
                 <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
                 <Tooltip
-                  contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                 
                   formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Home']}
                 />
                 <Area type="monotone" dataKey="home" stroke="#22d3ee" fill="url(#homeDetailGrad)" strokeWidth={2} dot={false} />

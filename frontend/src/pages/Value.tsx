@@ -299,7 +299,7 @@ export default function ValuePage() {
                   <YAxis stroke="#475569" fontSize={10} tickLine={false}
                     tickFormatter={(v) => `$${v.toFixed(2)}`} />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                   
                     formatter={(v: number) => [`$${v.toFixed(2)}`, 'Cumulative']}
                     labelFormatter={(l) => {
                       const d = cumulativeChart.find((c: any) => c.label === l)

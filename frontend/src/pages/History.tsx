@@ -81,10 +81,7 @@ export default function HistoryPage() {
               />
               <YAxis stroke="#475569" fontSize={11} tickLine={false} />
               <Tooltip
-                contentStyle={{
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
+                
               />
               <Legend />
               <Line type="monotone" dataKey="solar" stroke="#fbbf24" name="Solar" dot={false} strokeWidth={2} />
@@ -112,10 +109,7 @@ export default function HistoryPage() {
               />
               <YAxis stroke="#475569" fontSize={11} tickLine={false} domain={[0, 100]} />
               <Tooltip
-                contentStyle={{
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
+                
               />
               <Line type="monotone" dataKey="soc" stroke="#3b82f6" name="SOC" dot={false} strokeWidth={2} />
             </LineChart>
@@ -134,10 +128,7 @@ export default function HistoryPage() {
               <YAxis stroke="#475569" fontSize={11} tickLine={false} />
               <Tooltip
                 cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                contentStyle={{
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
+                
               />
               <Legend />
               <Bar dataKey="solar" fill="#fbbf24" name="Solar" radius={[2, 2, 0, 0]} />

@@ -825,7 +825,7 @@ export default function VehiclePage() {
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+               
                 formatter={(v: number) => [`${v}%`, 'SOC']}
               />
               <Line type="monotone" dataKey="soc" stroke="#8b5cf6" strokeWidth={2} dot={false} />
@@ -844,7 +844,7 @@ export default function VehiclePage() {
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v} kW`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+               
                 formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Power']}
               />
               <Area type="monotone" dataKey="power" stroke="#10b981" fill="#10b98120" strokeWidth={1.5} dot={false} />

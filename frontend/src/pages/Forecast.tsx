@@ -218,7 +218,7 @@ export default function ForecastPage() {
                   <YAxis stroke="#475569" fontSize={10} tickLine={false}
                     tickFormatter={(v) => `${(v / 1000).toFixed(1)}kW`} />
                   <Tooltip
-                    contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                   
                     formatter={(v: number, name: string) => [
                       `${(v / 1000).toFixed(2)} kW`,
                       name === 'forecast' ? 'Forecast' : 'Actual'
@@ -272,10 +272,6 @@ export default function ForecastPage() {
                   <YAxis stroke="#475569" fontSize={10} tickLine={false}
                     tickFormatter={(v) => `${v.toFixed(1)}kW`} />
                   <Tooltip
-                    contentStyle={{
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                    }}
                     formatter={(value: number) => [`${value.toFixed(2)} kW`, 'Forecast']}
                   />
                   <Area
@@ -304,10 +300,6 @@ export default function ForecastPage() {
                   <XAxis dataKey="hour" stroke="#475569" fontSize={11} tickLine={false} />
                   <YAxis stroke="#475569" fontSize={11} tickLine={false} domain={[0, 100]} />
                   <Tooltip
-                    contentStyle={{
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                    }}
                     formatter={(value: number) => [`${value}%`, '']}
                   />
                   <Legend />

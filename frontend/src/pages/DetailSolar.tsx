@@ -167,7 +167,7 @@ export default function DetailSolar() {
               <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
               <Tooltip
-                contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+               
                 formatter={(v: number) => [`${v.toFixed(1)} kW`, 'Solar']}
               />
               <Area type="monotone" dataKey="solar" stroke="#fbbf24" fill="url(#solarDetailGrad)" strokeWidth={2} dot={false} />
@@ -196,7 +196,7 @@ export default function DetailSolar() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
-              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(2)} kW`, '']} />
+              <Tooltip formatter={(v: number) => [`${v.toFixed(2)} kW`, '']} />
               <Area type="monotone" dataKey="forecast" stroke="#fbbf24" fill="#fbbf2410" strokeWidth={1.5} strokeDasharray="6 3" dot={false} />
               <Area type="monotone" dataKey="actual" stroke="#34d399" fill="#34d39915" strokeWidth={2.5} dot={false} connectNulls={false} />
             </AreaChart>
@@ -232,7 +232,7 @@ export default function DetailSolar() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
-              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(2)} kW`, 'Forecast']} />
+              <Tooltip formatter={(v: number) => [`${v.toFixed(2)} kW`, 'Forecast']} />
               <Area type="monotone" dataKey="kw" stroke="#60a5fa" fill="url(#tmrwGrad)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
@@ -252,7 +252,7 @@ export default function DetailSolar() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 100]} />
-              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v}%`, '']} />
+              <Tooltip formatter={(v: number) => [`${v}%`, '']} />
               <Legend formatter={(val) => <span className="text-xs text-slate-600 dark:text-slate-300">{val === 'today' ? 'Today' : 'Tomorrow'}</span>} />
               <Area type="monotone" dataKey="today" stroke="#fbbf24" fill="#fbbf24" fillOpacity={0.1} strokeWidth={1.5} name="today" />
               <Area type="monotone" dataKey="tomorrow" stroke="#60a5fa" fill="#60a5fa" fillOpacity={0.1} strokeWidth={1.5} name="tomorrow" />
