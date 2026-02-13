@@ -262,7 +262,7 @@ export default function ValuePage() {
                   <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} />
                   <YAxis stroke="#475569" fontSize={10} tickLine={false}
                     tickFormatter={(v) => `$${v.toFixed(2)}`} />
-                  <Tooltip content={<HourlyTooltip />} />
+                  <Tooltip cursor={{ fill: 'rgba(148, 163, 184, 0.06)' }} content={<HourlyTooltip />} />
                   <ReferenceLine y={0} stroke="#475569" strokeWidth={1} />
                   <Bar dataKey="netPositive" name="Earned" fill="#34d399" radius={[3, 3, 0, 0]} stackId="net" />
                   <Bar dataKey="netNegative" name="Cost" fill="#f87171" radius={[0, 0, 3, 3]} stackId="net" />

@@ -495,7 +495,7 @@ export default function DetailBattery() {
               />
               <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}`} />
               <Tooltip
-               
+                cursor={{ fill: 'rgba(148, 163, 184, 0.06)' }}
                 formatter={(v: number, name: string) => [
                   `${v.toFixed(1)} kWh`,
                   name === 'charged_kwh' ? 'Charged' : 'Discharged',
