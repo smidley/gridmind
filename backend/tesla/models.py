@@ -115,6 +115,10 @@ class ChargeState(BaseModel):
     charge_current_request: int = 0  # Requested amps
     charge_current_request_max: int = 0  # Max available amps
     charger_phases: Optional[int] = None  # 1 or 3 phase
+    off_peak_charging_enabled: bool = False  # TOU charging enabled
+    off_peak_charging_times: str = ""  # "all_week", "weekdays", etc.
+    off_peak_hours_end_time: int = 0  # Minutes after midnight
+    preconditioning_enabled: bool = False
 
 
 class VehicleStatus(BaseModel):

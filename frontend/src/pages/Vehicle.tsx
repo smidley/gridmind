@@ -351,6 +351,58 @@ export default function VehiclePage() {
         </div>
       )}
 
+      {/* Tesla Charge Settings (from the car's own schedule) */}
+      {cs && (cs.off_peak_charging_enabled || cs.scheduled_charging_mode !== 'Off') && (
+        <div className="card border-slate-300/30 dark:border-slate-700/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-4 h-4 text-slate-400" />
+            <span className="card-header mb-0">Tesla Charge Schedule</span>
+            <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium">From Vehicle</span>
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            {cs.off_peak_charging_enabled && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-slate-500">TOU Charging:</span>
+                <span className="font-medium text-emerald-500 dark:text-emerald-400">Active</span>
+                {cs.off_peak_charging_times && (
+                  <span className="text-xs text-slate-500">({cs.off_peak_charging_times.replace('_', ' ')})</span>
+                )}
+              </div>
+            )}
+            {cs.scheduled_charging_mode !== 'Off' && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-400" />
+                <span className="text-slate-500">Schedule:</span>
+                <span className="font-medium text-blue-500 dark:text-blue-400">
+                  {cs.scheduled_charging_mode === 'StartAt' ? 'Start At' :
+                   cs.scheduled_charging_mode === 'DepartBy' ? 'Depart By' :
+                   cs.scheduled_charging_mode}
+                </span>
+                {cs.scheduled_charging_start_time && (
+                  <span className="text-xs text-slate-500">
+                    {(() => {
+                      const mins = cs.scheduled_charging_start_time
+                      // Could be minutes after midnight or a unix timestamp
+                      if (mins > 1440) {
+                        const d = new Date(mins * 1000)
+                        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      }
+                      const h = Math.floor(mins / 60)
+                      const m = mins % 60
+                      return `${h > 12 ? h - 12 : h || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+                    })()}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-2">
+            These settings are configured in the Tesla app. GridMind's Smart Charge Schedule works alongside or can override these.
+          </p>
+        </div>
+      )}
+
       {/* Solar Miles */}
       {solarMiles && (
         <div className="card border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-transparent">
