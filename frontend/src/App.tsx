@@ -16,6 +16,7 @@ import {
   Trophy,
   Home,
   Battery,
+  Workflow,
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Rules from './pages/Rules'
@@ -40,9 +41,8 @@ const navItems = [
   { to: '/detail/grid', icon: Zap, label: 'Grid' },
   { to: '/detail/battery', icon: Battery, label: 'Battery' },
   { to: '/vehicle', icon: Car, label: 'Vehicle' },
-  { to: '/forecast', icon: CloudSun, label: 'Forecast' },
   { to: '/value', icon: DollarSign, label: 'Value' },
-  { to: '/rules', icon: Zap, label: 'Automation' },
+  { to: '/rules', icon: Workflow, label: 'Automation' },
   { to: '/history', icon: History, label: 'History' },
   { to: '/achievements', icon: Trophy, label: 'Achievements' },
   { to: '/settings', icon: Settings, label: 'Settings' },
@@ -216,9 +216,8 @@ function MobileNav({ onLogout }: { onLogout: () => void }) {
   const moreItems = [
     { to: '/detail/home', icon: Home, label: 'Home' },
     { to: '/detail/grid', icon: Zap, label: 'Grid' },
-    { to: '/forecast', icon: CloudSun, label: 'Forecast' },
     { to: '/value', icon: DollarSign, label: 'Value' },
-    { to: '/rules', icon: Zap, label: 'Automation' },
+    { to: '/rules', icon: Workflow, label: 'Automation' },
     { to: '/history', icon: History, label: 'History' },
     { to: '/achievements', icon: Trophy, label: 'Achievements' },
     { to: '/settings', icon: Settings, label: 'Settings' },

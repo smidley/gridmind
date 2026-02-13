@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sun, ArrowLeft } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Sun, ArrowLeft, Cloud, CloudSun, CloudLightning, Wind, Droplets, AlertTriangle, DollarSign, RefreshCw } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -25,6 +25,8 @@ export default function DetailSolar() {
   const { data: forecast } = useApi('/history/forecast')
   const { data: vsActual } = useApi('/history/forecast/vs-actual')
   const { data: solarConfig } = useApi('/settings/setup/solar')
+  const { data: weather } = useApi<any>('/history/weather')
+  const { data: todayTotals } = useAutoRefresh<any>('/history/today', 60000)
 
   const rs = rangeStats || {}
 
@@ -126,6 +128,75 @@ export default function DetailSolar() {
               <Area type="monotone" dataKey="actual" stroke="#34d399" fill="#34d39915" strokeWidth={2.5} dot={false} connectNulls={false} />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Tomorrow's Hourly Forecast */}
+      {forecast?.tomorrow?.hourly && (
+        <div className="card">
+          <div className="card-header">Tomorrow — {forecast.tomorrow.estimated_kwh} kWh forecast</div>
+          <div className="flex gap-3 text-xs text-slate-500 mb-2">
+            <span>Peak: {(forecast.tomorrow.peak_watts / 1000).toFixed(1)} kW</span>
+            <span className="capitalize">{forecast.tomorrow.condition?.replace('_', ' ')}</span>
+            {forecast.today && (
+              <span className={forecast.tomorrow.estimated_kwh >= forecast.today.estimated_kwh ? 'text-emerald-400' : 'text-amber-400'}>
+                {forecast.tomorrow.estimated_kwh >= forecast.today.estimated_kwh ? '+' : ''}
+                {(forecast.tomorrow.estimated_kwh - forecast.today.estimated_kwh).toFixed(1)} kWh vs today
+              </span>
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <AreaChart data={forecast.tomorrow.hourly.map((h: any) => ({
+              hour: h.hour === 0 ? '12a' : h.hour === 12 ? '12p' : h.hour < 12 ? `${h.hour}a` : `${h.hour-12}p`,
+              kw: Math.round(h.generation_w / 10) / 100,
+            }))}>
+              <defs>
+                <linearGradient id="tmrwGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
+              <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
+              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v.toFixed(2)} kW`, 'Forecast']} />
+              <Area type="monotone" dataKey="kw" stroke="#60a5fa" fill="url(#tmrwGrad)" strokeWidth={2} dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* 7-Day Weather */}
+      {weather?.days?.length > 0 && (
+        <div className="card">
+          <div className="card-header">7-Day Weather</div>
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+            {weather.days.map((day: any) => {
+              const isToday = day.date === new Date().toISOString().slice(0, 10)
+              const dayName = new Date(day.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short' })
+              return (
+                <div key={day.date} className={`p-2 rounded-xl text-center ${
+                  day.is_storm ? 'bg-red-500/10 border border-red-500/30' :
+                  day.is_severe ? 'bg-amber-500/10 border border-amber-500/30' :
+                  isToday ? 'bg-amber-500/5 ring-1 ring-amber-500/20' :
+                  'bg-slate-100 dark:bg-slate-800/30'
+                }`}>
+                  <div className={`text-[10px] font-medium ${isToday ? 'text-amber-400' : 'text-slate-500'}`}>
+                    {isToday ? 'Today' : dayName}
+                  </div>
+                  <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-1">
+                    {day.temp_high_f}°/{day.temp_low_f}°
+                  </div>
+                  <div className={`text-[9px] mt-0.5 ${day.is_storm ? 'text-red-400' : day.is_severe ? 'text-amber-400' : 'text-slate-500'}`}>
+                    {day.description}
+                  </div>
+                  {day.storm_watch_likely && (
+                    <div className="text-[8px] bg-amber-500/15 text-amber-500 px-1 py-0.5 rounded mt-1 font-medium">Storm</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
