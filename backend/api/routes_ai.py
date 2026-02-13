@@ -159,8 +159,8 @@ async def ai_anomalies():
 async def _fetch_forecast_summary():
     """Helper to get a simple forecast summary for AI context."""
     try:
-        from services.weather import get_cached_forecast
-        forecast = get_cached_forecast()
+        from services.weather import get_forecast_summary
+        forecast = await get_forecast_summary()
         if forecast:
             return {
                 "today_kwh": forecast.get("today", {}).get("estimated_kwh"),
