@@ -50,16 +50,25 @@ export interface VehicleStatus {
  * Singleton WebSocket manager.
  * One connection shared across all components. No duplicate sockets,
  * no reconnection leaks on unmount.
+ *
+ * Reliability features:
+ *  - Heartbeat: sends "ping" every 15s, force-reconnects if no data for 20s
+ *  - Immediate fetch: grabs /api/status on reconnect to bridge the gap
+ *  - Visibility-aware: reconnects when the tab/PWA becomes visible
+ *  - lastDataTime: tracks when data was last received (for staleness UI)
  */
 class WebSocketManager {
   private ws: WebSocket | null = null
   private reconnectTimer: number | undefined
+  private pingTimer: number | undefined
   private disposed = false
   private refCount = 0
+  private lastMessageAt = 0  // epoch ms of last received WS message or API fetch
 
   status: PowerwallStatus | null = null
   vehicleStatus: VehicleStatus | null = null
   connected = false
+  lastDataTime = 0  // exposed for freshness indicator
 
   private listeners = new Set<() => void>()
 
@@ -70,6 +79,13 @@ class WebSocketManager {
         // Check if WS is still alive, reconnect if not
         if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
           this.connect()
+        } else if (Date.now() - this.lastMessageAt > 20_000) {
+          // WS appears open but no data received recently — likely a zombie connection
+          this.ws.close()
+          // onclose handler will trigger reconnect
+        } else {
+          // WS is alive — fetch latest status to refresh immediately
+          this.fetchLatestStatus()
         }
       }
     })
@@ -96,6 +112,46 @@ class WebSocketManager {
     this.listeners.forEach(l => l())
   }
 
+  /** Fetch Powerwall status via HTTP to bridge gaps. Safe to call freely (no car wake). */
+  private async fetchLatestStatus() {
+    try {
+      const resp = await fetch('/api/status', { credentials: 'include' })
+      if (resp.ok) {
+        const data = await resp.json()
+        if (data && 'battery_soc' in data) {
+          this.status = data
+          this.lastDataTime = Date.now()
+          this.lastMessageAt = Date.now()
+          this.notify()
+        }
+      }
+    } catch {
+      // Silently fail — WS will deliver data when it reconnects
+    }
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat()
+    // Send ping every 15 seconds
+    this.pingTimer = window.setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        try { this.ws.send('ping') } catch { /* ignore */ }
+
+        // If no message received for 20 seconds, the connection is likely dead
+        if (Date.now() - this.lastMessageAt > 20_000) {
+          this.ws?.close()  // Triggers onclose → reconnect
+        }
+      }
+    }, 15_000)
+  }
+
+  private stopHeartbeat() {
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer)
+      this.pingTimer = undefined
+    }
+  }
+
   private connect = () => {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return
@@ -111,25 +167,33 @@ class WebSocketManager {
 
       ws.onopen = () => {
         this.connected = true
+        this.lastMessageAt = Date.now()
+        this.startHeartbeat()
         this.notify()
+        // Immediately fetch latest Powerwall status to bridge the gap
+        // (next WS push may be up to 30s away)
+        this.fetchLatestStatus()
       }
 
       ws.onmessage = (event) => {
+        this.lastMessageAt = Date.now()
         try {
           const data = JSON.parse(event.data)
           if (data._type === 'vehicle') {
             this.vehicleStatus = data
           } else {
             this.status = data
+            this.lastDataTime = Date.now()
           }
           this.notify()
         } catch {
-          // Ignore non-JSON (pong)
+          // Non-JSON (pong) — still counts as activity for heartbeat
         }
       }
 
       ws.onclose = () => {
         this.connected = false
+        this.stopHeartbeat()
         this.notify()
         // Only reconnect if not disposed and still have subscribers
         if (!this.disposed && this.refCount > 0) {
@@ -149,6 +213,7 @@ class WebSocketManager {
 
   private disconnect() {
     this.disposed = true
+    this.stopHeartbeat()
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = undefined
@@ -165,6 +230,7 @@ class WebSocketManager {
     status: this.status,
     vehicleStatus: this.vehicleStatus,
     connected: this.connected,
+    lastDataTime: this.lastDataTime,
   })
 }
 
@@ -178,7 +244,8 @@ function getSnapshot() {
   if (
     next.status !== cachedSnapshot.status ||
     next.vehicleStatus !== cachedSnapshot.vehicleStatus ||
-    next.connected !== cachedSnapshot.connected
+    next.connected !== cachedSnapshot.connected ||
+    next.lastDataTime !== cachedSnapshot.lastDataTime
   ) {
     cachedSnapshot = next
   }

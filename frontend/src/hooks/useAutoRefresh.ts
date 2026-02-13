@@ -5,7 +5,11 @@ const API_BASE = '/api'
 /**
  * Like useApi but auto-refreshes at a specified interval.
  * Perfect for data that changes frequently (energy totals, value).
- * Uses AbortController to cancel in-flight requests on unmount.
+ *
+ * Reliability features:
+ *  - Pauses the interval when the tab is hidden (saves requests)
+ *  - Immediately fetches + restarts the interval when the tab becomes visible
+ *  - Uses AbortController to cancel in-flight requests on unmount
  */
 export function useAutoRefresh<T = any>(path: string, intervalMs: number = 30000) {
   const [data, setData] = useState<T | null>(null)
@@ -15,6 +19,9 @@ export function useAutoRefresh<T = any>(path: string, intervalMs: number = 30000
   pathRef.current = path
   const mountedRef = useRef(true)
   const abortRef = useRef<AbortController | null>(null)
+  const intervalRef = useRef<number | undefined>(undefined)
+  const intervalMsRef = useRef(intervalMs)
+  intervalMsRef.current = intervalMs
 
   const fetchData = useCallback(async (showLoading = false) => {
     // Cancel any in-flight request
@@ -43,6 +50,18 @@ export function useAutoRefresh<T = any>(path: string, intervalMs: number = 30000
     }
   }, [])
 
+  const startInterval = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    intervalRef.current = window.setInterval(() => fetchData(false), intervalMsRef.current)
+  }, [fetchData])
+
+  const stopInterval = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = undefined
+    }
+  }, [])
+
   // Initial fetch + cleanup
   useEffect(() => {
     mountedRef.current = true
@@ -50,25 +69,32 @@ export function useAutoRefresh<T = any>(path: string, intervalMs: number = 30000
     return () => {
       mountedRef.current = false
       abortRef.current?.abort()
+      stopInterval()
     }
   }, [path])
 
-  // Auto-refresh interval
+  // Start the auto-refresh interval
   useEffect(() => {
-    const timer = setInterval(() => fetchData(false), intervalMs)
-    return () => clearInterval(timer)
-  }, [fetchData, intervalMs])
+    startInterval()
+    return () => stopInterval()
+  }, [startInterval, stopInterval])
 
-  // Refresh when tab becomes visible (e.g., phone unlocked, tab switched back)
+  // Pause when hidden, resume + fetch when visible
   useEffect(() => {
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && mountedRef.current) {
+      if (!mountedRef.current) return
+      if (document.visibilityState === 'visible') {
+        // Tab is back — fetch immediately and restart the interval on a fresh cadence
         fetchData(false)
+        startInterval()
+      } else {
+        // Tab hidden — stop polling to save requests
+        stopInterval()
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [fetchData])
+  }, [fetchData, startInterval, stopInterval])
 
   return { data, loading, error, refetch: () => fetchData(true) }
 }
