@@ -281,8 +281,8 @@ export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, 
   // Node positions as fractions of the container (0-1)
   // Layout: Solar (top), EV (left-mid), Battery (right-mid), Home (bottom-left), Grid (bottom-right)
   // On mobile, Home and Grid are pushed further apart to reduce overlap with flow lines
-  const homeX = isMobile ? 0.16 : 0.22
-  const gridX = isMobile ? 0.84 : 0.78
+  const homeX = isMobile ? 0.10 : 0.22
+  const gridX = isMobile ? 0.90 : 0.78
   const nodePositions: Record<string, { x: number; y: number }> = showEv ? {
     solar:   { x: 0.5,   y: 0.10 },
     ev:      { x: 0.12,  y: 0.48 },
