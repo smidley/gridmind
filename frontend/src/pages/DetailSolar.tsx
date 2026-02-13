@@ -239,6 +239,28 @@ export default function DetailSolar() {
         </div>
       )}
 
+      {/* Cloud Cover Comparison */}
+      {forecast?.today?.hourly && forecast?.tomorrow?.hourly && (
+        <div className="card">
+          <div className="card-header">Cloud Cover Comparison (%)</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={forecast.today.hourly.map((t: any, i: number) => ({
+              hour: t.hour === 0 ? '12a' : t.hour === 12 ? '12p' : t.hour < 12 ? `${t.hour}a` : `${t.hour-12}p`,
+              today: t.cloud_pct,
+              tomorrow: forecast.tomorrow.hourly[i]?.cloud_pct || 0,
+            }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="hour" stroke="#475569" fontSize={10} tickLine={false} />
+              <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 100]} />
+              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(v: number) => [`${v}%`, '']} />
+              <Legend formatter={(val) => <span className="text-xs text-slate-600 dark:text-slate-300">{val === 'today' ? 'Today' : 'Tomorrow'}</span>} />
+              <Area type="monotone" dataKey="today" stroke="#fbbf24" fill="#fbbf24" fillOpacity={0.1} strokeWidth={1.5} name="today" />
+              <Area type="monotone" dataKey="tomorrow" stroke="#60a5fa" fill="#60a5fa" fillOpacity={0.1} strokeWidth={1.5} name="tomorrow" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {/* 7-Day Weather */}
       {weather?.days?.length > 0 && (
         <div className="card">
