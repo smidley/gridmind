@@ -23,9 +23,10 @@ import {
   Shield as ShieldIcon,
   PiggyBank,
   BarChart3,
+  CloudLightning,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
-import { useApi } from '../hooks/useApi'
+import { useApi, apiFetch } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import PowerFlowDiagram from '../components/PowerFlowDiagram'
 import BatteryGauge from '../components/BatteryGauge'
@@ -53,6 +54,7 @@ export default function Dashboard() {
   const { data: aiAnomalies } = useApi<any>('/ai/anomalies')
   const { data: healthData } = useApi<any>('/powerwall/health')
   const { data: savingsData } = useApi<any>('/powerwall/health/savings')
+  const { data: weather } = useApi<any>('/history/weather')
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -64,8 +66,64 @@ export default function Dashboard() {
   const vehicleInfo = vehicleStatus?.vehicle
   const hasVehicle = vehicleCS != null
 
+  // Storm alert: check if severe weather in next 24h (today or tomorrow)
+  const [stormDismissed, setStormDismissed] = useState(false)
+  const [reserveUpdating, setReserveUpdating] = useState(false)
+  const stormSoon = weather?.days?.slice(0, 2).find((d: any) => d.storm_watch_likely || d.is_storm)
+  const currentReserve = healthData?.battery?.backup_reserve_pct || 0
+  const showStormAlert = stormSoon && !stormDismissed && currentReserve < 100 && !healthData?.connectivity?.storm_mode_active
+
+  const setFullReserve = async () => {
+    setReserveUpdating(true)
+    try {
+      await apiFetch('/settings/powerwall/reserve', {
+        method: 'POST',
+        body: JSON.stringify({ reserve_percent: 100 }),
+      })
+      setStormDismissed(true)
+    } catch (e) {
+      console.error('Failed to set reserve:', e)
+    } finally {
+      setReserveUpdating(false)
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
+      {/* Storm Alert Banner */}
+      {showStormAlert && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 ring-1 ring-amber-500/20">
+          <div className="flex items-start gap-3">
+            <CloudLightning className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-amber-500">Severe Weather Approaching</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                <span className="font-medium">{stormSoon.description}</span> forecast for{' '}
+                {stormSoon.date === new Date().toISOString().slice(0, 10) ? 'today' : 'tomorrow'}
+                {stormSoon.wind_max_kmh > 30 ? ` with winds up to ${Math.round(stormSoon.wind_max_kmh * 0.621)} mph` : ''}.
+                {' '}Would you like to set the battery to 100% reserve for backup?
+              </p>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={setFullReserve}
+                  disabled={reserveUpdating}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                >
+                  <ShieldIcon className="w-4 h-4" />
+                  {reserveUpdating ? 'Setting...' : 'Reserve 100%'}
+                </button>
+                <button
+                  onClick={() => setStormDismissed(true)}
+                  className="px-4 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
