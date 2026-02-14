@@ -485,14 +485,24 @@ async def powerwall_capacity():
         if not summary or not summary.battery_charged_kwh:
             continue
 
-        # Estimate capacity from charged kWh and SOC range
-        # effective_capacity = charged_kwh / (soc_swing / 100) * efficiency
-        charged = summary.battery_charged_kwh
-        effective = (charged * EFFICIENCY_ESTIMATE) / (soc_swing / 100)
+        # Estimate capacity from energy throughput and SOC range.
+        # Use the minimum of charged/discharged as the energy reference —
+        # if the battery cycled more than once in a day, total charged_kwh
+        # overstates the single-swing energy and inflates the estimate.
+        charged = summary.battery_charged_kwh or 0
+        discharged = summary.battery_discharged_kwh or 0
+        energy_ref = min(charged, discharged) if discharged > 0 else charged
+        if energy_ref <= 0:
+            continue
+
+        effective = (energy_ref * EFFICIENCY_ESTIMATE) / (soc_swing / 100)
 
         # Sanity check — should be in the ballpark of nominal
-        if effective < NOMINAL_CAPACITY * 0.5 or effective > NOMINAL_CAPACITY * 1.3:
-            continue  # Likely bad data or partial cycles
+        if effective < NOMINAL_CAPACITY * 0.5 or effective > NOMINAL_CAPACITY * 1.05:
+            continue  # Likely bad data, partial cycles, or multi-cycle day
+
+        # Cap health at 100% — battery can't be healthier than new
+        health_pct = min((effective / NOMINAL_CAPACITY) * 100, 100.0)
 
         capacity_estimates.append({
             "date": day_str,
@@ -500,8 +510,9 @@ async def powerwall_capacity():
             "max_soc": round(max_soc, 1),
             "soc_swing_pct": round(soc_swing, 1),
             "charged_kwh": round(charged, 2),
-            "estimated_capacity_kwh": round(effective, 2),
-            "health_pct": round((effective / NOMINAL_CAPACITY) * 100, 1),
+            "discharged_kwh": round(discharged, 2),
+            "estimated_capacity_kwh": round(min(effective, NOMINAL_CAPACITY), 2),
+            "health_pct": round(health_pct, 1),
         })
 
     # --- Round-Trip Efficiency ---
