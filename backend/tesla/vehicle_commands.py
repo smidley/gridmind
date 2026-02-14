@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 from tesla.client import tesla_client, TeslaAPIError
-from tesla.models import VehicleSummary, ChargeState, VehicleStatus
+from tesla.models import VehicleSummary, ChargeState, VehicleConfig, VehicleStatus
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,7 @@ def _parse_vehicle_response(response: dict, vehicle_id: str) -> VehicleStatus:
     charge = response.get("charge_state", {})
     vehicle_state = response.get("vehicle_state", {})
     drive_state = response.get("drive_state", {})
+    config = response.get("vehicle_config", {})
 
     charge_state = ChargeState(
         battery_level=charge.get("battery_level", 0),
@@ -160,10 +161,24 @@ def _parse_vehicle_response(response: dict, vehicle_id: str) -> VehicleStatus:
         vin=response.get("vin", ""),
     )
 
+    vehicle_config = None
+    if config:
+        vehicle_config = VehicleConfig(
+            car_type=config.get("car_type", ""),
+            trim_badging=config.get("trim_badging", ""),
+            exterior_color=config.get("exterior_color", ""),
+            wheel_type=config.get("wheel_type", ""),
+            plaid=config.get("plaid", False),
+            has_air_suspension=config.get("has_air_suspension", False),
+            has_seat_cooling=config.get("has_seat_cooling", False),
+            driver_assist=config.get("driver_assist", ""),
+        )
+
     return VehicleStatus(
         timestamp=datetime.utcnow(),
         vehicle=summary,
         charge_state=charge_state,
+        vehicle_config=vehicle_config,
         odometer=vehicle_state.get("odometer"),
         software_version=vehicle_state.get("car_version", ""),
         latitude=drive_state.get("latitude"),

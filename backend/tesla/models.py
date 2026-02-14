@@ -125,12 +125,26 @@ class ChargeState(BaseModel):
     charge_enable_request: bool = True  # Whether charging is enabled/requested
 
 
+class VehicleConfig(BaseModel):
+    """Vehicle configuration details from Tesla API."""
+
+    car_type: str = ""          # "modely", "model3", "models", "modelx", "cybertruck"
+    trim_badging: str = ""      # "74d", "p100d", etc.
+    exterior_color: str = ""    # "MidnightSilver", "Pearl", etc.
+    wheel_type: str = ""        # "Apollo" etc.
+    plaid: bool = False
+    has_air_suspension: bool = False
+    has_seat_cooling: bool = False
+    driver_assist: str = ""     # "TeslaAP3" etc.
+
+
 class VehicleStatus(BaseModel):
     """Full vehicle status combining summary and charge data."""
 
     timestamp: datetime
     vehicle: VehicleSummary
     charge_state: Optional[ChargeState] = None  # None when vehicle scopes not available
+    vehicle_config: Optional[VehicleConfig] = None  # None when vehicle scopes not available
     odometer: Optional[float] = None  # Miles
     software_version: str = ""
     latitude: Optional[float] = None

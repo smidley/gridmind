@@ -866,31 +866,83 @@ export default function VehiclePage() {
       )}
 
       {/* Vehicle Info */}
-      {vehicleStatus && (
+      {vehicleStatus && (() => {
+        // Decode model from VIN or vehicle_config
+        const vin = vehicle?.vin || ''
+        const vc = vehicleStatus.vehicle_config
+        const carTypeMap: Record<string, string> = {
+          modely: 'Model Y', model3: 'Model 3', models: 'Model S',
+          modelx: 'Model X', cybertruck: 'Cybertruck',
+        }
+        // VIN position 4 encodes model: Y, 3, S, X, C (Cybertruck)
+        const vinModelMap: Record<string, string> = {
+          Y: 'Model Y', '3': 'Model 3', S: 'Model S', X: 'Model X', C: 'Cybertruck',
+        }
+        const modelName = vc?.car_type
+          ? (carTypeMap[vc.car_type] || vc.car_type)
+          : vin.length >= 4 ? (vinModelMap[vin[3]] || 'Tesla') : 'Tesla'
+
+        // Decode trim from trim_badging
+        const trimMap: Record<string, string> = {
+          '74d': 'Long Range AWD', '74': 'Long Range', '50': 'Standard Range',
+          p100d: 'Performance', '100d': 'Long Range', '75d': 'AWD',
+          '75': 'RWD', '60d': 'AWD 60', '60': 'Standard 60',
+        }
+        const trimName = vc?.trim_badging
+          ? (trimMap[vc.trim_badging.toLowerCase()] || vc.trim_badging)
+          : ''
+        const isPlaid = vc?.plaid
+        const fullModel = `Tesla ${modelName}${isPlaid ? ' Plaid' : trimName ? ` ${trimName}` : ''}`
+
+        // Exterior color formatting
+        const colorMap: Record<string, string> = {
+          MidnightSilver: 'Midnight Silver', SolidBlack: 'Solid Black',
+          DeepBlue: 'Deep Blue', UltraWhite: 'Ultra White', Pearl: 'Pearl White',
+          RedMulticoat: 'Red', QuickSilver: 'Quicksilver',
+        }
+        const colorName = vc?.exterior_color ? (colorMap[vc.exterior_color] || vc.exterior_color) : ''
+
+        return (
         <div className="card">
           <div className="card-header">Vehicle Info</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
-              <span className="text-slate-500">Name</span>
-              <p className="font-medium">{vehicle?.display_name || 'N/A'}</p>
+              <span className="text-slate-500">Vehicle</span>
+              <p className="font-medium">{fullModel}</p>
+              {vehicle?.display_name && vehicle.display_name !== modelName && (
+                <p className="text-xs text-slate-500">"{vehicle.display_name}"</p>
+              )}
             </div>
+            {colorName && (
+              <div>
+                <span className="text-slate-500">Color</span>
+                <p className="font-medium">{colorName}</p>
+              </div>
+            )}
             <div>
               <span className="text-slate-500">VIN</span>
-              <p className="font-medium font-mono text-xs">{vehicle?.vin || 'N/A'}</p>
+              <p className="font-medium font-mono text-xs">{vin || 'N/A'}</p>
             </div>
             <div>
               <span className="text-slate-500">Software</span>
               <p className="font-medium font-mono text-xs">{vehicleStatus.software_version || 'N/A'}</p>
             </div>
-            {vehicleStatus.odometer && (
+            {vehicleStatus.odometer != null && (
               <div>
                 <span className="text-slate-500">Odometer</span>
                 <p className="font-medium">{Math.round(vehicleStatus.odometer).toLocaleString()} mi</p>
               </div>
             )}
+            {vc?.has_air_suspension && (
+              <div>
+                <span className="text-slate-500">Suspension</span>
+                <p className="font-medium">Air Suspension</p>
+              </div>
+            )}
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Wall Connector */}
       {wallConnector?.connectors?.map((wc: any, i: number) => (
