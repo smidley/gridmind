@@ -118,6 +118,16 @@ async def get_site_config() -> dict:
     }
 
 
+def invalidate_site_config_cache():
+    """Force the next get_live_status() to refresh site config from Tesla API.
+
+    Call this after any command that changes Powerwall settings (mode, reserve,
+    grid import/export) so the dashboard shows the updated values immediately.
+    """
+    global _config_cache_time
+    _config_cache_time = 0
+
+
 async def set_operation_mode(mode: str) -> dict:
     """Set the Powerwall operation mode.
 
@@ -132,6 +142,7 @@ async def set_operation_mode(mode: str) -> dict:
         tesla_client._site_url("/operation"),
         json={"default_real_mode": mode},
     )
+    invalidate_site_config_cache()
     return data.get("response", {})
 
 
@@ -147,6 +158,7 @@ async def set_backup_reserve(reserve_percent: float) -> dict:
         tesla_client._site_url("/backup"),
         json={"backup_reserve_percent": reserve_percent},
     )
+    invalidate_site_config_cache()
     return data.get("response", {})
 
 
@@ -188,6 +200,7 @@ async def set_grid_import_export(
         tesla_client._site_url("/grid_import_export"),
         json=payload,
     )
+    invalidate_site_config_cache()
     return data.get("response", {})
 
 

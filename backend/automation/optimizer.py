@@ -341,30 +341,47 @@ async def _check_dump_timing(status, now: datetime):
 
 
 async def _start_dump(estimated_finish: datetime):
-    """Start the battery dump to grid."""
+    """Start the battery dump to grid.
+
+    Each command is independent so one failure doesn't prevent the others.
+    The reserve MUST be lowered to min_reserve_pct so the battery can
+    discharge fully — otherwise it holds at the normal reserve (e.g. 20%).
+    """
     from tesla.commands import set_grid_import_export, set_backup_reserve, set_operation_mode
     from services.notifications import send_notification
 
     _set_phase("dumping")
     _state["dump_started_at"] = datetime.now().isoformat()
     _state["estimated_finish"] = estimated_finish.strftime("%H:%M")
+    min_reserve = _state["min_reserve_pct"]
+
+    # Each command in its own try/except so one failure doesn't block the rest
+    try:
+        await set_operation_mode("autonomous")
+        logger.info("GridMind Optimize: Set mode to autonomous")
+    except Exception as e:
+        logger.error("GridMind Optimize: Failed to set autonomous mode: %s", e)
 
     try:
-        # Switch to autonomous (Time-Based Control) so the Powerwall actively exports
-        # Self-consumption mode only supplements home load — it won't push to grid
-        await set_operation_mode("autonomous")
-        # Allow battery export to grid
         await set_grid_import_export(customer_preferred_export_rule="battery_ok")
-        # Set reserve to minimum to allow full dump
-        await set_backup_reserve(_state["min_reserve_pct"])
+        logger.info("GridMind Optimize: Set export rule to battery_ok")
+    except Exception as e:
+        logger.error("GridMind Optimize: Failed to set export rule: %s", e)
 
+    try:
+        await set_backup_reserve(min_reserve)
+        logger.info("GridMind Optimize: Set reserve to %d%% for dump", min_reserve)
+    except Exception as e:
+        logger.error("GridMind Optimize: Failed to set reserve to %d%%: %s", min_reserve, e)
+
+    try:
         await send_notification(
             "GridMind Optimize: Battery Dump Started",
-            f"Exporting battery to grid for peak credits. Estimated finish: {estimated_finish.strftime('%I:%M %p')}",
+            f"Exporting battery to grid for peak credits. Reserve set to {min_reserve}%. Estimated finish: {estimated_finish.strftime('%I:%M %p')}",
             "info",
         )
-    except Exception as e:
-        logger.error("GridMind Optimize: Failed to start dump: %s", e)
+    except Exception:
+        pass
 
 
 async def _monitor_dump(status, now: datetime):
