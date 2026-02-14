@@ -448,7 +448,9 @@ export default function Dashboard() {
                         ? `Self-powered during peak · ${optimizeStatus.last_calculation?.available_kwh || '?'} kWh available · Calculating optimal dump time`
                         : isComplete
                         ? 'Peak period finished · Normal operation restored'
-                        : `Peak: ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`
+                        : optimizeStatus.current_tou_period && !optimizeStatus.tou_in_peak
+                        ? `Currently ${optimizeStatus.current_tou_period} · No peak period today`
+                        : `Waiting for peak · ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`
                       : 'Smart peak export strategy'}
                   </p>
                 </div>
@@ -471,6 +473,8 @@ export default function Dashboard() {
                         : isPoweringHome ? 'Powering Home'
                         : isHolding ? 'Holding'
                         : isComplete ? 'Complete'
+                        : optimizeStatus.current_tou_period && !optimizeStatus.tou_in_peak
+                        ? optimizeStatus.current_tou_period
                         : 'Waiting for Peak'}
                     </div>
                   ) : (

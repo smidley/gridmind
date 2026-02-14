@@ -48,8 +48,8 @@ def _set_phase(phase: str):
 
 
 def get_state() -> dict:
-    """Get the current optimizer state."""
-    return {
+    """Get the current optimizer state, including live TOU info."""
+    result = {
         "enabled": _state["enabled"],
         "phase": _state["phase"],
         "peak_start_hour": _state["peak_start_hour"],
@@ -61,6 +61,23 @@ def get_state() -> dict:
         "last_calculation": _state["last_calculation"],
         "tou_source": _state.get("_tou_source", "manual"),
     }
+
+    # Add live TOU period info so the dashboard can show weekend/off-peak status
+    if _state["enabled"]:
+        try:
+            now = _get_local_now()
+            tou = _get_tou_peak_info(now)
+            period_display = {
+                "OFF_PEAK": "Off-Peak",
+                "ON_PEAK": "Peak",
+                "PARTIAL_PEAK": "Mid-Peak",
+            }
+            result["current_tou_period"] = period_display.get(tou["period_name"], tou["period_name"])
+            result["tou_in_peak"] = tou["in_peak"]
+        except Exception:
+            pass
+
+    return result
 
 
 def init():
