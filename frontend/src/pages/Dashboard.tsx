@@ -270,6 +270,9 @@ export default function Dashboard() {
                 {todayTotals ? formatEnergy(todayTotals.grid_exported_kwh) : '—'}
               </div>
               <div className="stat-label">To grid today</div>
+              {valueData && !valueData.error && valueData.export_credits > 0 && (
+                <div className="text-xs text-emerald-500/80 mt-1.5 font-medium">+${valueData.export_credits.toFixed(2)} earned</div>
+              )}
             </div>
 
             {/* Home Consumed Today */}
@@ -282,6 +285,9 @@ export default function Dashboard() {
                 {todayTotals ? formatEnergy(todayTotals.home_consumed_kwh) : '—'}
               </div>
               <div className="stat-label">Home today</div>
+              {valueData && !valueData.error && valueData.import_costs > 0 && (
+                <div className="text-xs text-red-400/80 mt-1.5 font-medium">-${valueData.import_costs.toFixed(2)} grid cost</div>
+              )}
             </div>
 
             {/* Battery */}
