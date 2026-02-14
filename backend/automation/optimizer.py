@@ -59,6 +59,7 @@ def get_state() -> dict:
         "dump_started_at": _state["dump_started_at"],
         "estimated_finish": _state["estimated_finish"],
         "last_calculation": _state["last_calculation"],
+        "tou_source": _state.get("_tou_source", "manual"),
     }
 
 
@@ -156,6 +157,103 @@ def _get_local_now() -> datetime:
     return datetime.now(tz)
 
 
+def _get_tou_peak_info(now: datetime) -> dict:
+    """Check if the current time is in a peak TOU period using Tesla tariff data.
+
+    Returns:
+        {
+            "in_peak": bool,
+            "peak_end_minutes": int or None,  # minutes from midnight when current peak ends
+            "period_name": str,               # e.g. "ON_PEAK", "PARTIAL_PEAK", "OFF_PEAK"
+            "source": "tou" | "manual",       # whether using TOU data or manual hours
+        }
+    Falls back to the user's manual peak_start/peak_end hours if TOU data is unavailable.
+    """
+    # Try to read TOU schedule from Tesla's cached site config
+    try:
+        from tesla.commands import _cached_site_config
+        tariff = _cached_site_config.get("tariff_content", {})
+        if not tariff or not tariff.get("seasons"):
+            raise ValueError("No TOU data")
+
+        day_of_week = now.weekday()  # 0=Monday, 6=Sunday
+        hour = now.hour
+        minute = now.minute
+        current_minutes = hour * 60 + minute
+
+        seasons = tariff.get("seasons", {})
+        energy_charges = tariff.get("energy_charges", {})
+
+        # Find the active season
+        for season_name, season_data in seasons.items():
+            from_month = season_data.get("fromMonth", 1)
+            to_month = season_data.get("toMonth", 12)
+            if not (from_month <= now.month <= to_month):
+                continue
+
+            tou_periods = season_data.get("tou_periods", {})
+
+            for period_name, schedules in tou_periods.items():
+                schedule_list = schedules if isinstance(schedules, list) else []
+                for sched in schedule_list:
+                    from_dow = sched.get("fromDayOfWeek", 0)
+                    to_dow = sched.get("toDayOfWeek", 6)
+
+                    # Check day of week
+                    if not (from_dow <= day_of_week <= to_dow):
+                        continue
+
+                    from_hr = sched.get("fromHour", 0)
+                    from_min = sched.get("fromMinute", 0)
+                    to_hr = sched.get("toHour", 0)
+                    to_min = sched.get("toMinute", 0)
+                    from_minutes = from_hr * 60 + from_min
+                    to_minutes = to_hr * 60 + to_min
+
+                    # All-day period (from 0:00 to 0:00)
+                    if from_hr == 0 and to_hr == 0 and from_min == 0 and to_min == 0:
+                        is_peak = period_name in ("ON_PEAK", "PARTIAL_PEAK")
+                        return {
+                            "in_peak": is_peak,
+                            "peak_end_minutes": 24 * 60 if is_peak else None,
+                            "period_name": period_name,
+                            "source": "tou",
+                        }
+
+                    # Normal time range (e.g., 17:00 - 21:00)
+                    in_range = False
+                    if from_minutes < to_minutes:
+                        in_range = from_minutes <= current_minutes < to_minutes
+                    else:
+                        # Overnight range (e.g., 21:00 - 7:00)
+                        in_range = current_minutes >= from_minutes or current_minutes < to_minutes
+
+                    if in_range:
+                        is_peak = period_name in ("ON_PEAK", "PARTIAL_PEAK")
+                        return {
+                            "in_peak": is_peak,
+                            "peak_end_minutes": to_minutes if is_peak else None,
+                            "period_name": period_name,
+                            "source": "tou",
+                        }
+
+        # No matching period found — default to off-peak
+        return {"in_peak": False, "peak_end_minutes": None, "period_name": "OFF_PEAK", "source": "tou"}
+
+    except Exception:
+        # TOU data unavailable — fall back to manual peak hours
+        peak_start = _state["peak_start_hour"]
+        peak_end = _state["peak_end_hour"]
+        hour = now.hour
+        in_peak = peak_start <= hour < peak_end
+        return {
+            "in_peak": in_peak,
+            "peak_end_minutes": peak_end * 60 if in_peak else None,
+            "period_name": "ON_PEAK" if in_peak else "OFF_PEAK",
+            "source": "manual",
+        }
+
+
 def _get_capacity_info() -> dict:
     """Get battery capacity info."""
     # PW3 = 13.5 kWh per unit, max output from site config
@@ -182,38 +280,34 @@ def _get_capacity_info() -> dict:
 async def evaluate():
     """Main evaluation loop -- called every ~2 minutes by the scheduler.
 
-    Determines what phase we're in and takes appropriate action.
+    Uses TOU schedule from Tesla tariff data to determine peak periods.
+    Falls back to manual peak_start/peak_end hours if TOU data unavailable.
+    Handles weekends (off-peak all day) and seasonal schedules.
     """
     if not _state["enabled"]:
         return
 
     now = _get_local_now()
-    hour = now.hour
-    peak_start = _state["peak_start_hour"]
-    peak_end = _state["peak_end_hour"]
 
     status = get_latest_status()
     if status is None:
         return
 
-    # Before peak: ensure we're ready
-    # If phase is still peak_hold/dumping/complete, settings were never restored
-    # (e.g. container restarted overnight) — restore them now
-    if hour < peak_start:
+    # Check TOU schedule to determine if we're in peak
+    tou = _get_tou_peak_info(now)
+    in_peak = tou["in_peak"]
+
+    # Not in peak: restore settings if needed, otherwise idle
+    if not in_peak:
         if _state["phase"] in ("peak_hold", "dumping", "complete"):
             await _end_peak()
         elif _state["phase"] != "idle":
             _set_phase("idle")
         return
 
-    # After peak: restore and reset
-    # "complete" must be included — if the dump finished before peak ended,
-    # _monitor_dump sets phase to "complete" but doesn't restore settings.
-    # _end_peak() handles the full restore and sets phase back to "idle".
-    if hour >= peak_end:
-        if _state["phase"] in ("peak_hold", "dumping", "complete"):
-            await _end_peak()
-        return
+    # In peak: store peak end time for dump timing calculations
+    _state["_peak_end_minutes"] = tou.get("peak_end_minutes")
+    _state["_tou_source"] = tou.get("source", "manual")
 
     # During peak hours
     if _state["phase"] == "idle":
@@ -274,9 +368,14 @@ async def _start_peak_hold(status):
 async def _check_dump_timing(status, now: datetime):
     """Calculate if it's time to start dumping battery to grid."""
     cap = _get_capacity_info()
-    peak_end = _state["peak_end_hour"]
     buffer_min = _state["buffer_minutes"]
     min_reserve = _state["min_reserve_pct"]
+
+    # Peak end time from TOU schedule (set by evaluate())
+    peak_end_minutes = _state.get("_peak_end_minutes")
+    if peak_end_minutes is None:
+        # Fallback to manual peak end hour
+        peak_end_minutes = _state["peak_end_hour"] * 60
 
     # Available energy to dump
     available_pct = max(status.battery_soc - min_reserve, 0)
@@ -306,8 +405,13 @@ async def _check_dump_timing(status, now: datetime):
     hours_needed = available_kwh / net_export_kw
     minutes_needed = hours_needed * 60
 
-    # Time remaining until peak ends
-    peak_end_time = now.replace(hour=peak_end, minute=0, second=0)
+    # Time remaining until peak ends (using TOU-derived end time)
+    peak_end_hour = peak_end_minutes // 60
+    peak_end_min = peak_end_minutes % 60
+    peak_end_time = now.replace(hour=peak_end_hour, minute=peak_end_min, second=0)
+    # Handle case where peak end is before current time (shouldn't happen, but safety)
+    if peak_end_time <= now:
+        peak_end_time += timedelta(days=1)
     minutes_remaining = (peak_end_time - now).total_seconds() / 60
 
     # Decision: start dumping when we need to
@@ -388,7 +492,11 @@ async def _monitor_dump(status, now: datetime):
     """Monitor dump progress and update calculation display."""
     min_reserve = _state["min_reserve_pct"]
     cap = _get_capacity_info()
-    peak_end = _state["peak_end_hour"]
+
+    # Peak end time from TOU schedule (set by evaluate())
+    peak_end_minutes = _state.get("_peak_end_minutes")
+    if peak_end_minutes is None:
+        peak_end_minutes = _state["peak_end_hour"] * 60
 
     # Update last_calculation with current values so dashboard shows live info
     available_pct = max(status.battery_soc - min_reserve, 0)
@@ -396,7 +504,11 @@ async def _monitor_dump(status, now: datetime):
     home_kw = status.home_power / 1000
     net_export_kw = max(cap["max_power_kw"] - home_kw, 0.1)
     minutes_needed = (available_kwh / net_export_kw) * 60 if net_export_kw > 0 else 0
-    peak_end_time = now.replace(hour=peak_end, minute=0, second=0)
+    peak_end_hour = peak_end_minutes // 60
+    peak_end_min = peak_end_minutes % 60
+    peak_end_time = now.replace(hour=peak_end_hour, minute=peak_end_min, second=0)
+    if peak_end_time <= now:
+        peak_end_time += timedelta(days=1)
     minutes_remaining = max((peak_end_time - now).total_seconds() / 60, 0)
 
     # Update estimated finish

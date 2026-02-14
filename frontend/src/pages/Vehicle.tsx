@@ -432,16 +432,20 @@ export default function VehiclePage() {
               </p>
               <p className="text-[10px] text-slate-500">{solarMiles.total_solar_kwh.toLocaleString()} kWh solar</p>
             </div>
-            {isCharging && chargeSource?.sources?.solar_pct > 0 && (
-              <div>
-                <span className="text-xs text-slate-500">Right Now</span>
-                <p className="text-2xl font-bold text-emerald-400 tabular-nums">
-                  {chargeSource.sources.solar_pct}%
-                </p>
-                <p className="text-[10px] text-slate-500">solar powered</p>
-              </div>
-            )}
           </div>
+          {/* Live solar charging — separate row so it's always visible on mobile */}
+          {isCharging && chargeSource?.sources?.solar_pct > 0 && (
+            <div className="mt-3 pt-3 border-t border-amber-500/10 flex items-center gap-3">
+              <Sun className="w-4 h-4 text-emerald-400" />
+              <div>
+                <span className="text-lg font-bold text-emerald-400 tabular-nums">{chargeSource.sources.solar_pct}%</span>
+                <span className="text-xs text-slate-500 ml-2">solar powered right now</span>
+                {chargeSource.sources.solar_kw > 0 && (
+                  <span className="text-xs text-amber-400/70 ml-2">({chargeSource.sources.solar_kw} kW)</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -459,7 +463,7 @@ export default function VehiclePage() {
                     style={{ width: `${chargeSource.sources.solar_pct}%` }}
                     title={`Solar: ${chargeSource.sources.solar_kw} kW`}
                   >
-                    {chargeSource.sources.solar_pct >= 15 && `${chargeSource.sources.solar_pct}%`}
+                    {chargeSource.sources.solar_pct >= 5 && `${chargeSource.sources.solar_pct}%`}
                   </div>
                 )}
                 {chargeSource.sources.battery_pct > 0 && (
@@ -468,7 +472,7 @@ export default function VehiclePage() {
                     style={{ width: `${chargeSource.sources.battery_pct}%` }}
                     title={`Battery: ${chargeSource.sources.battery_kw} kW`}
                   >
-                    {chargeSource.sources.battery_pct >= 15 && `${chargeSource.sources.battery_pct}%`}
+                    {chargeSource.sources.battery_pct >= 5 && `${chargeSource.sources.battery_pct}%`}
                   </div>
                 )}
                 {chargeSource.sources.grid_pct > 0 && (
@@ -477,7 +481,7 @@ export default function VehiclePage() {
                     style={{ width: `${chargeSource.sources.grid_pct}%` }}
                     title={`Grid: ${chargeSource.sources.grid_kw} kW`}
                   >
-                    {chargeSource.sources.grid_pct >= 15 && `${chargeSource.sources.grid_pct}%`}
+                    {chargeSource.sources.grid_pct >= 5 && `${chargeSource.sources.grid_pct}%`}
                   </div>
                 )}
               </div>

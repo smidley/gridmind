@@ -442,8 +442,19 @@ async def powerwall_capacity():
     capacity (kWh per 100% SOC). Tracks round-trip efficiency and peak power
     over time for degradation trending.
     """
-    NOMINAL_CAPACITY = 27.0  # 2 × 13.5 kWh PW3
     EFFICIENCY_ESTIMATE = 0.92  # Typical round-trip efficiency for LFP
+
+    # Get nominal capacity from Tesla API (battery_count × 13.5 kWh)
+    # Falls back to 27 kWh (2 batteries) if API unavailable
+    NOMINAL_CAPACITY = 27.0
+    try:
+        from tesla.commands import get_site_config
+        config = await get_site_config()
+        api_capacity = config.get("total_capacity_kwh", 0)
+        if api_capacity > 0:
+            NOMINAL_CAPACITY = api_capacity
+    except Exception:
+        pass  # Use fallback
 
     async with async_session() as session:
         # Get all daily stats for cycle analysis

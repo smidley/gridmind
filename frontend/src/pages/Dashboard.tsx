@@ -353,10 +353,11 @@ export default function Dashboard() {
 
             // Distinguish actual exporting vs powering home during "dumping" phase
             // grid_power < -50 means actually exporting to grid
+            // battery_power > 50 means battery is discharging (positive = discharging)
             const isExporting = enabled && phase === 'dumping' && status && status.grid_power < -50
-            const isPoweringHome = enabled && phase === 'dumping' && (!status || status.grid_power >= -50)
-            const isDumping = isExporting  // Only use amber "Dumping" when actually exporting
-            const isWaiting = enabled && !isDumping && !isPoweringHome && !isHolding && !isComplete
+            const isPoweringHome = enabled && phase === 'dumping' && status && status.battery_power > 50 && status.grid_power >= -50
+            const isDumping = isExporting || isPoweringHome  // Battery is active (exporting or serving home)
+            const isWaiting = enabled && !isDumping && !isHolding && !isComplete
 
             const solidColor = isDumping ? '#f59e0b' : isPoweringHome ? '#06b6d4' : isHolding ? '#3b82f6' : '#10b981'
             const glowColor = isDumping ? 'rgba(245,158,11,0.12)' : isPoweringHome ? 'rgba(6,182,212,0.10)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
@@ -466,7 +467,7 @@ export default function Dashboard() {
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                         : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                     }`}>
-                      {isDumping ? 'Exporting'
+                      {isExporting ? 'Dumping to Grid'
                         : isPoweringHome ? 'Powering Home'
                         : isHolding ? 'Holding'
                         : isComplete ? 'Complete'
