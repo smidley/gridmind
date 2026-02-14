@@ -491,7 +491,8 @@ async def _start_dump(estimated_finish: datetime):
 
     try:
         await set_backup_reserve(min_reserve)
-        logger.info("GridMind Optimize: Set reserve to %d%% for dump", min_reserve)
+        current = get_latest_status()
+        logger.info("GridMind Optimize: Set reserve to %d%% for dump (current status shows %.0f%%)", min_reserve, current.backup_reserve if current else -1)
     except Exception as e:
         logger.error("GridMind Optimize: Failed to set reserve to %d%%: %s", min_reserve, e)
 
@@ -544,6 +545,21 @@ async def _monitor_dump(status, now: datetime):
         "decision": "dump",
     }
 
+    # Safety check: verify the reserve is actually set to min_reserve.
+    # If a previous set_backup_reserve call failed silently, the Powerwall
+    # won't discharge below its current reserve (e.g. 20%), wasting the dump.
+    actual_reserve = status.backup_reserve
+    if actual_reserve > min_reserve + 2:
+        logger.warning(
+            "GridMind Optimize: Reserve is %.0f%% but should be %d%% — resending command",
+            actual_reserve, min_reserve,
+        )
+        from tesla.commands import set_backup_reserve
+        try:
+            await set_backup_reserve(min_reserve)
+        except Exception as e:
+            logger.error("GridMind Optimize: Failed to correct reserve: %s", e)
+
     if status.battery_soc <= min_reserve + 1:
         logger.info("GridMind Optimize: Dump complete, battery at %.1f%%", status.battery_soc)
         # Battery is drained to reserve, stop exporting
@@ -587,9 +603,9 @@ async def _end_peak():
 
     try:
         await set_backup_reserve(prev_reserve)
-        logger.info("GridMind Optimize: Restored reserve to %s%%", prev_reserve)
+        logger.info("GridMind Optimize: Restored reserve to %s%% (was %d%% min_reserve)", prev_reserve, _state["min_reserve_pct"])
     except Exception as e:
-        logger.error("GridMind Optimize: Failed to restore reserve: %s", e)
+        logger.error("GridMind Optimize: Failed to restore reserve to %s%%: %s", prev_reserve, e)
 
     try:
         await set_grid_import_export(
