@@ -360,9 +360,9 @@ export default function DetailBattery() {
               <p className="text-xs text-slate-400 leading-relaxed">
                 <span className="font-medium text-slate-700 dark:text-slate-300">How this is calculated: </span>
                 On {capacity.latest_estimate.date}, the battery cycled from {capacity.latest_estimate.min_soc}% to {capacity.latest_estimate.max_soc}% ({capacity.latest_estimate.soc_swing_pct}% swing),
-                using {capacity.latest_estimate.charged_kwh} kWh. Accounting for ~92% round-trip efficiency,
-                that estimates an effective capacity of <span className="font-medium text-slate-700 dark:text-slate-300">{capacity.latest_estimate.estimated_capacity_kwh} kWh</span> out
-                of {capacity.nominal_capacity_kwh} kWh nominal = <span className={`font-medium ${
+                discharging {capacity.latest_estimate.discharged_kwh} kWh.
+                A healthy {capacity.nominal_capacity_kwh} kWh battery would deliver <span className="font-medium text-slate-700 dark:text-slate-300">{capacity.latest_estimate.expected_kwh} kWh</span> for
+                that range. Actual: <span className="font-medium text-slate-700 dark:text-slate-300">{capacity.latest_estimate.discharged_kwh} kWh</span> = <span className={`font-medium ${
                   capacity.latest_estimate.health_pct >= 95 ? 'text-emerald-400' :
                   capacity.latest_estimate.health_pct >= 85 ? 'text-lime-400' :
                   capacity.latest_estimate.health_pct >= 70 ? 'text-amber-400' : 'text-red-400'

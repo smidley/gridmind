@@ -496,24 +496,36 @@ async def powerwall_capacity():
         if not summary or not summary.battery_charged_kwh:
             continue
 
-        # Estimate capacity from energy throughput and SOC range.
-        # Use the minimum of charged/discharged as the energy reference —
-        # if the battery cycled more than once in a day, total charged_kwh
-        # overstates the single-swing energy and inflates the estimate.
+        # Estimate battery health by comparing discharged energy against
+        # what a healthy battery should deliver for this specific SOC range.
+        #
+        # Use discharged kWh (energy OUT) — this is the actual usable energy
+        # the battery delivered. No efficiency correction needed since we're
+        # comparing output to expected output.
+        #
+        # health = discharged / (nominal * swing_fraction)
+        # e.g. 20.76 kWh discharged for 80.1% swing of 27 kWh battery:
+        #      expected = 27 * 0.801 = 21.63 kWh
+        #      health = 20.76 / 21.63 = 96.0%
         charged = summary.battery_charged_kwh or 0
         discharged = summary.battery_discharged_kwh or 0
-        energy_ref = min(charged, discharged) if discharged > 0 else charged
-        if energy_ref <= 0:
+
+        if discharged <= 0:
             continue
 
-        effective = (energy_ref * EFFICIENCY_ESTIMATE) / (soc_swing / 100)
+        swing_fraction = soc_swing / 100
+        expected_kwh = NOMINAL_CAPACITY * swing_fraction
 
-        # Sanity check — should be in the ballpark of nominal
-        if effective < NOMINAL_CAPACITY * 0.5 or effective > NOMINAL_CAPACITY * 1.05:
-            continue  # Likely bad data, partial cycles, or multi-cycle day
+        # Health = what we got / what we expected for this range
+        health_pct = (discharged / expected_kwh) * 100 if expected_kwh > 0 else 0
 
-        # Cap health at 100% — battery can't be healthier than new
-        health_pct = min((effective / NOMINAL_CAPACITY) * 100, 100.0)
+        # Sanity check — health should be 50-105% (allow small measurement noise)
+        if health_pct < 50 or health_pct > 105:
+            continue  # Likely bad data or multi-cycle day
+
+        # Cap at 100%
+        health_pct = min(health_pct, 100.0)
+        effective = min(discharged / swing_fraction, NOMINAL_CAPACITY)
 
         capacity_estimates.append({
             "date": day_str,
@@ -522,7 +534,8 @@ async def powerwall_capacity():
             "soc_swing_pct": round(soc_swing, 1),
             "charged_kwh": round(charged, 2),
             "discharged_kwh": round(discharged, 2),
-            "estimated_capacity_kwh": round(min(effective, NOMINAL_CAPACITY), 2),
+            "expected_kwh": round(expected_kwh, 2),
+            "estimated_capacity_kwh": round(effective, 2),
             "health_pct": round(health_pct, 1),
         })
 
