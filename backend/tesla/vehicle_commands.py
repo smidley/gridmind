@@ -103,6 +103,17 @@ async def _get_basic_vehicle_info(vehicle_id: str) -> VehicleStatus:
     data = await tesla_client.get("/api/1/products")
     for product in data.get("response", []):
         if str(product.get("id")) == str(vehicle_id) and "vin" in product:
+            vin = product.get("vin", "")
+            # Try to load cached vehicle config by VIN
+            vehicle_config = None
+            if vin:
+                try:
+                    from services import setup_store
+                    cached = setup_store.get(f"vehicle_config_{vin}")
+                    if cached and isinstance(cached, dict):
+                        vehicle_config = VehicleConfig(**cached)
+                except Exception:
+                    pass
             return VehicleStatus(
                 timestamp=datetime.utcnow(),
                 vehicle=VehicleSummary(
@@ -110,9 +121,10 @@ async def _get_basic_vehicle_info(vehicle_id: str) -> VehicleStatus:
                     vehicle_id=str(product.get("vehicle_id", "")),
                     display_name=product.get("display_name", "Tesla"),
                     state=product.get("state", "unknown"),
-                    vin=product.get("vin", ""),
+                    vin=vin,
                 ),
                 charge_state=None,
+                vehicle_config=vehicle_config,
                 software_version="",
                 missing_scopes=True,
             )
@@ -162,6 +174,7 @@ def _parse_vehicle_response(response: dict, vehicle_id: str) -> VehicleStatus:
     )
 
     vehicle_config = None
+    vin = response.get("vin", "")
     if config:
         vehicle_config = VehicleConfig(
             car_type=config.get("car_type", ""),
@@ -173,6 +186,22 @@ def _parse_vehicle_response(response: dict, vehicle_id: str) -> VehicleStatus:
             has_seat_cooling=config.get("has_seat_cooling", False),
             driver_assist=config.get("driver_assist", ""),
         )
+        # Persist by VIN so it survives restarts and doesn't need re-fetching
+        if vin:
+            try:
+                from services import setup_store
+                setup_store.set(f"vehicle_config_{vin}", vehicle_config.model_dump())
+            except Exception:
+                pass
+    elif vin:
+        # No config from API (car asleep or missing scopes) — try cached
+        try:
+            from services import setup_store
+            cached = setup_store.get(f"vehicle_config_{vin}")
+            if cached and isinstance(cached, dict):
+                vehicle_config = VehicleConfig(**cached)
+        except Exception:
+            pass
 
     return VehicleStatus(
         timestamp=datetime.utcnow(),

@@ -62,16 +62,20 @@ async def vehicle_list():
 async def vehicle_select(data: dict):
     """Select which vehicle to monitor.
 
-    Body: {"vehicle_id": "...", "display_name": "..."}
+    Body: {"vehicle_id": "...", "display_name": "...", "vin": "..."}
     """
     vehicle_id = data.get("vehicle_id")
     if not vehicle_id:
         raise HTTPException(status_code=400, detail="vehicle_id is required")
 
-    setup_store.update({
+    updates = {
         "selected_vehicle_id": vehicle_id,
         "selected_vehicle_name": data.get("display_name", "Tesla"),
-    })
+    }
+    if data.get("vin"):
+        updates["selected_vehicle_vin"] = data["vin"]
+
+    setup_store.update(updates)
 
     logger.info("Selected vehicle: %s (%s)", data.get("display_name"), vehicle_id)
     return {"status": "ok", "vehicle_id": vehicle_id}
@@ -148,15 +152,23 @@ async def vehicle_status():
         return result
     except TeslaAPIError as e:
         if e.status_code == 408:
+            # Load cached vehicle config by VIN when car is asleep
+            vin = setup_store.get("selected_vehicle_vin", "")
+            cached_config = None
+            if vin:
+                raw = setup_store.get(f"vehicle_config_{vin}")
+                if raw and isinstance(raw, dict):
+                    cached_config = raw
             return {
                 "vehicle": {
                     "id": vid,
                     "vehicle_id": "",
                     "display_name": setup_store.get("selected_vehicle_name", "Tesla"),
                     "state": "asleep",
-                    "vin": "",
+                    "vin": vin,
                 },
                 "charge_state": None,
+                "vehicle_config": cached_config,
                 "wc_plugged_in": wc_plugged_in,
                 "timestamp": datetime.utcnow().isoformat(),
             }

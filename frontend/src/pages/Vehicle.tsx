@@ -130,12 +130,12 @@ export default function VehiclePage() {
     }
   }
 
-  const selectVehicle = async (vehicleId: string, name: string) => {
+  const selectVehicle = async (vehicleId: string, name: string, vin?: string) => {
     setActionLoading(true)
     try {
       await apiFetch('/vehicle/select', {
         method: 'POST',
-        body: JSON.stringify({ vehicle_id: vehicleId, display_name: name }),
+        body: JSON.stringify({ vehicle_id: vehicleId, display_name: name, vin }),
       })
       refetchList()
       setTimeout(refetch, 1000)
@@ -169,7 +169,7 @@ export default function VehiclePage() {
               {vehicleList.vehicles.map((v: any) => (
                 <button
                   key={v.id}
-                  onClick={() => selectVehicle(v.id, v.display_name)}
+                  onClick={() => selectVehicle(v.id, v.display_name, v.vin)}
                   className="w-full p-4 rounded-xl border border-slate-700 hover:border-violet-500/50 hover:bg-violet-500/5 transition-all text-left"
                 >
                   <div className="font-medium">{v.display_name}</div>
