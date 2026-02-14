@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api", tags=["achievements"])
 
 
 def _achievement(id: str, title: str, description: str, category: str, icon: str,
-                 earned: bool, earned_value: str = ""):
+                 earned: bool, earned_value: str = "", earned_date: str = ""):
     return {
         "id": id,
         "title": title,
@@ -24,6 +24,7 @@ def _achievement(id: str, title: str, description: str, category: str, icon: str
         "icon": icon,
         "earned": earned,
         "earned_value": earned_value,
+        "earned_date": earned_date,
     }
 
 
@@ -130,45 +131,109 @@ async def get_achievements():
     has_solar_config = bool(setup_store.get("solar_capacity_kw"))
     fully_configured = has_location and has_credentials and has_vehicle and has_solar_config
 
+    # --- Compute dates when cumulative thresholds were first crossed ---
+    def _find_threshold_date(summaries, field, threshold):
+        """Walk daily summaries and return the date when cumulative total first crossed threshold."""
+        running = 0
+        for s in summaries:
+            running += getattr(s, field, 0) or 0
+            if running >= threshold:
+                return s.date
+        return ""
+
+    # Pre-compute milestone dates for solar
+    solar_1_date = _find_threshold_date(summaries, "solar_generated_kwh", 1)
+    solar_100_date = _find_threshold_date(summaries, "solar_generated_kwh", 100)
+    solar_1000_date = _find_threshold_date(summaries, "solar_generated_kwh", 1000)
+    solar_10000_date = _find_threshold_date(summaries, "solar_generated_kwh", 10000)
+
+    # Pre-compute milestone dates for exports
+    export_1000_date = _find_threshold_date(summaries, "grid_exported_kwh", 1000)
+
+    # Pre-compute battery cycle dates
+    cycle_1_date = _find_threshold_date(summaries, "battery_discharged_kwh", capacity)
+    cycle_100_date = _find_threshold_date(summaries, "battery_discharged_kwh", capacity * 100)
+
+    # Find first self-powered day, net-zero day, outage date
+    first_self_powered_date = ""
+    first_net_zero_date = ""
+    for s in summaries:
+        if not first_self_powered_date and (s.grid_imported_kwh or 0) < 0.1 and (s.home_consumed_kwh or 0) > 1:
+            first_self_powered_date = s.date
+        if not first_net_zero_date and (s.grid_exported_kwh or 0) >= (s.grid_imported_kwh or 0) and (s.grid_exported_kwh or 0) > 0:
+            first_net_zero_date = s.date
+
+    # Find solar streak date (when 7-day streak was first achieved)
+    streak_7_date = ""
+    cs = 0
+    for s in summaries:
+        if (s.solar_generated_kwh or 0) > 0.5:
+            cs += 1
+            if cs >= 7 and not streak_7_date:
+                streak_7_date = s.date
+        else:
+            cs = 0
+
+    # Financial milestone dates
+    running_savings = 0
+    savings_1_date = ""
+    savings_100_date = ""
+    savings_1000_date = ""
+    for s in summaries:
+        consumed = s.home_consumed_kwh or 0
+        imported = s.grid_imported_kwh or 0
+        exported = s.grid_exported_kwh or 0
+        running_savings += max(0, (consumed - imported) * avg_rate + exported * avg_rate)
+        if running_savings >= 1 and not savings_1_date:
+            savings_1_date = s.date
+        if running_savings >= 100 and not savings_100_date:
+            savings_100_date = s.date
+        if running_savings >= 1000 and not savings_1000_date:
+            savings_1000_date = s.date
+
+    # Days running milestones
+    day_7_date = summaries[6].date if len(summaries) >= 7 else ""
+    day_30_date = summaries[29].date if len(summaries) >= 30 else ""
+
     # --- Solar Achievements ---
 
     achievements.append(_achievement(
         "first_light", "First Light", "Generate your first kWh of solar energy", "solar", "sun",
-        total_solar >= 1, f"{total_solar:.1f} kWh generated" if total_solar >= 1 else "",
+        total_solar >= 1, f"{total_solar:.1f} kWh generated" if total_solar >= 1 else "", solar_1_date,
     ))
     achievements.append(_achievement(
         "solar_century", "Solar Century", "Generate 100 kWh of solar energy", "solar", "sun",
-        total_solar >= 100, f"{total_solar:.0f} kWh generated" if total_solar >= 100 else "",
+        total_solar >= 100, f"{total_solar:.0f} kWh generated" if total_solar >= 100 else "", solar_100_date,
     ))
     achievements.append(_achievement(
         "solar_kilowatt_club", "Solar Kilowatt Club", "Generate 1,000 kWh of solar energy", "solar", "sun",
-        total_solar >= 1000, f"{total_solar:,.0f} kWh generated" if total_solar >= 1000 else "",
+        total_solar >= 1000, f"{total_solar:,.0f} kWh generated" if total_solar >= 1000 else "", solar_1000_date,
     ))
     achievements.append(_achievement(
         "solar_megawatt", "Solar Megawatt", "Generate 10,000 kWh of solar energy", "solar", "sun",
-        total_solar >= 10000, f"{total_solar:,.0f} kWh generated" if total_solar >= 10000 else "",
+        total_solar >= 10000, f"{total_solar:,.0f} kWh generated" if total_solar >= 10000 else "", solar_10000_date,
     ))
     achievements.append(_achievement(
         "solar_streak_7", "Solar Streak", "7 consecutive days of solar generation", "solar", "sun",
-        solar_streak >= 7, f"{solar_streak} day streak" if solar_streak >= 7 else "",
+        solar_streak >= 7, f"{solar_streak} day streak" if solar_streak >= 7 else "", streak_7_date,
     ))
 
     # --- Battery Achievements ---
 
     achievements.append(_achievement(
         "first_cycle", "First Cycle", "Complete your first full battery cycle", "battery", "battery",
-        total_cycles >= 1, f"{total_cycles:.1f} cycles" if total_cycles >= 1 else "",
+        total_cycles >= 1, f"{total_cycles:.1f} cycles" if total_cycles >= 1 else "", cycle_1_date,
     ))
     achievements.append(_achievement(
         "century_cycles", "Century Cycles", "Complete 100 battery cycles", "battery", "battery",
-        total_cycles >= 100, f"{total_cycles:.0f} cycles" if total_cycles >= 100 else "",
+        total_cycles >= 100, f"{total_cycles:.0f} cycles" if total_cycles >= 100 else "", cycle_100_date,
     ))
 
     # --- Grid Independence ---
 
     achievements.append(_achievement(
         "self_powered_day", "Self-Powered Day", "Go an entire day with zero grid imports", "grid", "shield",
-        self_powered_days >= 1, f"{self_powered_days} day{'s' if self_powered_days != 1 else ''}" if self_powered_days >= 1 else "",
+        self_powered_days >= 1, f"{self_powered_days} day{'s' if self_powered_days != 1 else ''}" if self_powered_days >= 1 else "", first_self_powered_date,
     ))
     achievements.append(_achievement(
         "island_survivor", "Island Survivor", "Survive a grid outage on battery backup", "grid", "shield",
@@ -176,26 +241,26 @@ async def get_achievements():
     ))
     achievements.append(_achievement(
         "net_zero_day", "Net Zero Day", "Export more than you import in a single day", "grid", "zap",
-        net_zero_days >= 1, f"{net_zero_days} net-zero day{'s' if net_zero_days != 1 else ''}" if net_zero_days >= 1 else "",
+        net_zero_days >= 1, f"{net_zero_days} net-zero day{'s' if net_zero_days != 1 else ''}" if net_zero_days >= 1 else "", first_net_zero_date,
     ))
     achievements.append(_achievement(
         "export_champion", "Export Champion", "Export 1,000 kWh to the grid", "grid", "zap",
-        total_exported >= 1000, f"{total_exported:,.0f} kWh exported" if total_exported >= 1000 else "",
+        total_exported >= 1000, f"{total_exported:,.0f} kWh exported" if total_exported >= 1000 else "", export_1000_date,
     ))
 
     # --- Financial ---
 
     achievements.append(_achievement(
         "first_dollar", "First Dollar", "Earn your first dollar in energy savings", "financial", "dollar",
-        total_savings >= 1, f"${total_savings:.2f} saved" if total_savings >= 1 else "",
+        total_savings >= 1, f"${total_savings:.2f} saved" if total_savings >= 1 else "", savings_1_date,
     ))
     achievements.append(_achievement(
         "hundred_club", "Hundred Club", "Save $100 in energy costs", "financial", "dollar",
-        total_savings >= 100, f"${total_savings:,.0f} saved" if total_savings >= 100 else "",
+        total_savings >= 100, f"${total_savings:,.0f} saved" if total_savings >= 100 else "", savings_100_date,
     ))
     achievements.append(_achievement(
         "thousand_club", "Thousand Club", "Save $1,000 in energy costs", "financial", "dollar",
-        total_savings >= 1000, f"${total_savings:,.0f} saved" if total_savings >= 1000 else "",
+        total_savings >= 1000, f"${total_savings:,.0f} saved" if total_savings >= 1000 else "", savings_1000_date,
     ))
 
     # --- EV / Vehicle ---
@@ -221,11 +286,11 @@ async def get_achievements():
     ))
     achievements.append(_achievement(
         "week_warrior", "Week Warrior", "Run GridMind for 7 consecutive days", "system", "clock",
-        days_running >= 7, f"{days_running} days tracked" if days_running >= 7 else "",
+        days_running >= 7, f"{days_running} days tracked" if days_running >= 7 else "", day_7_date,
     ))
     achievements.append(_achievement(
         "month_monitor", "Month Monitor", "Run GridMind for 30 consecutive days", "system", "clock",
-        days_running >= 30, f"{days_running} days tracked" if days_running >= 30 else "",
+        days_running >= 30, f"{days_running} days tracked" if days_running >= 30 else "", day_30_date,
     ))
 
     earned_count = sum(1 for a in achievements if a["earned"])

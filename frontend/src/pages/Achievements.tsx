@@ -130,10 +130,17 @@ export default function Achievements() {
                         <p className={`text-xs mt-0.5 ${earned ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-600'}`}>
                           {a.description}
                         </p>
-                        {earned && a.earned_value && (
-                          <p className={`text-[10px] font-medium mt-1.5 ${colors.text}`}>
-                            {a.earned_value}
-                          </p>
+                        {earned && (a.earned_value || a.earned_date) && (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            {a.earned_value && (
+                              <span className={`text-[10px] font-medium ${colors.text}`}>{a.earned_value}</span>
+                            )}
+                            {a.earned_date && (
+                              <span className="text-[10px] text-slate-500">
+                                {new Date(a.earned_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
