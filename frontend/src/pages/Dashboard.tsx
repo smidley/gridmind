@@ -347,6 +347,18 @@ export default function Dashboard() {
                     : `${Math.round(vehicleCS.battery_range)} mi`}
                 </span>
               </div>
+              {vehicleCS.charging_state === 'Charging' && vehicleCS.charge_energy_added > 0 && (
+                <div className="flex justify-between text-xs text-slate-500 mt-1">
+                  <span>{vehicleCS.charge_energy_added.toFixed(1)} kWh · +{Math.round(vehicleCS.charge_miles_added_rated)} mi</span>
+                  {vehicleCS.time_to_full_charge > 0 && (
+                    <span>
+                      {vehicleCS.time_to_full_charge < 1
+                        ? `${Math.round(vehicleCS.time_to_full_charge * 60)}m left`
+                        : `${Math.floor(vehicleCS.time_to_full_charge)}h ${Math.round((vehicleCS.time_to_full_charge % 1) * 60)}m left`}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

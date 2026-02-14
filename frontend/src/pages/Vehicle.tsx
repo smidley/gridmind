@@ -308,15 +308,21 @@ export default function VehiclePage() {
                 </div>
               </div>
               <div className="card">
-                <div className="card-header">Time to Full</div>
+                <div className="card-header">Session</div>
                 <div className="stat-value text-amber-500 dark:text-amber-400">
-                  {cs.time_to_full_charge > 0
-                    ? cs.time_to_full_charge < 1
-                      ? `${Math.round(cs.time_to_full_charge * 60)}m`
-                      : `${Math.floor(cs.time_to_full_charge)}h ${Math.round((cs.time_to_full_charge % 1) * 60)}m`
-                    : '—'}
+                  {cs.charge_energy_added.toFixed(1)} kWh
                 </div>
-                <div className="stat-label">{cs.charge_energy_added.toFixed(1)} kWh added</div>
+                <div className="stat-label">
+                  +{Math.round(cs.charge_miles_added_rated)} mi
+                  {cs.charge_rate > 0 && ` · ${Math.round(cs.charge_rate)} mi/hr`}
+                </div>
+                {cs.time_to_full_charge > 0 && (
+                  <div className="text-xs text-slate-500 mt-1">
+                    {cs.time_to_full_charge < 1
+                      ? `${Math.round(cs.time_to_full_charge * 60)}m to full`
+                      : `${Math.floor(cs.time_to_full_charge)}h ${Math.round((cs.time_to_full_charge % 1) * 60)}m to full`}
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -343,12 +349,14 @@ export default function VehiclePage() {
                 </div>
               </div>
               <div className="card">
-                <div className="card-header">Session</div>
+                <div className="card-header">Last Session</div>
                 <div className="stat-value text-slate-500 dark:text-slate-400">
                   {cs.charge_energy_added > 0 ? `${cs.charge_energy_added.toFixed(1)} kWh` : '—'}
                 </div>
                 <div className="stat-label">
-                  {cs.charge_miles_added_rated > 0 ? `+${Math.round(cs.charge_miles_added_rated)} mi` : 'No session'}
+                  {cs.charge_energy_added > 0
+                    ? `+${Math.round(cs.charge_miles_added_rated)} mi added`
+                    : 'No session'}
                 </div>
               </div>
             </>
