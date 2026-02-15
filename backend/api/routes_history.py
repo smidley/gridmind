@@ -411,17 +411,29 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
     if not hourly_rows:
         return {"lifetime_total": 0, "lifetime_days": 0, "lifetime_avg_daily": 0}
 
+    # Get user timezone for UTC -> local conversion
+    from zoneinfo import ZoneInfo
+    user_tz_name = setup_store.get_timezone()
+    try:
+        user_tz = ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = ZoneInfo("America/New_York")
+
     # Calculate peak savings per day
     daily_savings = {}
     for row in hourly_rows:
         day_str = str(row.day)
-        hour = int(row.hr)
+        utc_hour = int(row.hr)
 
-        # Determine the day of week for this date
+        # Convert UTC date+hour to local time
         try:
-            dt = datetime.strptime(day_str, "%Y-%m-%d")
-            dow = dt.weekday()
-            month = dt.month
+            utc_dt = datetime.strptime(f"{day_str} {utc_hour:02d}:00", "%Y-%m-%d %H:%M")
+            utc_dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
+            local_dt = utc_dt.astimezone(user_tz)
+            hour = local_dt.hour
+            dow = local_dt.weekday()
+            month = local_dt.month
+            local_day = local_dt.strftime("%Y-%m-%d")
         except Exception:
             continue
 
@@ -452,9 +464,9 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
         avoided_cost = home_from_local_kwh * buy_rate
         export_credit = (avg_grid_export_w / 1000 * interval_hours) * sell_rate
 
-        if day_str not in daily_savings:
-            daily_savings[day_str] = 0
-        daily_savings[day_str] += avoided_cost + export_credit
+        if local_day not in daily_savings:
+            daily_savings[local_day] = 0
+        daily_savings[local_day] += avoided_cost + export_credit
 
     # Sum it up
     lifetime_total = sum(v for v in daily_savings.values() if v > 0)
