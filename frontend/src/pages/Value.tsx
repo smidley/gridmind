@@ -224,23 +224,56 @@ export default function ValuePage() {
           )}
 
           {/* GridMind Optimize Savings */}
-          {(() => {
+          {value.optimize_savings && (() => {
             const os = value.optimize_savings
-            if (os && os.total_benefit > 0) {
-              return (
-                <div className="card border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Brain className="w-4.5 h-4.5 text-blue-400" />
-                    <span className="card-header mb-0">GridMind Optimize — Today</span>
-                  </div>
-                  <div className="flex items-center justify-between">
+            const hasToday = os.total_benefit > 0
+            const hasLifetime = os.lifetime_total > 0
+
+            if (!hasToday && !hasLifetime) return null
+
+            return (
+              <div className="card border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent">
+                <div className="flex items-center gap-2 mb-3">
+                  <Brain className="w-4.5 h-4.5 text-blue-400" />
+                  <span className="card-header mb-0">GridMind Optimize</span>
+                </div>
+
+                {/* Lifetime + Today side by side */}
+                <div className="grid grid-cols-2 gap-4">
+                  {hasLifetime && (
                     <div>
                       <div className="text-3xl font-bold tabular-nums text-blue-400">
+                        +{formatMoney(os.lifetime_total)}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Lifetime savings · {os.lifetime_days} day{os.lifetime_days !== 1 ? 's' : ''}
+                      </p>
+                      {os.lifetime_avg_daily > 0 && (
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          ~${os.lifetime_avg_daily.toFixed(2)}/day avg
+                          {os.lifetime_days >= 30 && ` · ~$${(os.lifetime_avg_daily * 30).toFixed(0)}/mo`}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {hasToday && (
+                    <div className={hasLifetime ? 'text-right' : ''}>
+                      <div className="text-2xl font-bold tabular-nums text-emerald-400">
                         +{formatMoney(os.total_benefit)}
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">Peak period benefit</p>
+                      <p className="text-xs text-slate-500 mt-1">Today</p>
                     </div>
-                  </div>
+                  )}
+                  {!hasToday && hasLifetime && (
+                    <div className="text-right">
+                      <div className="text-lg text-slate-500">—</div>
+                      <p className="text-xs text-slate-500 mt-1">No peak today</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Today's breakdown (only when there's peak data) */}
+                {hasToday && (
                   <div className="mt-3 pt-3 border-t border-blue-500/10 space-y-1.5 text-xs">
                     {os.avoided_imports_kwh > 0 && (
                       <div className="flex items-center gap-2">
@@ -267,21 +300,9 @@ export default function ValuePage() {
                       </div>
                     )}
                   </div>
-                </div>
-              )
-            }
-            // No peak data today (weekend/off-peak day) — show a note
-            if (value.period_breakdown && !value.period_breakdown['Peak']) {
-              return (
-                <div className="card border-blue-500/10">
-                  <div className="flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-blue-400/50" />
-                    <span className="text-sm text-slate-500">GridMind Optimize: No peak period today — savings tracked on peak days</span>
-                  </div>
-                </div>
-              )
-            }
-            return null
+                )}
+              </div>
+            )
           })()}
 
           {/* Value Breakdown Cards */}

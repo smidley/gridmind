@@ -583,6 +583,22 @@ async def get_energy_value(
 
         total_benefit = avoided_cost + peak_export_credits
 
+        # Persist today's optimize benefit for lifetime tracking
+        today_str = now.strftime("%Y-%m-%d")
+        if total_benefit > 0:
+            daily_log = setup_store.get("optimize_daily_savings", {})
+            if not isinstance(daily_log, dict):
+                daily_log = {}
+            daily_log[today_str] = round(total_benefit, 2)
+            setup_store.set("optimize_daily_savings", daily_log)
+
+        # Calculate lifetime totals from the daily log
+        daily_log = setup_store.get("optimize_daily_savings", {})
+        if not isinstance(daily_log, dict):
+            daily_log = {}
+        lifetime_total = sum(daily_log.values())
+        lifetime_days = len(daily_log)
+
         optimize_savings = {
             "avoided_imports_kwh": round(avoided_imports_kwh, 2),
             "avoided_cost": round(avoided_cost, 2),
@@ -593,7 +609,23 @@ async def get_energy_value(
             "total_benefit": round(total_benefit, 2),
             "peak_buy_rate": round(peak_buy_rate, 4),
             "peak_sell_rate": round(peak_sell_rate, 4),
+            "lifetime_total": round(lifetime_total, 2),
+            "lifetime_days": lifetime_days,
+            "lifetime_avg_daily": round(lifetime_total / lifetime_days, 2) if lifetime_days > 0 else 0,
         }
+
+    # If no peak data today but we have lifetime data, still include it
+    if optimize_savings is None:
+        daily_log = setup_store.get("optimize_daily_savings", {})
+        if isinstance(daily_log, dict) and daily_log:
+            lifetime_total = sum(daily_log.values())
+            lifetime_days = len(daily_log)
+            optimize_savings = {
+                "total_benefit": 0,
+                "lifetime_total": round(lifetime_total, 2),
+                "lifetime_days": lifetime_days,
+                "lifetime_avg_daily": round(lifetime_total / lifetime_days, 2) if lifetime_days > 0 else 0,
+            }
 
     return {
         "period": "today",
