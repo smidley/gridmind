@@ -380,8 +380,11 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
     from database import EnergyReading
 
     # Check cache — recompute at most once per hour
+    # Cache with version — invalidate when computation logic changes
+    CACHE_VERSION = 2  # Bump this when the calculation changes
     cached = setup_store.get("optimize_lifetime_cache", {})
-    if isinstance(cached, dict) and cached.get("computed_at"):
+    if (isinstance(cached, dict) and cached.get("computed_at")
+            and cached.get("cache_version") == CACHE_VERSION):
         try:
             age_min = (now - datetime.fromisoformat(cached["computed_at"])).total_seconds() / 60
             if age_min < 60:
@@ -473,11 +476,18 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
     lifetime_days = sum(1 for v in daily_savings.values() if v > 0)
     lifetime_avg = lifetime_total / lifetime_days if lifetime_days > 0 else 0
 
+    import logging as _log
+    _log.getLogger(__name__).info(
+        "Lifetime optimize: %d days with savings, total=$%.2f, avg=$%.2f/day (from %d hourly rows)",
+        lifetime_days, lifetime_total, lifetime_avg, len(hourly_rows),
+    )
+
     result_data = {
         "lifetime_total": round(lifetime_total, 2),
         "lifetime_days": lifetime_days,
         "lifetime_avg_daily": round(lifetime_avg, 2),
         "computed_at": now.isoformat(),
+        "cache_version": CACHE_VERSION,
     }
 
     # Cache the result
