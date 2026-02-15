@@ -43,6 +43,12 @@ When committing changes that will be pushed to main, you MUST increment the vers
   2. `frontend/package.json` — `"version"` field
   3. `frontend/src/App.tsx` — version string in the sidebar footer (search for `GridMind v`)
 - Include the version bump in the same commit as the changes, not as a separate commit.
+- After pushing, create a GitHub release with a full changelog:
+  ```bash
+  gh release create vX.Y.Z --title "vX.Y.Z" --notes "changelog here"
+  ```
+  Use `gh api repos/smidley/gridmind/compare/PREV_TAG...HEAD` or `git log` to build the changelog.
+  Group changes into sections: Features, Fixes, Improvements, etc.
 
 ## Tesla API
 - Battery power: negative = charging, positive = discharging
