@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db, EnergyReading, DailyEnergySummary
@@ -376,7 +376,7 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
     - How much home consumption was served by battery/solar during peak (avoided imports)
     - How much was exported during peak (export credits)
     """
-    from sqlalchemy import select, func, extract
+    from sqlalchemy import select, func, literal_column
     from database import EnergyReading
 
     # Check cache — recompute at most once per hour
@@ -389,18 +389,21 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
         except Exception:
             pass
 
+    # SQLite uses strftime instead of extract for date parts
+    hour_expr = func.cast(func.strftime("%H", EnergyReading.timestamp), Integer)
+
     # Get daily aggregates grouped by date and hour from the database
     result = await db.execute(
         select(
             func.date(EnergyReading.timestamp).label("day"),
-            extract("hour", EnergyReading.timestamp).label("hr"),
+            hour_expr.label("hr"),
             func.avg(EnergyReading.home_power).label("avg_home_w"),
             func.avg(EnergyReading.solar_power).label("avg_solar_w"),
             func.avg(EnergyReading.battery_power).label("avg_battery_w"),
             func.avg(EnergyReading.grid_power).label("avg_grid_w"),
             func.count().label("readings"),
         )
-        .group_by(func.date(EnergyReading.timestamp), extract("hour", EnergyReading.timestamp))
+        .group_by(func.date(EnergyReading.timestamp), hour_expr)
         .order_by(func.date(EnergyReading.timestamp).asc())
     )
     hourly_rows = result.all()
@@ -695,11 +698,15 @@ async def get_energy_value(
 
     # --- Lifetime Optimize Savings (from historical database readings) ---
     # Compute from EnergyReading table: sum battery discharge + solar during peak hours
-    lifetime_data = await _compute_lifetime_optimize_savings(db, get_period_and_rate, now, display_map)
-    if optimize_savings:
-        optimize_savings.update(lifetime_data)
-    elif lifetime_data.get("lifetime_total", 0) > 0:
-        optimize_savings = {"total_benefit": 0, **lifetime_data}
+    try:
+        lifetime_data = await _compute_lifetime_optimize_savings(db, get_period_and_rate, now, display_map)
+        if optimize_savings:
+            optimize_savings.update(lifetime_data)
+        elif lifetime_data.get("lifetime_total", 0) > 0:
+            optimize_savings = {"total_benefit": 0, **lifetime_data}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to compute lifetime optimize savings: %s", e)
 
     return {
         "period": "today",
