@@ -498,14 +498,28 @@ async def get_energy_value(
         total_import_cost += import_cost
         total_solar_self_use_savings += self_use_savings
 
+        # Home consumption from all sources (for optimize savings)
+        home_from_grid = imported  # kWh pulled from grid for home
+        home_from_battery_solar = solar_self  # kWh served by battery + solar
+        home_total = home_from_grid + home_from_battery_solar
+
         # Period breakdown
         display = display_map.get(period_name, period_name)
         if display not in period_breakdown:
-            period_breakdown[display] = {"exported_kwh": 0, "imported_kwh": 0, "export_value": 0, "import_cost": 0}
+            period_breakdown[display] = {
+                "exported_kwh": 0, "imported_kwh": 0,
+                "export_value": 0, "import_cost": 0,
+                "home_consumed_kwh": 0, "home_from_battery_solar_kwh": 0,
+                "sell_rate": 0, "buy_rate": 0,
+            }
         period_breakdown[display]["exported_kwh"] += exported
         period_breakdown[display]["imported_kwh"] += imported
         period_breakdown[display]["export_value"] += export_value
         period_breakdown[display]["import_cost"] += import_cost
+        period_breakdown[display]["home_consumed_kwh"] += home_total
+        period_breakdown[display]["home_from_battery_solar_kwh"] += home_from_battery_solar
+        period_breakdown[display]["sell_rate"] = sell_rate
+        period_breakdown[display]["buy_rate"] = buy_rate
 
         # Hourly breakdown
         if hour not in hourly_data:
@@ -550,6 +564,37 @@ async def get_energy_value(
     # Net Value = Export Credits - Import Costs (actual grid cash flow)
     net_value = total_export_value - total_import_cost
 
+    # --- Optimize Savings Calculation ---
+    # Savings = peak imports avoided (battery powered home instead of grid) + peak export credits
+    optimize_savings = None
+    peak_data = period_breakdown.get("Peak")
+    if peak_data:
+        peak_buy_rate = peak_data.get("buy_rate", 0)
+        peak_sell_rate = peak_data.get("sell_rate", 0)
+        # Energy the battery/solar supplied to home during peak (avoided grid imports)
+        avoided_imports_kwh = peak_data.get("home_from_battery_solar_kwh", 0)
+        avoided_cost = avoided_imports_kwh * peak_buy_rate
+        # Export credits earned during peak (from the battery dump)
+        peak_export_credits = peak_data.get("export_value", 0)
+        peak_exported_kwh = peak_data.get("exported_kwh", 0)
+        # Actual peak imports (what Optimize couldn't avoid)
+        actual_peak_imports_kwh = peak_data.get("imported_kwh", 0)
+        actual_peak_import_cost = peak_data.get("import_cost", 0)
+
+        total_benefit = avoided_cost + peak_export_credits
+
+        optimize_savings = {
+            "avoided_imports_kwh": round(avoided_imports_kwh, 2),
+            "avoided_cost": round(avoided_cost, 2),
+            "peak_exported_kwh": round(peak_exported_kwh, 2),
+            "peak_export_credits": round(peak_export_credits, 2),
+            "actual_peak_imports_kwh": round(actual_peak_imports_kwh, 2),
+            "actual_peak_import_cost": round(actual_peak_import_cost, 2),
+            "total_benefit": round(total_benefit, 2),
+            "peak_buy_rate": round(peak_buy_rate, 4),
+            "peak_sell_rate": round(peak_sell_rate, 4),
+        }
+
     return {
         "period": "today",
         "utility": tariff.get("utility", ""),
@@ -563,6 +608,7 @@ async def get_energy_value(
             k: {kk: round(vv, 2) for kk, vv in v.items()}
             for k, v in period_breakdown.items()
         },
+        "optimize_savings": optimize_savings,
     }
 
 
