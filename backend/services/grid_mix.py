@@ -67,12 +67,49 @@ def get_eia_api_key() -> str | None:
     return setup_store.get("eia_api_key")
 
 
+# Map Tesla utility names to EIA respondent codes
+UTILITY_TO_BA = {
+    "PGE": "PGE", "PORTLAND GENERAL": "PGE",
+    "PACIFICORP": "PACW", "PACIFIC POWER": "PACW",
+    "PUGET SOUND": "PSEI", "PSE": "PSEI",
+    "SEATTLE CITY LIGHT": "SCL",
+    "AVISTA": "AVA",
+    "IDAHO POWER": "IPCO",
+    "SOUTHERN CALIFORNIA EDISON": "CISO", "SCE": "CISO",
+    "PG&E": "CISO", "PACIFIC GAS": "CISO",
+    "SDG&E": "CISO", "SAN DIEGO": "CISO",
+    "ONCOR": "ERCO", "CENTERPOINT": "ERCO", "AEP TEXAS": "ERCO",
+    "CON EDISON": "NYIS", "CONED": "NYIS",
+    "NATIONAL GRID": "NYIS",
+    "EVERSOURCE": "ISNE", "UNITIL": "ISNE",
+    "FLORIDA POWER": "FPL", "FPL": "FPL",
+    "DUKE ENERGY": "DUK",
+    "DOMINION": "PJM",
+    "APS": "SRP", "ARIZONA PUBLIC": "AZPS",
+    "XCEL": "PSCO",
+    "ENTERGY": "MISO",
+    "TVA": "TVA", "TENNESSEE VALLEY": "TVA",
+}
+
+
 def get_balancing_authority() -> str | None:
-    """Get the user's balancing authority, auto-detecting from location if needed."""
+    """Get the user's balancing authority, auto-detecting from utility or location."""
     # Check manual override first
     ba = setup_store.get("grid_balancing_authority")
     if ba:
         return ba
+
+    # Try to match from Tesla utility name (most accurate)
+    try:
+        from tesla.commands import _cached_site_config
+        tariff = _cached_site_config.get("tariff_content", {})
+        utility = tariff.get("utility", "").upper()
+        if utility:
+            for key, eia_code in UTILITY_TO_BA.items():
+                if key in utility:
+                    return eia_code
+    except Exception:
+        pass
 
     # Auto-detect from address string
     address = setup_store.get_address() or ""
