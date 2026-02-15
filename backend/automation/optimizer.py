@@ -189,8 +189,16 @@ def _get_tou_peak_info(now: datetime) -> dict:
     # Try to read TOU schedule from Tesla's cached site config
     try:
         from tesla.commands import _cached_site_config
+        if not _cached_site_config:
+            raise ValueError("Site config not cached yet")
+
+        # tariff_content can be at the top level or nested under components
         tariff = _cached_site_config.get("tariff_content", {})
         if not tariff or not tariff.get("seasons"):
+            tariff = _cached_site_config.get("components", {}).get("tariff_content", {})
+        if not tariff or not tariff.get("seasons"):
+            logger.debug("GridMind Optimize TOU: no tariff_content in cache (top keys: %s), falling back to manual",
+                         list(_cached_site_config.keys())[:10])
             raise ValueError("No TOU data")
 
         day_of_week = now.weekday()  # 0=Monday, 6=Sunday
@@ -257,12 +265,17 @@ def _get_tou_peak_info(now: datetime) -> dict:
         # No matching period found — default to off-peak
         return {"in_peak": False, "peak_end_minutes": None, "period_name": "OFF_PEAK", "source": "tou"}
 
-    except Exception:
-        # TOU data unavailable — fall back to manual peak hours
+    except Exception as e:
+        # TOU data unavailable — fall back to manual peak hours (weekdays only)
+        # Most TOU plans only have peak on weekdays (Mon-Fri)
         peak_start = _state["peak_start_hour"]
         peak_end = _state["peak_end_hour"]
         hour = now.hour
-        in_peak = peak_start <= hour < peak_end
+        is_weekday = now.weekday() < 5  # 0=Mon, 4=Fri, 5=Sat, 6=Sun
+        in_peak = is_weekday and peak_start <= hour < peak_end
+
+        logger.debug("GridMind Optimize TOU: manual fallback (%s, hour=%d, peak=%d-%d, in_peak=%s, reason=%s)",
+                     "weekday" if is_weekday else "weekend", hour, peak_start, peak_end, in_peak, e)
         return {
             "in_peak": in_peak,
             "peak_end_minutes": peak_end * 60 if in_peak else None,
