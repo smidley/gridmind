@@ -183,6 +183,10 @@ export default function DetailGrid() {
           </div>
           <p className="text-xs text-slate-500 mb-3">
             Region: {gridMix.balancing_authority} · Last updated: {gridMix.period || '—'}
+            {' · '}
+            <a href="https://www.eia.gov/opendata/" target="_blank" rel="noreferrer" className="underline hover:text-slate-400 transition-colors">
+              Source: U.S. Energy Information Administration (EIA)
+            </a>
           </p>
 
           {/* Stacked bar */}

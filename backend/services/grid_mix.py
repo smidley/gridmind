@@ -4,6 +4,11 @@ Provides the current grid fuel mix (hydro, wind, solar, gas, coal, nuclear, etc.
 for the user's region. Data updates hourly from the EIA with ~1-2 hour delay.
 
 Requires a free EIA API key: https://www.eia.gov/opendata/register.php
+
+Data source: U.S. Energy Information Administration (EIA)
+https://www.eia.gov/opendata/
+Used in accordance with the EIA API Terms of Service.
+EIA does not endorse this application.
 """
 
 import logging
@@ -178,6 +183,8 @@ async def fetch_grid_mix() -> dict | None:
             "fossil_pct": round(fossil_pct, 1),
             "total_mwh": round(total_mwh, 1),
             "fetched_at": now.isoformat(),
+            "attribution": "Source: U.S. Energy Information Administration (EIA)",
+            "attribution_url": "https://www.eia.gov/opendata/",
         }
 
         _cached_mix = result
