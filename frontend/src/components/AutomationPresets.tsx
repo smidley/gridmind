@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   Clock, Battery, Zap, Sun, Shield, AlertTriangle,
   DollarSign, CloudRain, Plug, ChevronDown, ChevronUp,
+  Leaf, Car,
 } from 'lucide-react'
 import { apiFetch } from '../hooks/useApi'
 
@@ -201,6 +202,102 @@ const PRESETS: Preset[] = [
           { type: 'set_reserve', value: 20 },
         ],
         priority: 15,
+      },
+    ],
+  },
+
+  // --- Clean Grid Automations ---
+  {
+    id: 'clean-grid-battery',
+    name: 'Charge Battery on Clean Grid',
+    description: 'Only allow grid-to-battery charging when the grid is at least 70% clean energy (hydro, wind, solar, nuclear). Requires EIA API key.',
+    category: 'Clean Energy',
+    icon: Leaf,
+    rules: [
+      {
+        name: 'Clean Grid - Allow Grid Charging',
+        description: 'Enable grid charging when clean energy is above 70%',
+        trigger_type: 'grid_clean_pct',
+        trigger_config: { operator: '>=', value: 70 },
+        actions: [
+          { type: 'set_grid_charging', value: true },
+          { type: 'notify', title: 'Clean Grid', message: 'Grid is 70%+ clean — battery charging from grid enabled' },
+        ],
+        priority: 5,
+      },
+      {
+        name: 'Dirty Grid - Block Grid Charging',
+        description: 'Disable grid charging when clean energy drops below 70%',
+        trigger_type: 'grid_clean_pct',
+        trigger_config: { operator: '<', value: 70 },
+        actions: [
+          { type: 'set_grid_charging', value: false },
+          { type: 'notify', title: 'Dirty Grid', message: 'Grid below 70% clean — battery will only charge from solar' },
+        ],
+        priority: 5,
+      },
+    ],
+  },
+  {
+    id: 'clean-grid-ev',
+    name: 'Charge EV on Clean Grid',
+    description: 'Only charge the vehicle when grid power is at least 60% clean. Pauses charging during fossil-heavy periods. Requires EIA API key.',
+    category: 'Clean Energy',
+    icon: Car,
+    rules: [
+      {
+        name: 'Clean Grid - Start EV Charge',
+        description: 'Start EV charging when grid is 60%+ clean energy',
+        trigger_type: 'grid_clean_pct',
+        trigger_config: { operator: '>=', value: 60 },
+        actions: [
+          { type: 'ev_charge_start' },
+          { type: 'notify', title: 'Clean Grid EV', message: 'Grid is 60%+ clean — EV charging started' },
+        ],
+        priority: 3,
+      },
+      {
+        name: 'Dirty Grid - Stop EV Charge',
+        description: 'Stop EV charging when grid drops below 60% clean',
+        trigger_type: 'grid_clean_pct',
+        trigger_config: { operator: '<', value: 60 },
+        actions: [
+          { type: 'ev_charge_stop' },
+          { type: 'notify', title: 'Dirty Grid EV', message: 'Grid below 60% clean — EV charging paused' },
+        ],
+        priority: 3,
+      },
+    ],
+  },
+  {
+    id: 'clean-grid-self-power',
+    name: 'Self-Power on Dirty Grid',
+    description: 'Switch to self-powered mode when grid fossil fuel exceeds 50%, using battery and solar instead. Returns to normal when grid cleans up.',
+    category: 'Clean Energy',
+    icon: Shield,
+    rules: [
+      {
+        name: 'Dirty Grid - Self Powered',
+        description: 'Switch to self-powered when fossil fuel exceeds 50%',
+        trigger_type: 'grid_fossil_pct',
+        trigger_config: { operator: '>', value: 50 },
+        conditions: [{ type: 'soc', operator: '>', value: 25 }],
+        actions: [
+          { type: 'set_mode', value: 'self_consumption' },
+          { type: 'notify', title: 'Dirty Grid', message: 'Grid is 50%+ fossil — switching to self-powered' },
+        ],
+        priority: 8,
+      },
+      {
+        name: 'Clean Grid - Resume Normal',
+        description: 'Return to time-based control when fossil drops below 50%',
+        trigger_type: 'grid_fossil_pct',
+        trigger_config: { operator: '<=', value: 50 },
+        actions: [
+          { type: 'set_mode', value: 'autonomous' },
+          { type: 'notify', title: 'Clean Grid', message: 'Grid is below 50% fossil — returning to normal mode' },
+        ],
+        priority: 8,
       },
     ],
   },

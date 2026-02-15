@@ -9,6 +9,8 @@ const TRIGGER_TYPES = [
   { value: 'solar', label: 'Solar Power (W)' },
   { value: 'grid_power', label: 'Grid Power (W)' },
   { value: 'grid_status', label: 'Grid Status' },
+  { value: 'grid_clean_pct', label: 'Grid Clean Energy (%)' },
+  { value: 'grid_fossil_pct', label: 'Grid Fossil Energy (%)' },
 ]
 
 const ACTION_TYPES = [
@@ -17,6 +19,9 @@ const ACTION_TYPES = [
   { value: 'set_storm_mode', label: 'Set Storm Mode' },
   { value: 'set_grid_charging', label: 'Set Grid Charging' },
   { value: 'set_export_rule', label: 'Set Export Rule' },
+  { value: 'ev_charge_start', label: 'Start EV Charging' },
+  { value: 'ev_charge_stop', label: 'Stop EV Charging' },
+  { value: 'ev_set_amps', label: 'Set EV Charge Amps' },
   { value: 'notify', label: 'Send Notification' },
 ]
 

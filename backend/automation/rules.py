@@ -69,6 +69,10 @@ def _evaluate_trigger(
         return status.grid_status == config.get("status")
     elif trigger_type == "battery_power":
         return _check_numeric_trigger(config, status.battery_power)
+    elif trigger_type == "grid_clean_pct":
+        return _check_grid_clean_trigger(config)
+    elif trigger_type == "grid_fossil_pct":
+        return _check_grid_fossil_trigger(config)
     else:
         logger.warning("Unknown trigger type: %s", trigger_type)
         return False
@@ -127,6 +131,24 @@ def _check_numeric_trigger(config: dict, actual_value: float) -> bool:
         return False
 
 
+def _check_grid_clean_trigger(config: dict) -> bool:
+    """Check if grid clean energy percentage meets threshold."""
+    from services.grid_mix import get_cached_mix
+    mix = get_cached_mix()
+    if not mix:
+        return False
+    return _check_numeric_trigger(config, mix.get("clean_pct", 0))
+
+
+def _check_grid_fossil_trigger(config: dict) -> bool:
+    """Check if grid fossil energy percentage meets threshold."""
+    from services.grid_mix import get_cached_mix
+    mix = get_cached_mix()
+    if not mix:
+        return False
+    return _check_numeric_trigger(config, mix.get("fossil_pct", 0))
+
+
 def _evaluate_condition(condition: dict, status: PowerwallStatus, now: datetime) -> bool:
     """Evaluate a single condition (same format as triggers)."""
     cond_type = condition.get("type", "")
@@ -143,6 +165,10 @@ def _evaluate_condition(condition: dict, status: PowerwallStatus, now: datetime)
         return status.grid_status == condition.get("status")
     elif cond_type == "mode":
         return status.operation_mode == condition.get("value")
+    elif cond_type == "grid_clean_pct":
+        return _check_grid_clean_trigger(condition)
+    elif cond_type == "grid_fossil_pct":
+        return _check_grid_fossil_trigger(condition)
     else:
         logger.warning("Unknown condition type: %s", cond_type)
         return True  # Unknown conditions pass by default

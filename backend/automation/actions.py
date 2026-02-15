@@ -60,6 +60,28 @@ async def _execute_single_action(action_type: str, action: dict):
         rule = action.get("value", "pv_only")
         await set_grid_import_export(customer_preferred_export_rule=rule)
 
+    elif action_type == "ev_charge_start":
+        from services import setup_store as ss
+        vid = ss.get("selected_vehicle_id")
+        if vid:
+            from tesla.vehicle_commands import charge_start
+            await charge_start(vid)
+
+    elif action_type == "ev_charge_stop":
+        from services import setup_store as ss
+        vid = ss.get("selected_vehicle_id")
+        if vid:
+            from tesla.vehicle_commands import charge_stop
+            await charge_stop(vid)
+
+    elif action_type == "ev_set_amps":
+        from services import setup_store as ss
+        vid = ss.get("selected_vehicle_id")
+        if vid:
+            from tesla.vehicle_commands import set_charging_amps
+            amps = int(action.get("value", 16))
+            await set_charging_amps(vid, amps)
+
     elif action_type == "notify":
         title = action.get("title", "Automation Alert")
         message = action.get("message", "A GridMind automation was triggered.")
