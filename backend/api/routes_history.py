@@ -369,6 +369,108 @@ async def _compute_today_from_readings():
     }
 
 
+async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, display_map):
+    """Compute lifetime optimize savings from historical energy readings.
+
+    Looks at all recorded data, finds peak hours, and calculates:
+    - How much home consumption was served by battery/solar during peak (avoided imports)
+    - How much was exported during peak (export credits)
+    """
+    from sqlalchemy import select, func, extract
+    from database import EnergyReading
+
+    # Check cache — recompute at most once per hour
+    cached = setup_store.get("optimize_lifetime_cache", {})
+    if isinstance(cached, dict) and cached.get("computed_at"):
+        try:
+            age_min = (now - datetime.fromisoformat(cached["computed_at"])).total_seconds() / 60
+            if age_min < 60:
+                return cached
+        except Exception:
+            pass
+
+    # Get daily aggregates grouped by date and hour from the database
+    result = await db.execute(
+        select(
+            func.date(EnergyReading.timestamp).label("day"),
+            extract("hour", EnergyReading.timestamp).label("hr"),
+            func.avg(EnergyReading.home_power).label("avg_home_w"),
+            func.avg(EnergyReading.solar_power).label("avg_solar_w"),
+            func.avg(EnergyReading.battery_power).label("avg_battery_w"),
+            func.avg(EnergyReading.grid_power).label("avg_grid_w"),
+            func.count().label("readings"),
+        )
+        .group_by(func.date(EnergyReading.timestamp), extract("hour", EnergyReading.timestamp))
+        .order_by(func.date(EnergyReading.timestamp).asc())
+    )
+    hourly_rows = result.all()
+
+    if not hourly_rows:
+        return {"lifetime_total": 0, "lifetime_days": 0, "lifetime_avg_daily": 0}
+
+    # Calculate peak savings per day
+    daily_savings = {}
+    for row in hourly_rows:
+        day_str = str(row.day)
+        hour = int(row.hr)
+
+        # Determine the day of week for this date
+        try:
+            dt = datetime.strptime(day_str, "%Y-%m-%d")
+            dow = dt.weekday()
+            month = dt.month
+        except Exception:
+            continue
+
+        period_name, _ = get_period_and_rate(hour, dow, month, is_sell=False)
+        display = display_map.get(period_name, period_name)
+
+        if display != "Peak":
+            continue
+
+        # This is a peak hour — calculate savings
+        _, buy_rate = get_period_and_rate(hour, dow, month, is_sell=False)
+        _, sell_rate = get_period_and_rate(hour, dow, month, is_sell=True)
+
+        # Each reading is ~30s apart, readings per hour gives us the interval
+        # Average power (W) * 1 hour / 1000 = approximate kWh for that hour
+        interval_hours = 1.0  # Each row is 1 hour of averaged data
+
+        avg_home_w = row.avg_home_w or 0
+        avg_solar_w = max(row.avg_solar_w or 0, 0)
+        avg_battery_discharge_w = max(row.avg_battery_w or 0, 0)  # positive = discharging
+        avg_grid_export_w = max(-(row.avg_grid_w or 0), 0)  # negative grid = exporting
+
+        # Energy served to home by battery + solar during this peak hour
+        home_from_local_kwh = (avg_solar_w + avg_battery_discharge_w) / 1000 * interval_hours
+        # But can't exceed actual home consumption
+        home_from_local_kwh = min(home_from_local_kwh, avg_home_w / 1000 * interval_hours)
+
+        avoided_cost = home_from_local_kwh * buy_rate
+        export_credit = (avg_grid_export_w / 1000 * interval_hours) * sell_rate
+
+        if day_str not in daily_savings:
+            daily_savings[day_str] = 0
+        daily_savings[day_str] += avoided_cost + export_credit
+
+    # Sum it up
+    lifetime_total = sum(v for v in daily_savings.values() if v > 0)
+    lifetime_days = sum(1 for v in daily_savings.values() if v > 0)
+    lifetime_avg = lifetime_total / lifetime_days if lifetime_days > 0 else 0
+
+    result_data = {
+        "lifetime_total": round(lifetime_total, 2),
+        "lifetime_days": lifetime_days,
+        "lifetime_avg_daily": round(lifetime_avg, 2),
+        "computed_at": now.isoformat(),
+    }
+
+    # Cache the result
+    setup_store.set("optimize_lifetime_cache", result_data)
+
+    return result_data
+
+
 @router.get("/value")
 async def get_energy_value(
     days: int = Query(default=1, ge=1, le=30),
@@ -571,33 +673,13 @@ async def get_energy_value(
     if peak_data:
         peak_buy_rate = peak_data.get("buy_rate", 0)
         peak_sell_rate = peak_data.get("sell_rate", 0)
-        # Energy the battery/solar supplied to home during peak (avoided grid imports)
         avoided_imports_kwh = peak_data.get("home_from_battery_solar_kwh", 0)
         avoided_cost = avoided_imports_kwh * peak_buy_rate
-        # Export credits earned during peak (from the battery dump)
         peak_export_credits = peak_data.get("export_value", 0)
         peak_exported_kwh = peak_data.get("exported_kwh", 0)
-        # Actual peak imports (what Optimize couldn't avoid)
         actual_peak_imports_kwh = peak_data.get("imported_kwh", 0)
         actual_peak_import_cost = peak_data.get("import_cost", 0)
-
         total_benefit = avoided_cost + peak_export_credits
-
-        # Persist today's optimize benefit for lifetime tracking
-        today_str = now.strftime("%Y-%m-%d")
-        if total_benefit > 0:
-            daily_log = setup_store.get("optimize_daily_savings", {})
-            if not isinstance(daily_log, dict):
-                daily_log = {}
-            daily_log[today_str] = round(total_benefit, 2)
-            setup_store.set("optimize_daily_savings", daily_log)
-
-        # Calculate lifetime totals from the daily log
-        daily_log = setup_store.get("optimize_daily_savings", {})
-        if not isinstance(daily_log, dict):
-            daily_log = {}
-        lifetime_total = sum(daily_log.values())
-        lifetime_days = len(daily_log)
 
         optimize_savings = {
             "avoided_imports_kwh": round(avoided_imports_kwh, 2),
@@ -609,23 +691,15 @@ async def get_energy_value(
             "total_benefit": round(total_benefit, 2),
             "peak_buy_rate": round(peak_buy_rate, 4),
             "peak_sell_rate": round(peak_sell_rate, 4),
-            "lifetime_total": round(lifetime_total, 2),
-            "lifetime_days": lifetime_days,
-            "lifetime_avg_daily": round(lifetime_total / lifetime_days, 2) if lifetime_days > 0 else 0,
         }
 
-    # If no peak data today but we have lifetime data, still include it
-    if optimize_savings is None:
-        daily_log = setup_store.get("optimize_daily_savings", {})
-        if isinstance(daily_log, dict) and daily_log:
-            lifetime_total = sum(daily_log.values())
-            lifetime_days = len(daily_log)
-            optimize_savings = {
-                "total_benefit": 0,
-                "lifetime_total": round(lifetime_total, 2),
-                "lifetime_days": lifetime_days,
-                "lifetime_avg_daily": round(lifetime_total / lifetime_days, 2) if lifetime_days > 0 else 0,
-            }
+    # --- Lifetime Optimize Savings (from historical database readings) ---
+    # Compute from EnergyReading table: sum battery discharge + solar during peak hours
+    lifetime_data = await _compute_lifetime_optimize_savings(db, get_period_and_rate, now, display_map)
+    if optimize_savings:
+        optimize_savings.update(lifetime_data)
+    elif lifetime_data.get("lifetime_total", 0) > 0:
+        optimize_savings = {"total_benefit": 0, **lifetime_data}
 
     return {
         "period": "today",
