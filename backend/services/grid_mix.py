@@ -44,9 +44,10 @@ FUEL_DISPLAY = {
     "ALL": "Total",
 }
 
-# Approximate balancing authority by US state (covers most users)
+# EIA balancing authority codes by US state
+# Full list: https://api.eia.gov/v2/electricity/rto/fuel-type-data/facet/respondent
 STATE_TO_BA = {
-    "OR": "BPA", "WA": "BPA", "ID": "BPA", "MT": "BPA",
+    "OR": "BPAT", "WA": "BPAT", "ID": "BPAT", "MT": "BPAT",
     "CA": "CISO",
     "TX": "ERCO",
     "NY": "NYIS",
@@ -104,7 +105,7 @@ def get_balancing_authority() -> str | None:
     if lat and lon and lat != 0.0 and lon != 0.0:
         # Pacific NW
         if 42 <= lat <= 49 and -125 <= lon <= -116:
-            return "BPA"
+            return "BPAT"
         # California
         if 32 <= lat <= 42 and -125 <= lon <= -114:
             return "CISO"
