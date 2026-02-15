@@ -390,15 +390,28 @@ async def set_grid_mix_config(data: dict):
     if updates:
         setup_store.update(updates)
 
+    # Trigger immediate fetch if API key was just configured
+    if "eia_api_key" in updates and updates["eia_api_key"]:
+        try:
+            from services.grid_mix import fetch_grid_mix
+            result = await fetch_grid_mix()
+            if result:
+                return {"status": "ok", "updated": list(updates.keys()), "grid_mix": result}
+        except Exception:
+            pass
+
     return {"status": "ok", "updated": list(updates.keys())}
 
 
 @router.get("/grid-mix/config")
 async def get_grid_mix_config():
     """Get current grid mix configuration."""
+    from services.grid_mix import get_balancing_authority
+    detected_ba = get_balancing_authority()
     return {
         "eia_api_key_configured": bool(setup_store.get("eia_api_key")),
         "balancing_authority": setup_store.get("grid_balancing_authority", ""),
+        "detected_balancing_authority": detected_ba or "",
         "clean_grid_enabled": bool(setup_store.get("gridmind_clean_grid_enabled")),
         "fossil_threshold_pct": int(setup_store.get("gridmind_fossil_threshold_pct") or 50),
     }

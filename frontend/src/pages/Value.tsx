@@ -224,50 +224,64 @@ export default function ValuePage() {
           )}
 
           {/* GridMind Optimize Savings */}
-          {value.optimize_savings && value.optimize_savings.total_benefit > 0 && (() => {
+          {(() => {
             const os = value.optimize_savings
-            return (
-              <div className="card border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent">
-                <div className="flex items-center gap-2 mb-3">
-                  <Brain className="w-4.5 h-4.5 text-blue-400" />
-                  <span className="card-header mb-0">GridMind Optimize</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-3xl font-bold tabular-nums text-blue-400">
-                      +{formatMoney(os.total_benefit)}
+            if (os && os.total_benefit > 0) {
+              return (
+                <div className="card border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Brain className="w-4.5 h-4.5 text-blue-400" />
+                    <span className="card-header mb-0">GridMind Optimize — Today</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-3xl font-bold tabular-nums text-blue-400">
+                        +{formatMoney(os.total_benefit)}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">Peak period benefit</p>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">Peak period benefit today</p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-blue-500/10 space-y-1.5 text-xs">
+                    {os.avoided_imports_kwh > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <span className="text-slate-500">
+                          Avoided <span className="text-slate-700 dark:text-slate-300 font-medium">{os.avoided_imports_kwh} kWh</span> peak imports
+                          <span className="text-emerald-400 font-medium"> (${os.avoided_cost.toFixed(2)} saved</span> at ${os.peak_buy_rate.toFixed(3)}/kWh)
+                        </span>
+                      </div>
+                    )}
+                    {os.peak_exported_kwh > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span className="text-slate-500">
+                          Exported <span className="text-slate-700 dark:text-slate-300 font-medium">{os.peak_exported_kwh} kWh</span> during peak
+                          <span className="text-amber-400 font-medium"> (+${os.peak_export_credits.toFixed(2)} earned</span> at ${os.peak_sell_rate.toFixed(3)}/kWh)
+                        </span>
+                      </div>
+                    )}
+                    {os.actual_peak_imports_kwh > 0 && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <ArrowDownToLine className="w-3 h-3 shrink-0" />
+                        <span>Peak imports: {os.actual_peak_imports_kwh} kWh (-${os.actual_peak_import_cost.toFixed(2)})</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t border-blue-500/10 space-y-1.5 text-xs">
-                  {os.avoided_imports_kwh > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-3 h-3 text-emerald-400 shrink-0" />
-                      <span className="text-slate-500">
-                        Avoided <span className="text-slate-300 font-medium">{os.avoided_imports_kwh} kWh</span> peak imports
-                        <span className="text-emerald-400 font-medium"> (${os.avoided_cost.toFixed(2)} saved</span> at ${os.peak_buy_rate.toFixed(3)}/kWh)
-                      </span>
-                    </div>
-                  )}
-                  {os.peak_exported_kwh > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span className="text-slate-500">
-                        Exported <span className="text-slate-300 font-medium">{os.peak_exported_kwh} kWh</span> during peak
-                        <span className="text-amber-400 font-medium"> (+${os.peak_export_credits.toFixed(2)} earned</span> at ${os.peak_sell_rate.toFixed(3)}/kWh)
-                      </span>
-                    </div>
-                  )}
-                  {os.actual_peak_imports_kwh > 0 && (
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <ArrowDownToLine className="w-3 h-3 shrink-0" />
-                      <span>Peak imports: {os.actual_peak_imports_kwh} kWh (-${os.actual_peak_import_cost.toFixed(2)})</span>
-                    </div>
-                  )}
+              )
+            }
+            // No peak data today (weekend/off-peak day) — show a note
+            if (value.period_breakdown && !value.period_breakdown['Peak']) {
+              return (
+                <div className="card border-blue-500/10">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-blue-400/50" />
+                    <span className="text-sm text-slate-500">GridMind Optimize: No peak period today — savings tracked on peak days</span>
+                  </div>
                 </div>
-              </div>
-            )
+              )
+            }
+            return null
           })()}
 
           {/* Value Breakdown Cards */}

@@ -255,9 +255,9 @@ function EIAConfig() {
           <div className="flex items-center gap-2">
             <Check className="w-4 h-4 text-emerald-400" />
             <span className="text-sm text-emerald-400 font-medium">EIA API key configured</span>
-            {config.balancing_authority && (
-              <span className="text-xs text-slate-500">· Region: {config.balancing_authority}</span>
-            )}
+            <span className="text-xs text-slate-500">
+              · Region: {config.balancing_authority || config.detected_balancing_authority || 'not detected'}
+            </span>
           </div>
           <button onClick={removeKey} disabled={saving} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300">
             <Trash2 className="w-3 h-3" /> Remove

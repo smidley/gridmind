@@ -73,15 +73,50 @@ def get_balancing_authority() -> str | None:
     if ba:
         return ba
 
-    # Auto-detect from address/state
+    # Auto-detect from address string
     address = setup_store.get_address() or ""
     if address:
-        # Extract state abbreviation from address (typically "City, ST" or "City, ST ZIP")
-        parts = address.split(",")
-        if len(parts) >= 2:
-            state_part = parts[-1].strip().split()[0].upper() if parts[-1].strip() else ""
-            if len(state_part) == 2 and state_part in STATE_TO_BA:
-                return STATE_TO_BA[state_part]
+        # Try to extract 2-letter state code from address parts
+        for part in address.replace(",", " ").split():
+            code = part.strip().upper()
+            if len(code) == 2 and code in STATE_TO_BA:
+                return STATE_TO_BA[code]
+
+        # Try matching full state names
+        state_name_map = {
+            "OREGON": "OR", "WASHINGTON": "WA", "CALIFORNIA": "CA", "TEXAS": "TX",
+            "NEW YORK": "NY", "FLORIDA": "FL", "IDAHO": "ID", "MONTANA": "MT",
+            "COLORADO": "CO", "ARIZONA": "AZ", "NEVADA": "NV", "UTAH": "UT",
+            "OHIO": "OH", "PENNSYLVANIA": "PA", "VIRGINIA": "VA", "GEORGIA": "GA",
+            "ILLINOIS": "IL", "MICHIGAN": "MI", "MINNESOTA": "MN", "MISSOURI": "MO",
+            "WISCONSIN": "WI", "INDIANA": "IN", "IOWA": "IA", "TENNESSEE": "TN",
+            "MASSACHUSETTS": "MA", "CONNECTICUT": "CT", "MARYLAND": "MD",
+            "NEW JERSEY": "NJ", "NORTH CAROLINA": "NC", "SOUTH CAROLINA": "SC",
+        }
+        addr_upper = address.upper()
+        for name, code in state_name_map.items():
+            if name in addr_upper and code in STATE_TO_BA:
+                return STATE_TO_BA[code]
+
+    # Fallback: rough lat/lon to region mapping
+    lat = setup_store.get_latitude()
+    lon = setup_store.get_longitude()
+    if lat and lon and lat != 0.0 and lon != 0.0:
+        # Pacific NW
+        if 42 <= lat <= 49 and -125 <= lon <= -116:
+            return "BPA"
+        # California
+        if 32 <= lat <= 42 and -125 <= lon <= -114:
+            return "CISO"
+        # Texas
+        if 25 <= lat <= 37 and -107 <= lon <= -93:
+            return "ERCO"
+        # Northeast
+        if 40 <= lat <= 45 and -80 <= lon <= -72:
+            return "NYIS"
+        # Southeast
+        if 25 <= lat <= 37 and -90 <= lon <= -75:
+            return "SOCO"
 
     return None
 
