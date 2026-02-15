@@ -376,8 +376,9 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
     - How much home consumption was served by battery/solar during peak (avoided imports)
     - How much was exported during peak (export credits)
     """
-    from sqlalchemy import select, func, literal_column
+    from sqlalchemy import select, func
     from database import EnergyReading
+    from services import setup_store
 
     # Check cache — recompute at most once per hour
     # Cache with version — invalidate when computation logic changes
@@ -720,17 +721,15 @@ async def get_energy_value(
 
     # --- Lifetime Optimize Savings (from historical database readings) ---
     # Compute from EnergyReading table: sum battery discharge + solar during peak hours
-    _lifetime_debug = None
     try:
         lifetime_data = await _compute_lifetime_optimize_savings(db, get_period_and_rate, now, display_map)
-        _lifetime_debug = {"status": "ok", "data": lifetime_data}
         if optimize_savings:
             optimize_savings.update(lifetime_data)
         elif lifetime_data.get("lifetime_total", 0) > 0:
             optimize_savings = {"total_benefit": 0, **lifetime_data}
     except Exception as e:
-        import traceback
-        _lifetime_debug = {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+        import logging
+        logging.getLogger(__name__).warning("Failed to compute lifetime optimize savings: %s", e)
 
     return {
         "period": "today",
@@ -746,7 +745,6 @@ async def get_energy_value(
             for k, v in period_breakdown.items()
         },
         "optimize_savings": optimize_savings,
-        "_lifetime_debug": _lifetime_debug,
     }
 
 
