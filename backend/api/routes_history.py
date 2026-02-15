@@ -370,19 +370,27 @@ async def _compute_today_from_readings():
 
 
 async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, display_map):
-    """Compute lifetime optimize savings from historical energy readings.
+    """Compute lifetime savings: GridMind Optimize vs standard autonomous mode.
 
-    Looks at all recorded data, finds peak hours, and calculates:
-    - How much home consumption was served by battery/solar during peak (avoided imports)
-    - How much was exported during peak (export credits)
+    Without Optimize (autonomous/TOU): battery dumps to grid immediately at peak
+    start at max discharge rate. Once empty (~2 hours), the home pulls from grid
+    at expensive peak rates for the remaining peak hours.
+
+    With Optimize (actual): battery holds and powers the home during all peak
+    hours, dumps at the optimal time. Home rarely imports during peak.
+
+    Savings = grid imports the home WOULD have had during 'unprotected' hours
+    (after battery would have drained) minus actual peak imports.
     """
     from sqlalchemy import select, func
     from database import EnergyReading
     from services import setup_store
+    from zoneinfo import ZoneInfo
+    import logging as _log
 
-    # Check cache — recompute at most once per hour
-    # Cache with version — invalidate when computation logic changes
-    CACHE_VERSION = 2  # Bump this when the calculation changes
+    log = _log.getLogger(__name__)
+
+    CACHE_VERSION = 3
     cached = setup_store.get("optimize_lifetime_cache", {})
     if (isinstance(cached, dict) and cached.get("computed_at")
             and cached.get("cache_version") == CACHE_VERSION):
@@ -393,10 +401,8 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
         except Exception:
             pass
 
-    # SQLite uses strftime instead of extract for date parts
     hour_expr = func.cast(func.strftime("%H", EnergyReading.timestamp), Integer)
 
-    # Get daily aggregates grouped by date and hour from the database
     result = await db.execute(
         select(
             func.date(EnergyReading.timestamp).label("day"),
@@ -405,6 +411,7 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
             func.avg(EnergyReading.solar_power).label("avg_solar_w"),
             func.avg(EnergyReading.battery_power).label("avg_battery_w"),
             func.avg(EnergyReading.grid_power).label("avg_grid_w"),
+            func.avg(EnergyReading.battery_soc).label("avg_soc"),
             func.count().label("readings"),
         )
         .group_by(func.date(EnergyReading.timestamp), hour_expr)
@@ -415,72 +422,98 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
     if not hourly_rows:
         return {"lifetime_total": 0, "lifetime_days": 0, "lifetime_avg_daily": 0}
 
-    # Get user timezone for UTC -> local conversion
-    from zoneinfo import ZoneInfo
     user_tz_name = setup_store.get_timezone()
     try:
         user_tz = ZoneInfo(user_tz_name)
     except Exception:
         user_tz = ZoneInfo("America/New_York")
 
-    # Calculate peak savings per day
-    daily_savings = {}
+    # Battery specs
+    try:
+        from tesla.commands import _cached_site_config
+        battery_count = _cached_site_config.get("battery_count", 2)
+        max_discharge_w = _cached_site_config.get("nameplate_power", 11520)
+    except Exception:
+        battery_count = 2
+        max_discharge_w = 11520
+    capacity_kwh = battery_count * 13.5
+    reserve_pct = 20  # Normal reserve when Optimize is not running
+
+    # Group hourly data by local date
+    days_data: dict[str, list] = {}
     for row in hourly_rows:
         day_str = str(row.day)
         utc_hour = int(row.hr)
-
-        # Convert UTC date+hour to local time
         try:
             utc_dt = datetime.strptime(f"{day_str} {utc_hour:02d}:00", "%Y-%m-%d %H:%M")
             utc_dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
             local_dt = utc_dt.astimezone(user_tz)
-            hour = local_dt.hour
-            dow = local_dt.weekday()
-            month = local_dt.month
-            local_day = local_dt.strftime("%Y-%m-%d")
         except Exception:
             continue
 
-        period_name, _ = get_period_and_rate(hour, dow, month, is_sell=False)
-        display = display_map.get(period_name, period_name)
+        local_day = local_dt.strftime("%Y-%m-%d")
+        if local_day not in days_data:
+            days_data[local_day] = []
+        days_data[local_day].append({
+            "hour": local_dt.hour,
+            "dow": local_dt.weekday(),
+            "month": local_dt.month,
+            "avg_home_w": row.avg_home_w or 0,
+            "avg_solar_w": max(row.avg_solar_w or 0, 0),
+            "avg_soc": row.avg_soc or 0,
+            "avg_grid_w": row.avg_grid_w or 0,
+        })
 
-        if display != "Peak":
+    # For each day, simulate "without optimize" and compare to actual
+    daily_savings = {}
+    for local_day, hours in days_data.items():
+        peak_hours = []
+        peak_buy_rate = 0
+        for h in sorted(hours, key=lambda x: x["hour"]):
+            period_name, _ = get_period_and_rate(h["hour"], h["dow"], h["month"], is_sell=False)
+            display = display_map.get(period_name, period_name)
+            if display == "Peak":
+                _, buy_rate = get_period_and_rate(h["hour"], h["dow"], h["month"], is_sell=False)
+                peak_buy_rate = buy_rate
+                peak_hours.append(h)
+
+        if not peak_hours or peak_buy_rate <= 0:
             continue
 
-        # This is a peak hour — calculate savings
-        _, buy_rate = get_period_and_rate(hour, dow, month, is_sell=False)
-        _, sell_rate = get_period_and_rate(hour, dow, month, is_sell=True)
+        # Battery SOC at peak start
+        soc_at_peak_start = peak_hours[0]["avg_soc"]
+        usable_kwh = max(soc_at_peak_start - reserve_pct, 0) / 100 * capacity_kwh
 
-        # Each reading is ~30s apart, readings per hour gives us the interval
-        # Average power (W) * 1 hour / 1000 = approximate kWh for that hour
-        interval_hours = 1.0  # Each row is 1 hour of averaged data
+        # Without Optimize: battery dumps at max rate immediately
+        max_discharge_kw = max_discharge_w / 1000
+        hours_to_drain = usable_kwh / max_discharge_kw if max_discharge_kw > 0 else 0
 
-        avg_home_w = row.avg_home_w or 0
-        avg_solar_w = max(row.avg_solar_w or 0, 0)
-        avg_battery_discharge_w = max(row.avg_battery_w or 0, 0)  # positive = discharging
-        avg_grid_export_w = max(-(row.avg_grid_w or 0), 0)  # negative grid = exporting
+        # Home consumption during "unprotected" peak hours (after battery would be empty)
+        counterfactual_imports_kwh = 0
+        actual_peak_imports_kwh = 0
+        for i, h in enumerate(peak_hours):
+            home_kwh = max(h["avg_home_w"], 0) / 1000
+            solar_kwh = h["avg_solar_w"] / 1000
+            actual_import_kwh = max(h["avg_grid_w"], 0) / 1000
 
-        # Energy served to home by battery + solar during this peak hour
-        home_from_local_kwh = (avg_solar_w + avg_battery_discharge_w) / 1000 * interval_hours
-        # But can't exceed actual home consumption
-        home_from_local_kwh = min(home_from_local_kwh, avg_home_w / 1000 * interval_hours)
+            actual_peak_imports_kwh += actual_import_kwh
 
-        avoided_cost = home_from_local_kwh * buy_rate
-        export_credit = (avg_grid_export_w / 1000 * interval_hours) * sell_rate
+            if i >= hours_to_drain:
+                # Battery would be empty — home needs grid (minus solar)
+                counterfactual_imports_kwh += max(home_kwh - solar_kwh, 0)
 
-        if local_day not in daily_savings:
-            daily_savings[local_day] = 0
-        daily_savings[local_day] += avoided_cost + export_credit
+        # Savings = counterfactual cost - actual cost
+        savings = (counterfactual_imports_kwh - actual_peak_imports_kwh) * peak_buy_rate
+        if savings > 0:
+            daily_savings[local_day] = round(savings, 4)
 
-    # Sum it up
-    lifetime_total = sum(v for v in daily_savings.values() if v > 0)
-    lifetime_days = sum(1 for v in daily_savings.values() if v > 0)
+    lifetime_total = sum(daily_savings.values())
+    lifetime_days = len(daily_savings)
     lifetime_avg = lifetime_total / lifetime_days if lifetime_days > 0 else 0
 
-    import logging as _log
-    _log.getLogger(__name__).info(
-        "Lifetime optimize: %d days with savings, total=$%.2f, avg=$%.2f/day (from %d hourly rows)",
-        lifetime_days, lifetime_total, lifetime_avg, len(hourly_rows),
+    log.info(
+        "Lifetime optimize: %d days with savings, total=$%.2f, avg=$%.2f/day (from %d days)",
+        lifetime_days, lifetime_total, lifetime_avg, len(days_data),
     )
 
     result_data = {
@@ -491,9 +524,7 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
         "cache_version": CACHE_VERSION,
     }
 
-    # Cache the result
     setup_store.set("optimize_lifetime_cache", result_data)
-
     return result_data
 
 
