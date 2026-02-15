@@ -265,9 +265,15 @@ export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, 
   // Tesla convention: negative battery_power = charging, positive = discharging
   const batteryCharging = status.battery_power < -50
   const batteryDischarging = status.battery_power > 50
-  const homeActive = status.home_power > 50
   const evCharging = evChargingWatts > 50
   const showEv = evSoc !== undefined || evCharging
+
+  // Tesla's home_power (load_power) includes Wall Connector power.
+  // Subtract EV charging watts to show actual home-only consumption.
+  const actualHomePower = evCharging
+    ? Math.max(status.home_power - evChargingWatts, 0)
+    : status.home_power
+  const homeActive = actualHomePower > 50
 
   // Responsive sizing — smaller tiles on mobile to prevent overlap
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640)
@@ -307,15 +313,15 @@ export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, 
     // Solar -> Battery
     { fromKey: 'solar', toKey: 'battery', color: SOLAR_COLOR, active: solarActive && batteryCharging, watts: Math.min(status.solar_power, Math.abs(status.battery_power)) },
     // Solar -> Home
-    { fromKey: 'solar', toKey: 'home', color: SOLAR_COLOR, active: solarActive && homeActive, watts: Math.min(status.solar_power, status.home_power) },
+    { fromKey: 'solar', toKey: 'home', color: SOLAR_COLOR, active: solarActive && homeActive, watts: Math.min(status.solar_power, actualHomePower) },
     // Solar -> Grid (export)
     { fromKey: 'solar', toKey: 'grid', color: SOLAR_COLOR, active: solarActive && gridExporting, watts: Math.min(status.solar_power, Math.abs(status.grid_power)) },
     // Battery -> Home
-    { fromKey: 'battery', toKey: 'home', color: BATTERY_COLOR, active: batteryDischarging && homeActive, watts: Math.min(Math.abs(status.battery_power), status.home_power) },
+    { fromKey: 'battery', toKey: 'home', color: BATTERY_COLOR, active: batteryDischarging && homeActive, watts: Math.min(Math.abs(status.battery_power), actualHomePower) },
     // Battery -> Grid (export from battery)
     { fromKey: 'battery', toKey: 'grid', color: BATTERY_COLOR, active: batteryDischarging && gridExporting, watts: Math.abs(status.battery_power) },
     // Grid -> Home (import)
-    { fromKey: 'grid', toKey: 'home', color: GRID_COLOR_IMPORT, active: gridImporting && homeActive, watts: Math.min(status.grid_power, status.home_power) },
+    { fromKey: 'grid', toKey: 'home', color: GRID_COLOR_IMPORT, active: gridImporting && homeActive, watts: Math.min(status.grid_power, actualHomePower) },
     // Grid -> Battery (grid charges battery)
     { fromKey: 'grid', toKey: 'battery', color: GRID_COLOR_IMPORT, active: gridImporting && batteryCharging, watts: Math.min(status.grid_power, Math.abs(status.battery_power)) },
   ]
@@ -415,7 +421,7 @@ export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, 
         }`} style={tileStyle}>
           <Home className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${homeActive ? 'text-cyan-500 dark:text-cyan-400' : 'text-stone-400 dark:text-slate-600'}`} />
           <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${homeActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-stone-400 dark:text-slate-600'}`}>
-            {formatPower(status.home_power)}
+            {formatPower(actualHomePower)}
           </span>
           <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-stone-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5`}>Home</span>
           {homeActive && <span className={`${isMobile ? 'text-[8px]' : 'text-[9px]'} text-cyan-500/70 dark:text-cyan-400/70`}>Consuming</span>}
