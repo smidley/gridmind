@@ -294,6 +294,56 @@ def _get_capacity_info() -> dict:
     }
 
 
+async def _check_clean_grid_preference(status):
+    """If clean grid preference is enabled, switch to self-consumption when grid is dirty.
+
+    This is a soft preference — only active during off-peak hours and only when the
+    battery has enough charge to sustain the home. Restores normal mode when grid cleans up.
+    """
+    if not setup_store.get("gridmind_clean_grid_enabled"):
+        return
+
+    from services.grid_mix import get_cached_mix
+
+    mix = get_cached_mix()
+    if not mix:
+        return
+
+    threshold = int(setup_store.get("gridmind_fossil_threshold_pct") or 50)
+    fossil_pct = mix.get("fossil_pct", 0)
+    grid_dirty = fossil_pct > threshold
+
+    # Only act if battery has reasonable charge (>25%) to avoid draining it
+    battery_ok = status.battery_soc > 25
+
+    if grid_dirty and battery_ok and status.operation_mode != "self_consumption":
+        # Grid is dirty — prefer battery/solar over grid
+        if not _state.get("_clean_grid_active"):
+            logger.info(
+                "GridMind Clean Grid: fossil %.1f%% > %d%% threshold, switching to self-consumption",
+                fossil_pct, threshold,
+            )
+            try:
+                from tesla.commands import set_operation_mode
+                await set_operation_mode("self_consumption")
+                _state["_clean_grid_active"] = True
+            except Exception as e:
+                logger.error("Failed to switch to self-consumption for clean grid: %s", e)
+
+    elif (not grid_dirty or not battery_ok) and _state.get("_clean_grid_active"):
+        # Grid cleaned up or battery low — restore normal mode
+        logger.info(
+            "GridMind Clean Grid: restoring autonomous mode (fossil %.1f%%, battery %.0f%%)",
+            fossil_pct, status.battery_soc,
+        )
+        try:
+            from tesla.commands import set_operation_mode
+            await set_operation_mode("autonomous")
+            _state["_clean_grid_active"] = False
+        except Exception as e:
+            logger.error("Failed to restore autonomous mode: %s", e)
+
+
 async def evaluate():
     """Main evaluation loop -- called every ~2 minutes by the scheduler.
 
@@ -320,6 +370,10 @@ async def evaluate():
             await _end_peak()
         elif _state["phase"] != "idle":
             _set_phase("idle")
+
+        # Clean grid preference: if grid is fossil-heavy, switch to self-consumption
+        # to avoid importing dirty power (uses battery + solar instead)
+        await _check_clean_grid_preference(status)
         return
 
     # In peak: store peak end time for dump timing calculations

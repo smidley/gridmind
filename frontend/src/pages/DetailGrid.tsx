@@ -23,6 +23,7 @@ export default function DetailGrid() {
   const { data: readings } = useApi<any>(`/history/readings?${tr.apiParam}&resolution=${tr.resolution}`)
   const { data: tariff } = useApi('/site/tariff')
   const { data: value } = useAutoRefresh<any>('/history/value', 60000)
+  const { data: gridMix } = useAutoRefresh<any>('/grid/energy-mix', 300000)
 
   const rs = rangeStats || {}
   const importing = status && status.grid_power > 50
@@ -163,6 +164,68 @@ export default function DetailGrid() {
                 <span className="text-slate-500">${info.rate?.toFixed(3)}/kWh</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Grid Energy Sources */}
+      {gridMix?.configured && gridMix?.sources && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <div className="card-header mb-0">Grid Energy Sources</div>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              gridMix.clean_pct >= 80 ? 'bg-emerald-500/15 text-emerald-500'
+              : gridMix.clean_pct >= 50 ? 'bg-amber-500/15 text-amber-500'
+              : 'bg-red-500/15 text-red-400'
+            }`}>
+              {gridMix.clean_pct}% Clean
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Region: {gridMix.balancing_authority} · Last updated: {gridMix.period || '—'}
+          </p>
+
+          {/* Stacked bar */}
+          <div className="flex h-8 rounded-lg overflow-hidden mb-3">
+            {Object.entries(gridMix.sources as Record<string, any>)
+              .sort(([,a]: any, [,b]: any) => b.pct - a.pct)
+              .map(([fuel, info]: [string, any]) => {
+                const colorMap: Record<string, string> = {
+                  WAT: 'bg-blue-500', SUN: 'bg-amber-400', WND: 'bg-teal-400',
+                  NUC: 'bg-violet-500', NG: 'bg-orange-400', COL: 'bg-stone-500',
+                  OIL: 'bg-red-400', OTH: 'bg-slate-500',
+                }
+                return (
+                  <div
+                    key={fuel}
+                    className={`${colorMap[fuel] || 'bg-slate-500'} flex items-center justify-center text-[9px] font-bold text-white transition-all duration-700`}
+                    style={{ width: `${info.pct}%` }}
+                    title={`${info.name}: ${info.pct}%`}
+                  >
+                    {info.pct >= 8 && `${info.pct}%`}
+                  </div>
+                )
+              })}
+          </div>
+
+          {/* Legend */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            {Object.entries(gridMix.sources as Record<string, any>)
+              .sort(([,a]: any, [,b]: any) => b.pct - a.pct)
+              .map(([fuel, info]: [string, any]) => {
+                const dotColorMap: Record<string, string> = {
+                  WAT: 'bg-blue-500', SUN: 'bg-amber-400', WND: 'bg-teal-400',
+                  NUC: 'bg-violet-500', NG: 'bg-orange-400', COL: 'bg-stone-500',
+                  OIL: 'bg-red-400', OTH: 'bg-slate-500',
+                }
+                return (
+                  <div key={fuel} className="flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${dotColorMap[fuel] || 'bg-slate-500'}`} />
+                    <span className="text-slate-500 dark:text-slate-400">{info.name}</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{info.pct}%</span>
+                  </div>
+                )
+              })}
           </div>
         </div>
       )}

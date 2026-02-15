@@ -368,6 +368,42 @@ async def optimize_status():
     return get_state()
 
 
+# --- Grid Mix / EIA Settings ---
+
+
+@router.post("/grid-mix/config")
+async def set_grid_mix_config(data: dict):
+    """Configure EIA API key and optional balancing authority override.
+
+    Body: {"eia_api_key": "...", "balancing_authority": "BPA"}
+    """
+    updates = {}
+    if "eia_api_key" in data:
+        updates["eia_api_key"] = data["eia_api_key"].strip()
+    if "balancing_authority" in data:
+        updates["grid_balancing_authority"] = data["balancing_authority"].strip().upper() if data["balancing_authority"] else ""
+    if "clean_grid_enabled" in data:
+        updates["gridmind_clean_grid_enabled"] = bool(data["clean_grid_enabled"])
+    if "fossil_threshold_pct" in data:
+        updates["gridmind_fossil_threshold_pct"] = max(10, min(90, int(data["fossil_threshold_pct"])))
+
+    if updates:
+        setup_store.update(updates)
+
+    return {"status": "ok", "updated": list(updates.keys())}
+
+
+@router.get("/grid-mix/config")
+async def get_grid_mix_config():
+    """Get current grid mix configuration."""
+    return {
+        "eia_api_key_configured": bool(setup_store.get("eia_api_key")),
+        "balancing_authority": setup_store.get("grid_balancing_authority", ""),
+        "clean_grid_enabled": bool(setup_store.get("gridmind_clean_grid_enabled")),
+        "fossil_threshold_pct": int(setup_store.get("gridmind_fossil_threshold_pct") or 50),
+    }
+
+
 # --- Off-Grid Mode ---
 
 

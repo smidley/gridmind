@@ -181,6 +181,34 @@ async def site_tariff():
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
 
 
+@router.get("/grid/energy-mix")
+async def grid_energy_mix():
+    """Get current grid energy source mix from EIA API.
+
+    Returns fuel type breakdown (hydro, wind, solar, gas, etc.) and
+    clean/fossil percentages for the user's balancing authority region.
+    Requires EIA API key to be configured in Settings.
+    """
+    from services.grid_mix import get_cached_mix, fetch_grid_mix, get_eia_api_key, get_balancing_authority
+
+    if not get_eia_api_key():
+        return {"configured": False, "message": "EIA API key not configured. Get a free key at https://www.eia.gov/opendata/register.php"}
+
+    ba = get_balancing_authority()
+    if not ba:
+        return {"configured": True, "error": "Could not determine your grid region. Set your balancing authority in Settings."}
+
+    # Try cache first, fetch if stale
+    mix = get_cached_mix()
+    if not mix:
+        mix = await fetch_grid_mix()
+
+    if not mix:
+        return {"configured": True, "balancing_authority": ba, "error": "No grid mix data available yet. Data updates every 30 minutes."}
+
+    return {"configured": True, **mix}
+
+
 @router.get("/site/list")
 async def list_sites():
     """List available energy sites on the Tesla account."""

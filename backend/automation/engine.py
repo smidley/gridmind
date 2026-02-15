@@ -93,6 +93,16 @@ def setup_scheduler():
         replace_existing=True,
     )
 
+    # Grid energy mix from EIA — every 30 minutes
+    from services.grid_mix import fetch_grid_mix
+    scheduler.add_job(
+        fetch_grid_mix,
+        IntervalTrigger(minutes=30),
+        id="grid_mix",
+        name="Grid Energy Mix (EIA)",
+        replace_existing=True,
+    )
+
     # Periodic cleanup of expired login rate-limit entries
     from main import _cleanup_login_attempts
     scheduler.add_job(

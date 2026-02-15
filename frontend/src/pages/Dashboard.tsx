@@ -56,6 +56,7 @@ export default function Dashboard() {
   const { data: healthData } = useApi<any>('/powerwall/health')
   const { data: savingsData } = useApi<any>('/powerwall/health/savings')
   const { data: weather } = useApi<any>('/history/weather')
+  const { data: gridMix } = useAutoRefresh<any>('/grid/energy-mix', 300000)  // 5 min
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -287,6 +288,13 @@ export default function Dashboard() {
               <div className="stat-label">Home today</div>
               {valueData && !valueData.error && valueData.import_costs > 0 && (
                 <div className="text-xs text-red-400/80 mt-1.5 font-medium">-${valueData.import_costs.toFixed(2)} grid cost</div>
+              )}
+              {gridMix?.configured && gridMix?.clean_pct != null && (
+                <div className={`text-xs mt-1 font-medium ${
+                  gridMix.clean_pct >= 80 ? 'text-emerald-500/80' : gridMix.clean_pct >= 50 ? 'text-amber-500/80' : 'text-red-400/80'
+                }`}>
+                  Grid: {gridMix.clean_pct}% clean energy
+                </div>
               )}
             </div>
 
