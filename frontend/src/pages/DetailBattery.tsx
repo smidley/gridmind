@@ -231,7 +231,7 @@ export default function DetailBattery() {
                 : '—'}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              Estimated backup time · {health.battery.backup_reserve_pct}% reserve
+              Until {health.battery.backup_reserve_pct}% reserve at current usage
             </div>
           </div>
 

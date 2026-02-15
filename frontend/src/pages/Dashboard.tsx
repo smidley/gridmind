@@ -604,7 +604,7 @@ export default function Dashboard() {
                 <div className={`card ${healthData.connectivity.storm_mode_active ? 'border-amber-500/30 ring-1 ring-amber-500/20' : ''}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <ShieldIcon className={`w-4 h-4 ${healthData.connectivity.storm_mode_active ? 'text-amber-400' : 'text-blue-400'}`} />
-                    <span className="card-header mb-0">Backup Reserve</span>
+                    <span className="card-header mb-0">Backup Time</span>
                     {healthData.connectivity.storm_mode_active && (
                       <span className="text-[10px] bg-amber-500/15 text-amber-500 px-1.5 py-0.5 rounded font-medium animate-pulse">Storm Watch</span>
                     )}
@@ -617,7 +617,7 @@ export default function Dashboard() {
                   <div className="stat-label">
                     {healthData.connectivity.storm_mode_active
                       ? 'Storm Watch active — battery reserved for backup'
-                      : `Estimated backup at current usage · ${healthData.battery.backup_reserve_pct}% reserve`}
+                      : `Until battery reaches ${healthData.battery.backup_reserve_pct}% reserve at current usage`}
                   </div>
                 </div>
               )}
