@@ -45,6 +45,7 @@ def _set_phase(phase: str):
     """Set the optimizer phase and persist it for restart recovery."""
     _state["phase"] = phase
     setup_store.set("gridmind_optimize_phase", phase)
+    setup_store.set("gridmind_optimize_phase_time", _get_local_now().isoformat())
 
 
 def get_state() -> dict:
@@ -96,28 +97,33 @@ def init():
         _state["pre_optimize_grid_charging"] = setup_store.get("gridmind_optimize_pre_grid_charging", True)
 
         # Restore persisted phase, validated against current time
+        # Uses weekend-aware check: most TOU plans are off-peak on weekends
         saved_phase = setup_store.get("gridmind_optimize_phase", "idle")
         try:
             tz = ZoneInfo(setup_store.get_timezone() or settings.timezone)
             now = datetime.now(tz)
             current_hour = now.hour
-            in_peak = _state["peak_start_hour"] <= current_hour < _state["peak_end_hour"]
+            is_weekday = now.weekday() < 5  # Mon-Fri
+            in_peak = is_weekday and _state["peak_start_hour"] <= current_hour < _state["peak_end_hour"]
 
             if in_peak and saved_phase in ("dumping", "peak_hold"):
                 # Restore the exact phase from before restart
                 _state["phase"] = saved_phase
-                logger.info("GridMind Optimize restored: in peak hours, resuming phase '%s'", saved_phase)
+                logger.info("GridMind Optimize restored: in peak hours (%s), resuming phase '%s'",
+                            "weekday" if is_weekday else "weekend", saved_phase)
             elif in_peak:
                 _state["phase"] = "peak_hold"
                 logger.info("GridMind Optimize restored: in peak hours, entering peak_hold")
             elif saved_phase in ("peak_hold", "dumping", "complete"):
-                # Restarted after peak but settings were never restored —
-                # keep the phase so evaluate() triggers _end_peak() on next cycle
+                # Restarted after peak or on weekend — settings need restoring.
+                # Set phase so evaluate() triggers _end_peak() on next cycle.
                 _state["phase"] = saved_phase
-                logger.info("GridMind Optimize restored: outside peak hours with phase '%s', will restore settings", saved_phase)
+                logger.info("GridMind Optimize restored: not in peak (%s, hour=%d) with phase '%s', will restore settings",
+                            "weekday" if is_weekday else "weekend", current_hour, saved_phase)
             else:
                 _state["phase"] = "idle"
-                logger.info("GridMind Optimize restored: outside peak hours")
+                logger.info("GridMind Optimize restored: outside peak hours (%s)",
+                            "weekday" if is_weekday else "weekend")
         except Exception:
             _state["phase"] = "idle"
 
@@ -372,6 +378,21 @@ async def evaluate():
     status = get_latest_status()
     if status is None:
         return
+
+    # Safety: if peak_hold/dumping has been active for over 6 hours, something is wrong.
+    # No peak window is that long — force restore to prevent getting stuck.
+    if _state["phase"] in ("peak_hold", "dumping"):
+        phase_persisted_at = setup_store.get("gridmind_optimize_phase_time")
+        if phase_persisted_at:
+            try:
+                phase_age_hours = (now - datetime.fromisoformat(phase_persisted_at)).total_seconds() / 3600
+                if phase_age_hours > 6:
+                    logger.warning("GridMind Optimize: phase '%s' stuck for %.1f hours — forcing restore",
+                                   _state["phase"], phase_age_hours)
+                    await _end_peak()
+                    return
+            except Exception:
+                pass
 
     # Check TOU schedule to determine if we're in peak
     tou = _get_tou_peak_info(now)
