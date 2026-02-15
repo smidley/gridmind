@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Zap, ArrowLeft } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Legend } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -233,6 +233,85 @@ export default function DetailGrid() {
           </div>
         </div>
       )}
+
+      {/* Grid Cleanliness Over Time */}
+      {gridMix?.configured && gridMix?.hourly?.length > 0 && (() => {
+        // Build chart data from hourly breakdown
+        const chartData = gridMix.hourly.map((h: any) => {
+          // Parse hour from period string (e.g., "2026-02-15T14" -> "2p")
+          const match = h.period?.match(/T(\d+)$/)
+          const hr = match ? parseInt(match[1]) : 0
+          const label = hr === 0 ? '12a' : hr === 12 ? '12p' : hr < 12 ? `${hr}a` : `${hr - 12}p`
+          return {
+            label,
+            hour: hr,
+            WAT: h.WAT || 0,
+            WND: h.WND || 0,
+            SUN: h.SUN || 0,
+            NUC: h.NUC || 0,
+            NG: h.NG || 0,
+            COL: h.COL || 0,
+            OIL: h.OIL || 0,
+            OTH: h.OTH || 0,
+            clean_pct: h.clean_pct || 0,
+          }
+        })
+
+        return (
+          <div className="card">
+            <div className="card-header">Grid Source Mix — Last 24 Hours</div>
+            <p className="text-xs text-slate-500 mb-3">
+              Percentage of generation by fuel type each hour ·{' '}
+              <a href="https://www.eia.gov/opendata/" target="_blank" rel="noreferrer" className="underline hover:text-slate-400">
+                Source: U.S. Energy Information Administration
+              </a>
+            </p>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={chartData} stackOffset="expand">
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} />
+                <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(148, 163, 184, 0.06)' }}
+                  formatter={(v: number, name: string) => {
+                    const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
+                    return [`${v.toFixed(1)}%`, nameMap[name] || name]
+                  }}
+                />
+                <Legend formatter={(val) => {
+                  const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
+                  return <span className="text-xs text-slate-600 dark:text-slate-300">{nameMap[val] || val}</span>
+                }} />
+                {/* Clean sources (bottom) */}
+                <Bar dataKey="WAT" stackId="fuel" fill="#3b82f6" />
+                <Bar dataKey="WND" stackId="fuel" fill="#2dd4bf" />
+                <Bar dataKey="SUN" stackId="fuel" fill="#fbbf24" />
+                <Bar dataKey="NUC" stackId="fuel" fill="#8b5cf6" />
+                {/* Fossil sources (top) */}
+                <Bar dataKey="NG" stackId="fuel" fill="#fb923c" />
+                <Bar dataKey="COL" stackId="fuel" fill="#78716c" />
+                <Bar dataKey="OIL" stackId="fuel" fill="#f87171" />
+                <Bar dataKey="OTH" stackId="fuel" fill="#64748b" />
+              </BarChart>
+            </ResponsiveContainer>
+
+            {/* Clean % line below */}
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="card-header">Clean Energy % Over Time</div>
+              <ResponsiveContainer width="100%" height={120}>
+                <AreaChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Clean Energy']} />
+                  <Area type="monotone" dataKey="clean_pct" stroke="#10b981" fill="#10b98120" strokeWidth={2} dot={false} />
+                  <ReferenceLine y={50} stroke="#475569" strokeDasharray="3 3" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

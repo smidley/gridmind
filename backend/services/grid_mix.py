@@ -146,7 +146,7 @@ async def fetch_grid_mix() -> dict | None:
         logger.debug("Grid mix: no balancing authority configured or detected")
         return None
 
-    # Request last 24 hours of data to find the most recent available
+    # Request last 24 hours of data
     now = datetime.utcnow()
     start = (now - timedelta(hours=24)).strftime("%Y-%m-%dT%H")
 
@@ -160,7 +160,7 @@ async def fetch_grid_mix() -> dict | None:
                 "start": start,
                 "sort[0][column]": "period",
                 "sort[0][direction]": "desc",
-                "length": 50,
+                "length": 500,  # ~24 hours × ~8 fuel types = ~192 records
             })
 
         if response.status_code != 200:
@@ -174,27 +174,31 @@ async def fetch_grid_mix() -> dict | None:
             logger.debug("Grid mix: no data returned for %s", ba)
             return _cached_mix
 
-        # Group by the most recent period
-        latest_period = records[0].get("period", "")
-        latest_records = [r for r in records if r.get("period") == latest_period]
-
-        # Build fuel mix
-        fuel_mwh = {}
-        total_mwh = 0
-        for r in latest_records:
+        # Group all records by period (hour)
+        by_period: dict[str, dict[str, float]] = {}
+        for r in records:
+            period = r.get("period", "")
             fuel = r.get("fueltype", "OTH")
             value = r.get("value")
             if fuel == "ALL" or value is None:
                 continue
             mwh = float(value)
             if mwh > 0:
-                fuel_mwh[fuel] = fuel_mwh.get(fuel, 0) + mwh
-                total_mwh += mwh
+                if period not in by_period:
+                    by_period[period] = {}
+                by_period[period][fuel] = by_period[period].get(fuel, 0) + mwh
+
+        if not by_period:
+            return _cached_mix
+
+        # Build current (latest) period summary
+        latest_period = sorted(by_period.keys(), reverse=True)[0]
+        fuel_mwh = by_period[latest_period]
+        total_mwh = sum(fuel_mwh.values())
 
         if total_mwh <= 0:
             return _cached_mix
 
-        # Calculate percentages
         sources = {}
         clean_pct = 0.0
         fossil_pct = 0.0
@@ -210,6 +214,25 @@ async def fetch_grid_mix() -> dict | None:
             elif fuel in FOSSIL_FUELS:
                 fossil_pct += pct
 
+        # Build hourly breakdown for the chart
+        hourly = []
+        for period in sorted(by_period.keys()):
+            fuels = by_period[period]
+            period_total = sum(fuels.values())
+            if period_total <= 0:
+                continue
+            entry = {"period": period}
+            period_clean = 0.0
+            for fuel, mwh in fuels.items():
+                pct = round((mwh / period_total) * 100, 1)
+                entry[fuel] = pct
+                entry[f"{fuel}_name"] = FUEL_DISPLAY.get(fuel, fuel)
+                if fuel in CLEAN_FUELS:
+                    period_clean += pct
+            entry["clean_pct"] = round(period_clean, 1)
+            entry["fossil_pct"] = round(100 - period_clean, 1)
+            hourly.append(entry)
+
         result = {
             "balancing_authority": ba,
             "period": latest_period,
@@ -217,6 +240,7 @@ async def fetch_grid_mix() -> dict | None:
             "clean_pct": round(clean_pct, 1),
             "fossil_pct": round(fossil_pct, 1),
             "total_mwh": round(total_mwh, 1),
+            "hourly": hourly,
             "fetched_at": now.isoformat(),
             "attribution": "Source: U.S. Energy Information Administration (EIA)",
             "attribution_url": "https://www.eia.gov/opendata/",
