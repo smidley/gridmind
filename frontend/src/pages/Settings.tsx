@@ -215,6 +215,98 @@ function NotificationConfig() {
   )
 }
 
+/** Inline component for EIA Grid Mix API configuration */
+function EIAConfig() {
+  const [key, setKey] = useState('')
+  const [ba, setBa] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const { data: config, refetch } = useApi<any>('/settings/grid-mix/config')
+
+  const saveConfig = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      const body: any = {}
+      if (key) body.eia_api_key = key
+      if (ba !== undefined) body.balancing_authority = ba
+      await apiFetch('/settings/grid-mix/config', { method: 'POST', body: JSON.stringify(body) })
+      setSuccess('Saved')
+      setKey('')
+      refetch()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const removeKey = async () => {
+    setSaving(true); setError(''); setSuccess('')
+    try {
+      await apiFetch('/settings/grid-mix/config', { method: 'POST', body: JSON.stringify({ eia_api_key: '' }) })
+      setSuccess('API key removed')
+      refetch()
+    } catch (e: any) { setError(e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {config?.eia_api_key_configured ? (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm text-emerald-400 font-medium">EIA API key configured</span>
+            {config.balancing_authority && (
+              <span className="text-xs text-slate-500">· Region: {config.balancing_authority}</span>
+            )}
+          </div>
+          <button onClick={removeKey} disabled={saving} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300">
+            <Trash2 className="w-3 h-3" /> Remove
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="EIA API key"
+              className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
+            />
+            <button onClick={saveConfig} disabled={saving || !key} className="btn-primary text-sm px-4">
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-500">
+            Get a free key at{' '}
+            <a href="https://www.eia.gov/opendata/register.php" target="_blank" rel="noreferrer" className="underline hover:text-slate-400">
+              eia.gov/opendata
+            </a>
+          </p>
+        </div>
+      )}
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          value={ba || config?.balancing_authority || ''}
+          onChange={(e) => setBa(e.target.value.toUpperCase())}
+          placeholder="Auto-detect from location"
+          className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
+        />
+        <span className="text-[10px] text-slate-500 shrink-0">Region override (e.g. BPA, CISO, ERCO)</span>
+      </div>
+      {ba && ba !== (config?.balancing_authority || '') && (
+        <button onClick={saveConfig} disabled={saving} className="btn-secondary text-sm px-4">
+          {saving ? 'Saving...' : 'Save Region'}
+        </button>
+      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {success && <p className="text-xs text-emerald-400">{success}</p>}
+    </div>
+  )
+}
+
+
 /** Inline component for OpenAI API key configuration */
 function AIKeyConfig() {
   const [key, setKey] = useState('')
@@ -1319,6 +1411,16 @@ export default function SettingsPage() {
           Add your OpenAI API key to enable AI-powered energy insights and anomaly detection on the dashboard.
         </p>
         <AIKeyConfig />
+      </div>
+
+      {/* EIA Grid Mix Configuration */}
+      <div className="card">
+        <div className="card-header">Grid Energy Sources (EIA)</div>
+        <p className="text-xs text-slate-500 mb-4">
+          Add a free EIA API key to see real-time grid fuel mix (hydro, wind, solar, gas, etc.) on the Dashboard and Grid page.
+          Your balancing authority region is auto-detected from your location, or you can override it manually.
+        </p>
+        <EIAConfig />
       </div>
 
       {/* Site Info */}
