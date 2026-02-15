@@ -29,14 +29,15 @@ _cache_time: float = 0
 CACHE_TTL = 1800  # 30 minutes
 
 # Fuel type categories
-CLEAN_FUELS = {"SUN", "WND", "WAT", "NUC"}  # Solar, Wind, Hydro, Nuclear
-FOSSIL_FUELS = {"NG", "COL", "OIL", "OTH"}   # Gas, Coal, Oil, Other
+CLEAN_FUELS = {"SUN", "WND", "WAT", "NUC", "BAT"}  # Solar, Wind, Hydro, Nuclear, Battery Storage
+FOSSIL_FUELS = {"NG", "COL", "OIL", "OTH"}          # Gas, Coal, Oil, Other
 
 FUEL_DISPLAY = {
     "SUN": "Solar",
     "WND": "Wind",
     "WAT": "Hydro",
     "NUC": "Nuclear",
+    "BAT": "Battery",
     "NG": "Natural Gas",
     "COL": "Coal",
     "OIL": "Oil",

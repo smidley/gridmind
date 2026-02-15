@@ -196,8 +196,8 @@ export default function DetailGrid() {
               .map(([fuel, info]: [string, any]) => {
                 const colorMap: Record<string, string> = {
                   WAT: 'bg-blue-500', SUN: 'bg-amber-400', WND: 'bg-teal-400',
-                  NUC: 'bg-violet-500', NG: 'bg-orange-400', COL: 'bg-stone-500',
-                  OIL: 'bg-red-400', OTH: 'bg-slate-500',
+                  NUC: 'bg-violet-500', BAT: 'bg-cyan-400', NG: 'bg-orange-400',
+                  COL: 'bg-stone-500', OIL: 'bg-red-400', OTH: 'bg-slate-500',
                 }
                 return (
                   <div
@@ -219,8 +219,8 @@ export default function DetailGrid() {
               .map(([fuel, info]: [string, any]) => {
                 const dotColorMap: Record<string, string> = {
                   WAT: 'bg-blue-500', SUN: 'bg-amber-400', WND: 'bg-teal-400',
-                  NUC: 'bg-violet-500', NG: 'bg-orange-400', COL: 'bg-stone-500',
-                  OIL: 'bg-red-400', OTH: 'bg-slate-500',
+                  NUC: 'bg-violet-500', BAT: 'bg-cyan-400', NG: 'bg-orange-400',
+                  COL: 'bg-stone-500', OIL: 'bg-red-400', OTH: 'bg-slate-500',
                 }
                 return (
                   <div key={fuel} className="flex items-center gap-1.5">
@@ -249,6 +249,7 @@ export default function DetailGrid() {
             WND: h.WND || 0,
             SUN: h.SUN || 0,
             NUC: h.NUC || 0,
+            BAT: h.BAT || 0,
             NG: h.NG || 0,
             COL: h.COL || 0,
             OIL: h.OIL || 0,
@@ -274,12 +275,12 @@ export default function DetailGrid() {
                 <Tooltip
                   cursor={{ fill: 'rgba(148, 163, 184, 0.06)' }}
                   formatter={(v: number, name: string) => {
-                    const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
+                    const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', BAT: 'Battery', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
                     return [`${v.toFixed(1)}%`, nameMap[name] || name]
                   }}
                 />
                 <Legend formatter={(val) => {
-                  const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
+                  const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', BAT: 'Battery', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
                   return <span className="text-xs text-slate-600 dark:text-slate-300">{nameMap[val] || val}</span>
                 }} />
                 {/* Clean sources (bottom) */}
@@ -287,6 +288,7 @@ export default function DetailGrid() {
                 <Bar dataKey="WND" stackId="fuel" fill="#2dd4bf" />
                 <Bar dataKey="SUN" stackId="fuel" fill="#fbbf24" />
                 <Bar dataKey="NUC" stackId="fuel" fill="#8b5cf6" />
+                <Bar dataKey="BAT" stackId="fuel" fill="#22d3ee" />
                 {/* Fossil sources (top) */}
                 <Bar dataKey="NG" stackId="fuel" fill="#fb923c" />
                 <Bar dataKey="COL" stackId="fuel" fill="#78716c" />
