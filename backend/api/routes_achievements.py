@@ -278,6 +278,128 @@ async def get_achievements():
         solar_miles_total >= 1000, f"{solar_miles_total:,.0f} solar miles" if solar_miles_total >= 1000 else "",
     ))
 
+    # --- GridMind Optimize ---
+
+    optimize_enabled = bool(setup_store.get("gridmind_optimize_enabled"))
+    # Count days where peak export > 0 (optimize dumped battery)
+    optimize_dump_days = sum(1 for s in summaries
+                            if (s.grid_exported_kwh or 0) > 5 and (s.battery_discharged_kwh or 0) > 10)
+    first_dump_date = ""
+    for s in summaries:
+        if (s.grid_exported_kwh or 0) > 5 and (s.battery_discharged_kwh or 0) > 10:
+            first_dump_date = s.date
+            break
+
+    achievements.append(_achievement(
+        "optimizer_on", "Brain Power", "Enable GridMind Optimize for the first time", "optimize", "brain",
+        optimize_enabled, "Optimize active" if optimize_enabled else "",
+    ))
+    achievements.append(_achievement(
+        "first_dump", "First Dump", "Complete your first peak battery dump to grid", "optimize", "brain",
+        optimize_dump_days >= 1, f"{optimize_dump_days} dump day{'s' if optimize_dump_days != 1 else ''}" if optimize_dump_days >= 1 else "", first_dump_date,
+    ))
+    achievements.append(_achievement(
+        "dump_10", "Peak Performer", "Complete 10 peak battery dumps", "optimize", "brain",
+        optimize_dump_days >= 10, f"{optimize_dump_days} dump days" if optimize_dump_days >= 10 else "",
+    ))
+    achievements.append(_achievement(
+        "dump_50", "Dump Master", "Complete 50 peak battery dumps", "optimize", "brain",
+        optimize_dump_days >= 50, f"{optimize_dump_days} dump days" if optimize_dump_days >= 50 else "",
+    ))
+
+    # --- Clean Energy ---
+
+    eia_configured = bool(setup_store.get("eia_api_key"))
+    clean_grid_enabled = bool(setup_store.get("gridmind_clean_grid_enabled"))
+
+    achievements.append(_achievement(
+        "grid_aware", "Grid Aware", "Connect to EIA to monitor your grid's energy sources", "clean_energy", "leaf",
+        eia_configured, "EIA connected" if eia_configured else "",
+    ))
+    achievements.append(_achievement(
+        "clean_preference", "Clean Conscience", "Enable the clean grid preference in optimizer", "clean_energy", "leaf",
+        clean_grid_enabled, "Clean grid active" if clean_grid_enabled else "",
+    ))
+
+    # Net zero streak (consecutive net-zero days)
+    nz_streak = 0
+    current_nz = 0
+    nz_streak_date = ""
+    for s in summaries:
+        if (s.grid_exported_kwh or 0) >= (s.grid_imported_kwh or 0) and (s.grid_exported_kwh or 0) > 0:
+            current_nz += 1
+            if current_nz > nz_streak:
+                nz_streak = current_nz
+                if current_nz == 3:
+                    nz_streak_date = s.date
+        else:
+            current_nz = 0
+
+    achievements.append(_achievement(
+        "net_zero_streak", "Net Zero Streak", "Achieve 3 consecutive net-zero days", "clean_energy", "leaf",
+        nz_streak >= 3, f"{nz_streak} day streak" if nz_streak >= 3 else "", nz_streak_date,
+    ))
+
+    # --- More Solar ---
+
+    # 30-day solar streak
+    streak_30_date = ""
+    cs2 = 0
+    for s in summaries:
+        if (s.solar_generated_kwh or 0) > 0.5:
+            cs2 += 1
+            if cs2 >= 30 and not streak_30_date:
+                streak_30_date = s.date
+        else:
+            cs2 = 0
+
+    achievements.append(_achievement(
+        "solar_streak_30", "Solar Marathon", "30 consecutive days of solar generation", "solar", "sun",
+        cs2 >= 30 or any(True for s in summaries if cs2 >= 30), f"{max(solar_streak, cs2)} day streak" if solar_streak >= 30 else "", streak_30_date,
+    ))
+
+    # Best solar day
+    best_solar_day = max((s.solar_generated_kwh or 0 for s in summaries), default=0)
+    best_solar_date = ""
+    for s in summaries:
+        if (s.solar_generated_kwh or 0) == best_solar_day and best_solar_day > 30:
+            best_solar_date = s.date
+            break
+
+    achievements.append(_achievement(
+        "solar_record", "Record Breaker", "Generate over 30 kWh of solar in a single day", "solar", "flame",
+        best_solar_day >= 30, f"{best_solar_day:.1f} kWh best day" if best_solar_day >= 30 else "", best_solar_date,
+    ))
+
+    # --- More Battery ---
+
+    achievements.append(_achievement(
+        "cycles_10", "Cycle Veteran", "Complete 10 full battery cycles", "battery", "battery",
+        total_cycles >= 10, f"{total_cycles:.0f} cycles" if total_cycles >= 10 else "",
+    ))
+
+    # --- More Grid ---
+
+    achievements.append(_achievement(
+        "export_5000", "Grid Giver", "Export 5,000 kWh to the grid", "grid", "zap",
+        total_exported >= 5000, f"{total_exported:,.0f} kWh exported" if total_exported >= 5000 else "",
+    ))
+    achievements.append(_achievement(
+        "net_zero_10", "Net Zero Pro", "Achieve 10 net-zero days", "grid", "shield",
+        net_zero_days >= 10, f"{net_zero_days} net-zero days" if net_zero_days >= 10 else "",
+    ))
+    achievements.append(_achievement(
+        "self_powered_7", "Off-Grid Week", "7 days with zero grid imports", "grid", "shield",
+        self_powered_days >= 7, f"{self_powered_days} self-powered days" if self_powered_days >= 7 else "",
+    ))
+
+    # --- More Financial ---
+
+    achievements.append(_achievement(
+        "five_k_club", "Five K Club", "Save $5,000 in energy costs", "financial", "dollar",
+        total_savings >= 5000, f"${total_savings:,.0f} saved" if total_savings >= 5000 else "",
+    ))
+
     # --- System ---
 
     achievements.append(_achievement(
@@ -291,6 +413,16 @@ async def get_achievements():
     achievements.append(_achievement(
         "month_monitor", "Month Monitor", "Run GridMind for 30 consecutive days", "system", "clock",
         days_running >= 30, f"{days_running} days tracked" if days_running >= 30 else "", day_30_date,
+    ))
+    day_90_date = summaries[89].date if len(summaries) >= 90 else ""
+    achievements.append(_achievement(
+        "quarter_guard", "Quarter Guard", "Run GridMind for 90 consecutive days", "system", "clock",
+        days_running >= 90, f"{days_running} days tracked" if days_running >= 90 else "", day_90_date,
+    ))
+    day_365_date = summaries[364].date if len(summaries) >= 365 else ""
+    achievements.append(_achievement(
+        "year_one", "Year One", "Run GridMind for a full year", "system", "clock",
+        days_running >= 365, f"{days_running} days tracked" if days_running >= 365 else "", day_365_date,
     ))
 
     earned_count = sum(1 for a in achievements if a["earned"])

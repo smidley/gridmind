@@ -9,6 +9,9 @@ import {
   Settings,
   Clock,
   Lock,
+  Brain,
+  Leaf,
+  Flame,
 } from 'lucide-react'
 import { useApi } from '../hooks/useApi'
 
@@ -16,6 +19,8 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
   solar: { label: 'Solar Milestones', color: 'amber' },
   battery: { label: 'Battery Milestones', color: 'blue' },
   grid: { label: 'Grid Independence', color: 'emerald' },
+  optimize: { label: 'GridMind Optimize', color: 'cyan' },
+  clean_energy: { label: 'Clean Energy', color: 'teal' },
   financial: { label: 'Financial', color: 'green' },
   ev: { label: 'EV / Vehicle', color: 'violet' },
   system: { label: 'System', color: 'slate' },
@@ -30,11 +35,16 @@ const ICON_MAP: Record<string, any> = {
   car: Car,
   settings: Settings,
   clock: Clock,
+  brain: Brain,
+  leaf: Leaf,
+  flame: Flame,
 }
 
 const COLOR_CLASSES: Record<string, { earned: string; glow: string; icon: string; text: string; bg: string; border: string }> = {
   amber:   { earned: 'border-amber-500/40',   glow: 'shadow-amber-500/20',   icon: 'text-amber-400',   text: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20' },
   blue:    { earned: 'border-blue-500/40',    glow: 'shadow-blue-500/20',    icon: 'text-blue-400',    text: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/20' },
+  cyan:    { earned: 'border-cyan-500/40',    glow: 'shadow-cyan-500/20',    icon: 'text-cyan-400',    text: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20' },
+  teal:    { earned: 'border-teal-500/40',    glow: 'shadow-teal-500/20',    icon: 'text-teal-400',    text: 'text-teal-400',    bg: 'bg-teal-500/10',    border: 'border-teal-500/20' },
   emerald: { earned: 'border-emerald-500/40', glow: 'shadow-emerald-500/20', icon: 'text-emerald-400', text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
   green:   { earned: 'border-green-500/40',   glow: 'shadow-green-500/20',   icon: 'text-green-400',   text: 'text-green-400',   bg: 'bg-green-500/10',   border: 'border-green-500/20' },
   violet:  { earned: 'border-violet-500/40',  glow: 'shadow-violet-500/20',  icon: 'text-violet-400',  text: 'text-violet-400',  bg: 'bg-violet-500/10',  border: 'border-violet-500/20' },
