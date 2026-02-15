@@ -191,12 +191,18 @@ async def grid_energy_mix():
     """
     from services.grid_mix import get_cached_mix, fetch_grid_mix, get_eia_api_key, get_balancing_authority
 
-    if not get_eia_api_key():
+    api_key = get_eia_api_key()
+    if not api_key:
         return {"configured": False, "message": "EIA API key not configured. Get a free key at https://www.eia.gov/opendata/register.php"}
 
     ba = get_balancing_authority()
     if not ba:
-        return {"configured": True, "error": "Could not determine your grid region. Set your balancing authority in Settings."}
+        return {
+            "configured": True,
+            "error": "Could not determine your grid region. Set your balancing authority in Settings.",
+            "debug": {"api_key_length": len(api_key), "address": setup_store.get_address() or "(none)",
+                      "lat": setup_store.get_latitude(), "lon": setup_store.get_longitude()},
+        }
 
     # Try cache first, fetch if stale
     mix = get_cached_mix()
@@ -204,7 +210,11 @@ async def grid_energy_mix():
         mix = await fetch_grid_mix()
 
     if not mix:
-        return {"configured": True, "balancing_authority": ba, "error": "No grid mix data available yet. Data updates every 30 minutes."}
+        return {
+            "configured": True,
+            "balancing_authority": ba,
+            "error": "No grid mix data available yet. Check container logs for EIA API errors.",
+        }
 
     return {"configured": True, **mix}
 

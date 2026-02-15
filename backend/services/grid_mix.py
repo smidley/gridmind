@@ -151,24 +151,28 @@ async def fetch_grid_mix() -> dict | None:
     start = (now - timedelta(hours=24)).strftime("%Y-%m-%dT%H")
 
     try:
+        params = {
+            "api_key": api_key,
+            "frequency": "hourly",
+            "data[]": "value",
+            "facets[respondent][]": ba,
+            "start": start,
+            "sort[0][column]": "period",
+            "sort[0][direction]": "desc",
+            "length": 500,
+        }
+        logger.info("Fetching EIA grid mix for %s (start=%s)", ba, start)
+
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(EIA_API_URL, params={
-                "api_key": api_key,
-                "frequency": "hourly",
-                "data[]": "value",
-                "facets[respondent][]": ba,
-                "start": start,
-                "sort[0][column]": "period",
-                "sort[0][direction]": "desc",
-                "length": 500,  # ~24 hours × ~8 fuel types = ~192 records
-            })
+            response = await client.get(EIA_API_URL, params=params)
 
         if response.status_code != 200:
-            logger.warning("EIA API error: %d %s", response.status_code, response.text[:200])
-            return _cached_mix  # Return stale cache on error
+            logger.warning("EIA API error: %d %s", response.status_code, response.text[:500])
+            return _cached_mix
 
         data = response.json()
         records = data.get("response", {}).get("data", [])
+        logger.info("EIA returned %d records for %s", len(records), ba)
 
         if not records:
             logger.debug("Grid mix: no data returned for %s", ba)
