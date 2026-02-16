@@ -10,18 +10,11 @@ alwaysApply: true
 Before making ANY changes, read `/DEVELOPMENT.md` in the project root. It contains the full architecture, patterns, file map, git workflow, and backlog.
 
 ## Git Workflow (CRITICAL)
-```bash
-gh auth switch --user smidley    # BEFORE commit/push
-git add -A && git commit -m "descriptive message"
-git push origin main
-gh auth switch --user tiltScott  # ALWAYS switch back
-```
 If push is rejected, use `git pull --rebase origin main` then push again.
 
 ## The User's Setup
 - App runs on **Unraid** (not locally) — don't try to docker build/run locally
 - After pushing, tell the user to update the container on Unraid
-- Access via `https://gridmind.smidley.xyz` (HTTPS, behind reverse proxy)
 - WebSocket may not be available (reverse proxy needs WS support)
 
 ## Key Patterns
