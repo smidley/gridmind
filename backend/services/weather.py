@@ -9,6 +9,7 @@ from sqlalchemy import select, delete
 from config import settings
 from database import async_session, SolarForecast
 from services import setup_store
+from services.cache import cached
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,14 @@ def _get_solar_config() -> dict:
     }
 
 
+@cached(ttl=3600, key_prefix="solar_forecast")
 async def fetch_solar_forecast() -> list[dict]:
     """Fetch solar irradiance forecast from Open-Meteo.
 
     Uses Global Tilted Irradiance (GTI) when panel tilt/azimuth are configured,
     falling back to horizontal GHI. Estimates PV output based on panel config.
+
+    Cached for 1 hour to reduce API calls.
     """
     latitude = setup_store.get_latitude()
     longitude = setup_store.get_longitude()
@@ -296,8 +300,12 @@ WEATHER_DESCRIPTIONS = {
 }
 
 
+@cached(ttl=3600, key_prefix="weather_forecast")
 async def get_weather_forecast() -> dict:
-    """Get 7-day weather forecast with storm/severe weather indicators."""
+    """Get 7-day weather forecast with storm/severe weather indicators.
+
+    Cached for 1 hour to reduce API calls.
+    """
     latitude = setup_store.get_latitude()
     longitude = setup_store.get_longitude()
     timezone = setup_store.get_timezone()
