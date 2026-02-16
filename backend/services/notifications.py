@@ -112,8 +112,16 @@ async def send_email(subject: str, body: str, smtp: dict | None = None):
     logger.info("Sent email notification: %s", subject)
 
 
-async def send_webhook(title: str, message: str, level: str = "info", url: str | None = None):
-    """Send a webhook notification (supports Slack, Discord, and generic JSON)."""
+async def send_webhook(title: str, message: str, level: str = "info", url: str | None = None, use_retry: bool = True):
+    """Send a webhook notification (supports Slack, Discord, and generic JSON).
+
+    Args:
+        title: Notification title
+        message: Notification body
+        level: "info", "warning", or "critical"
+        url: Webhook URL (uses configured URL if not provided)
+        use_retry: If True, failed webhooks are queued for retry with exponential backoff
+    """
     if url is None:
         url = _get_webhook_url()
     if not url:
@@ -131,11 +139,20 @@ async def send_webhook(title: str, message: str, level: str = "info", url: str |
             "source": "GridMind",
         }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, timeout=10.0)
-        response.raise_for_status()
-
-    logger.info("Sent webhook notification: %s", title)
+    if use_retry:
+        # Use retry service for automatic retries with exponential backoff
+        from services.webhook_retry import send_with_retry
+        success = await send_with_retry(url, payload)
+        if success:
+            logger.info("Sent webhook notification: %s", title)
+        else:
+            logger.warning("Webhook queued for retry: %s", title)
+    else:
+        # Direct send without retry
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10.0)
+            response.raise_for_status()
+        logger.info("Sent webhook notification: %s", title)
 
 
 def _format_slack(title: str, message: str, level: str) -> dict:
