@@ -151,20 +151,45 @@ export default function DetailGrid() {
       {/* Rate Schedule */}
       {tariff?.configured && (
         <div className="card">
-          <div className="card-header">Rate Schedule — {tariff.utility}</div>
-          <p className="text-xs text-slate-500 mb-2">{tariff.plan_name}</p>
-          <div className="flex flex-wrap gap-4 text-sm">
-            {tariff.rate_schedule && Object.entries(tariff.rate_schedule).map(([period, info]: [string, any]) => (
-              <div key={period} className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  info.display_name === 'Peak' ? 'bg-red-500/20 text-red-600 dark:text-red-400'
-                  : info.display_name === 'Mid-Peak' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                  : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                }`}>{info.display_name}</span>
-                <span className="text-slate-500">${info.rate?.toFixed(3)}/kWh</span>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="card-header mb-0">Rate Schedule — {tariff.utility}</div>
+              <p className="text-xs text-slate-500">{tariff.plan_name}</p>
+            </div>
+            {tariff.current_period_display && (
+              <div className={`px-3 py-1.5 rounded-lg text-sm font-bold ${
+                tariff.current_period_display === 'Peak' ? 'bg-red-500/15 text-red-500'
+                : tariff.current_period_display === 'Mid-Peak' ? 'bg-amber-500/15 text-amber-500'
+                : 'bg-emerald-500/15 text-emerald-500'
+              }`}>
+                Now: {tariff.current_period_display}
+                {tariff.current_rate ? ` · $${tariff.current_rate.toFixed(3)}/kWh` : ''}
               </div>
-            ))}
+            )}
           </div>
+          <div className="flex flex-wrap gap-4 text-sm mt-3">
+            {tariff.rate_schedule && Object.entries(tariff.rate_schedule).map(([period, info]: [string, any]) => {
+              const isActive = info.display_name === tariff.current_period_display
+              return (
+                <div key={period} className={`flex items-center gap-2 ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    info.display_name === 'Peak' ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                    : info.display_name === 'Mid-Peak' ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                    : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  }`}>{info.display_name}</span>
+                  <span className="text-slate-500">${info.rate?.toFixed(3)}/kWh</span>
+                </div>
+              )
+            })}
+          </div>
+          {/* Weekend note */}
+          {tariff.current_period_display === 'Off-Peak' && (() => {
+            const day = new Date().getDay()
+            const isWeekend = day === 0 || day === 6
+            return isWeekend ? (
+              <p className="text-xs text-emerald-500/70 mt-3">Weekends are off-peak all day on this plan.</p>
+            ) : null
+          })()}
         </div>
       )}
 
