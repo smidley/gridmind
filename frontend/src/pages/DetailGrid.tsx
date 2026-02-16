@@ -238,9 +238,8 @@ export default function DetailGrid() {
       {gridMix?.configured && gridMix?.hourly?.length > 0 && (() => {
         // Build chart data from hourly breakdown
         const chartData = gridMix.hourly.map((h: any) => {
-          // Parse hour from period string (e.g., "2026-02-15T14" -> "2p")
-          const match = h.period?.match(/T(\d+)$/)
-          const hr = match ? parseInt(match[1]) : 0
+          // Use local_hour from backend (already converted from UTC)
+          const hr = h.local_hour ?? 0
           const label = hr === 0 ? '12a' : hr === 12 ? '12p' : hr < 12 ? `${hr}a` : `${hr - 12}p`
           return {
             label,

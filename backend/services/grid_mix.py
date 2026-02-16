@@ -257,14 +257,34 @@ async def fetch_grid_mix() -> dict | None:
             elif fuel in FOSSIL_FUELS:
                 fossil_pct += pct
 
-        # Build hourly breakdown for the chart
+        # Build hourly breakdown for the chart, converting UTC to local time
+        from zoneinfo import ZoneInfo
+        user_tz_name = setup_store.get_timezone()
+        try:
+            user_tz = ZoneInfo(user_tz_name)
+        except Exception:
+            user_tz = ZoneInfo("America/New_York")
+
         hourly = []
         for period in sorted(by_period.keys()):
             fuels = by_period[period]
             period_total = sum(fuels.values())
             if period_total <= 0:
                 continue
-            entry = {"period": period}
+
+            # Convert UTC period to local time for display
+            local_period = period
+            local_hour = None
+            try:
+                utc_dt = datetime.strptime(period, "%Y-%m-%dT%H")
+                utc_dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
+                local_dt = utc_dt.astimezone(user_tz)
+                local_period = local_dt.strftime("%Y-%m-%dT%H")
+                local_hour = local_dt.hour
+            except Exception:
+                pass
+
+            entry = {"period": local_period, "local_hour": local_hour}
             period_clean = 0.0
             for fuel, mwh in fuels.items():
                 pct = round((mwh / period_total) * 100, 1)
@@ -276,9 +296,18 @@ async def fetch_grid_mix() -> dict | None:
             entry["fossil_pct"] = round(100 - period_clean, 1)
             hourly.append(entry)
 
+        # Convert latest period to local time for display
+        try:
+            utc_dt = datetime.strptime(latest_period, "%Y-%m-%dT%H")
+            utc_dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
+            local_dt = utc_dt.astimezone(user_tz)
+            latest_period_local = local_dt.strftime("%Y-%m-%d %I:%M %p %Z")
+        except Exception:
+            latest_period_local = latest_period
+
         result = {
             "balancing_authority": ba,
-            "period": latest_period,
+            "period": latest_period_local,
             "sources": sources,
             "clean_pct": round(clean_pct, 1),
             "fossil_pct": round(fossil_pct, 1),
