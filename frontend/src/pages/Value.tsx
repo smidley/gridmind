@@ -75,6 +75,7 @@ export default function ValuePage() {
   const { data: value, loading } = useAutoRefresh<any>('/history/value', 30000)
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: forecast } = useAutoRefresh<any>('/history/forecast', 60000)
+  const { data: savings } = useAutoRefresh<any>('/powerwall/health/savings', 60000)
 
   // Build hourly chart data
   const hourlyChart = value?.hourly_breakdown?.map((h: any) => ({
@@ -533,6 +534,92 @@ export default function ValuePage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+          {/* Lifetime System Value */}
+          {savings && !savings.error && (
+            <div className="card border-emerald-500/20 bg-gradient-to-r from-emerald-500/5 to-transparent">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="w-4.5 h-4.5 text-emerald-400" />
+                <span className="card-header mb-0">Lifetime System Value</span>
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-4xl font-bold tabular-nums text-emerald-400">
+                    ${savings.total_savings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Total savings over {savings.days_tracked} days
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                <div>
+                  <span className="text-xs text-slate-500">Today</span>
+                  <p className="font-bold text-emerald-400">${savings.today_savings.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500">Daily Avg</span>
+                  <p className="font-bold text-slate-700 dark:text-slate-300">${savings.avg_daily_savings.toFixed(2)}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500">Monthly Est.</span>
+                  <p className="font-bold text-slate-700 dark:text-slate-300">${savings.monthly_estimate.toFixed(0)}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500">Yearly Est.</span>
+                  <p className="font-bold text-slate-700 dark:text-slate-300">${savings.yearly_estimate?.toFixed(0) || '—'}</p>
+                </div>
+              </div>
+
+              {/* Break-even progress */}
+              {savings.breakeven ? (
+                <div className="mt-4 pt-4 border-t border-emerald-500/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {savings.breakeven.paid_off ? 'System Paid Off!' : 'Break-Even Progress'}
+                    </span>
+                    <span className="text-sm font-bold text-emerald-400">{savings.breakeven.pct.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-3">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000"
+                      style={{ width: `${Math.min(savings.breakeven.pct, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>${savings.total_savings.toLocaleString(undefined, { maximumFractionDigits: 0 })} saved</span>
+                    <span>${savings.breakeven.system_cost.toLocaleString(undefined, { maximumFractionDigits: 0 })} system cost</span>
+                  </div>
+                  {!savings.breakeven.paid_off && savings.breakeven.estimated_date && (
+                    <div className="mt-3 text-xs text-slate-500">
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">
+                        ${savings.breakeven.remaining.toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining
+                      </span>
+                      {' · '}Estimated break-even:{' '}
+                      <span className="text-emerald-400 font-medium">
+                        {new Date(savings.breakeven.estimated_date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                      </span>
+                      {savings.breakeven.estimated_years > 0 && (
+                        <span> ({savings.breakeven.estimated_years} years)</span>
+                      )}
+                    </div>
+                  )}
+                  {savings.breakeven.paid_off && (
+                    <div className="mt-3 text-sm text-emerald-400 font-medium">
+                      Your system has paid for itself! Everything from here is profit.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-4 pt-4 border-t border-emerald-500/10">
+                  <p className="text-xs text-slate-500">
+                    Set your system cost in <span className="text-slate-700 dark:text-slate-300 font-medium">Settings</span> to track break-even progress.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </>

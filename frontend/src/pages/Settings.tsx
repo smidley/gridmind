@@ -215,6 +215,65 @@ function NotificationConfig() {
   )
 }
 
+/** Inline component for system cost / break-even tracking */
+function SystemCostConfig() {
+  const [cost, setCost] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState('')
+  const { data: config, refetch } = useApi<any>('/settings/setup')
+
+  const currentCost = config?.system_cost || 0
+
+  const saveCost = async () => {
+    setSaving(true); setSuccess('')
+    try {
+      await apiFetch('/settings/system-cost', {
+        method: 'POST',
+        body: JSON.stringify({ system_cost: parseFloat(cost) || 0 }),
+      })
+      setSuccess('Saved')
+      setCost('')
+      refetch()
+    } catch (e: any) { console.error(e) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="space-y-3">
+      {currentCost > 0 ? (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <span className="text-sm text-blue-400 font-medium">
+            System cost: ${currentCost.toLocaleString()}
+          </span>
+          <button
+            onClick={() => { setCost(String(currentCost)) }}
+            className="text-xs text-slate-400 hover:text-slate-300"
+          >
+            Edit
+          </button>
+        </div>
+      ) : null}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+          <input
+            type="number"
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            placeholder={currentCost > 0 ? String(currentCost) : 'Total system cost'}
+            className="w-full pl-7 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+        <button onClick={saveCost} disabled={saving || !cost} className="btn-primary text-sm px-4">
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+      {success && <p className="text-xs text-emerald-400">{success}</p>}
+    </div>
+  )
+}
+
+
 /** Inline component for EIA Grid Mix API configuration */
 function EIAConfig() {
   const [key, setKey] = useState('')
@@ -1402,6 +1461,15 @@ export default function SettingsPage() {
           Get notified about grid outages, optimizer activity, and automation events via email or webhooks (Slack/Discord).
         </p>
         <NotificationConfig />
+      </div>
+
+      {/* System Investment */}
+      <div className="card">
+        <div className="card-header">System Investment</div>
+        <p className="text-xs text-slate-500 mb-4">
+          Enter the total cost of your solar + battery system to track break-even progress on the Value page.
+        </p>
+        <SystemCostConfig />
       </div>
 
       {/* OpenAI Configuration */}

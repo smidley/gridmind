@@ -420,17 +420,41 @@ async def powerwall_savings():
         today_exported = today_summary.grid_exported_kwh or 0
         today_savings = ((today_consumed - today_imported) * avg_buy_rate) + (today_exported * avg_sell_rate)
 
+    avg_daily = total_savings / days if days else 0
+    yearly_estimate = avg_daily * 365
+
+    # Break-even calculation
+    system_cost = float(ss.get("system_cost") or 0)
+    breakeven = None
+    if system_cost > 0:
+        remaining = max(system_cost - total_savings, 0)
+        pct = min((total_savings / system_cost) * 100, 100) if system_cost > 0 else 0
+        est_days = remaining / avg_daily if avg_daily > 0 else 0
+        from datetime import date as date_type
+        est_date = (date_type.today() + timedelta(days=int(est_days))).isoformat() if est_days > 0 else None
+        breakeven = {
+            "system_cost": round(system_cost, 2),
+            "remaining": round(remaining, 2),
+            "pct": round(pct, 1),
+            "estimated_days": int(est_days),
+            "estimated_years": round(est_days / 365, 1) if est_days > 0 else 0,
+            "estimated_date": est_date,
+            "paid_off": remaining <= 0,
+        }
+
     return {
         "total_savings": round(total_savings, 2),
         "today_savings": round(today_savings, 2),
-        "avg_daily_savings": round(total_savings / days, 2) if days else 0,
+        "avg_daily_savings": round(avg_daily, 2),
         "would_have_paid": round(would_have_paid, 2),
         "actually_paid": round(actually_paid, 2),
         "export_credits": round(export_credits, 2),
         "avg_buy_rate": round(avg_buy_rate, 4),
         "avg_sell_rate": round(avg_sell_rate, 4),
         "days_tracked": days,
-        "monthly_estimate": round((total_savings / days) * 30, 2) if days else 0,
+        "monthly_estimate": round(avg_daily * 30, 2),
+        "yearly_estimate": round(yearly_estimate, 2),
+        "breakeven": breakeven,
     }
 
 

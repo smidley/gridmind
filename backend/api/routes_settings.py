@@ -403,6 +403,18 @@ async def set_grid_mix_config(data: dict):
     return {"status": "ok", "updated": list(updates.keys())}
 
 
+@router.post("/system-cost")
+async def set_system_cost(data: dict):
+    """Set the total system cost for break-even tracking."""
+    cost = data.get("system_cost", 0)
+    try:
+        cost = max(0, float(cost))
+    except (ValueError, TypeError):
+        cost = 0
+    setup_store.set("system_cost", cost)
+    return {"status": "ok", "system_cost": cost}
+
+
 @router.get("/grid-mix/config")
 async def get_grid_mix_config():
     """Get current grid mix configuration."""
