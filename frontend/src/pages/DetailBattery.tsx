@@ -227,11 +227,17 @@ export default function DetailBattery() {
             </div>
             <div className="text-lg font-bold text-blue-400">
               {health.battery.backup_time_remaining_hours != null
-                ? `${health.battery.backup_time_remaining_hours.toFixed(1)}h`
+                ? (() => {
+                    const api = health.battery.backup_time_remaining_hours
+                    const soc = health.battery.soc || 0
+                    const res = health.battery.backup_reserve_pct || 0
+                    const total = soc > res ? api * soc / (soc - res) : api
+                    return `${total.toFixed(1)}h`
+                  })()
                 : '—'}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              Until {health.battery.backup_reserve_pct}% reserve at current usage
+              Estimated backup at current usage
             </div>
           </div>
 

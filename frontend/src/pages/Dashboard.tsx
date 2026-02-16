@@ -600,7 +600,14 @@ export default function Dashboard() {
           {(healthData || savingsData) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Backup Duration */}
-              {healthData?.battery?.backup_time_remaining_hours != null && (
+              {healthData?.battery?.backup_time_remaining_hours != null && (() => {
+                // Tesla API gives time until reserve. Scale to total time including reserve.
+                const apiHours = healthData.battery.backup_time_remaining_hours
+                const soc = healthData.battery.soc || status?.battery_soc || 0
+                const reserve = healthData.battery.backup_reserve_pct || 0
+                // total = apiHours * soc / (soc - reserve), accounting for full discharge
+                const totalHours = soc > reserve ? apiHours * soc / (soc - reserve) : apiHours
+                return (
                 <div className={`card ${healthData.connectivity.storm_mode_active ? 'border-amber-500/30 ring-1 ring-amber-500/20' : ''}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <ShieldIcon className={`w-4 h-4 ${healthData.connectivity.storm_mode_active ? 'text-amber-400' : 'text-blue-400'}`} />
@@ -610,17 +617,18 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className={`stat-value ${healthData.connectivity.storm_mode_active ? 'text-amber-400' : 'text-blue-400'}`}>
-                    {healthData.battery.backup_time_remaining_hours >= 24
-                      ? `${(healthData.battery.backup_time_remaining_hours / 24).toFixed(1)} days`
-                      : `${healthData.battery.backup_time_remaining_hours.toFixed(1)} hours`}
+                    {totalHours >= 24
+                      ? `${(totalHours / 24).toFixed(1)} days`
+                      : `${totalHours.toFixed(1)} hours`}
                   </div>
                   <div className="stat-label">
                     {healthData.connectivity.storm_mode_active
                       ? 'Storm Watch active — battery reserved for backup'
-                      : `Until battery reaches ${healthData.battery.backup_reserve_pct}% reserve at current usage`}
+                      : 'Estimated backup at current usage'}
                   </div>
                 </div>
-              )}
+                )
+              })()}
 
               {/* Cost Savings */}
               {savingsData && !savingsData.error && (

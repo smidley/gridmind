@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "GridMind"
-    app_version: str = "1.2.21"
+    app_version: str = "1.2.22"
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
