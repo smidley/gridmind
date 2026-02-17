@@ -454,15 +454,6 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
           }`}>
             {gridImporting ? 'Importing' : gridExporting ? 'Exporting' : 'Idle'}
           </span>
-          {gridImporting && gridMix?.configured && gridMix.clean_pct != null && (
-            <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} mt-0.5 px-1.5 py-0.5 rounded-full font-medium ${
-              gridMix.clean_pct >= 80 ? 'bg-emerald-500/20 text-emerald-500'
-              : gridMix.clean_pct >= 50 ? 'bg-amber-500/20 text-amber-500'
-              : 'bg-red-500/20 text-red-400'
-            }`}>
-              {gridMix.clean_pct}% Clean
-            </span>
-          )}
           {tariff?.configured && tariff.current_period_display && (
             <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} mt-0.5 px-1.5 py-0.5 rounded-full font-medium ${
               tariff.current_period_display === 'Peak'
@@ -473,6 +464,18 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
             }`}>
               {tariff.current_period_display}
               {tariff.current_rate ? ` · $${tariff.current_rate.toFixed(2)}` : ''}
+              {gridImporting && gridMix?.configured && gridMix.clean_pct != null
+                ? ` · ${gridMix.clean_pct}% Clean`
+                : ''}
+            </span>
+          )}
+          {gridImporting && gridMix?.configured && gridMix.clean_pct != null && !(tariff?.configured && tariff.current_period_display) && (
+            <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} mt-0.5 px-1.5 py-0.5 rounded-full font-medium ${
+              gridMix.clean_pct >= 80 ? 'bg-emerald-500/20 text-emerald-500'
+              : gridMix.clean_pct >= 50 ? 'bg-amber-500/20 text-amber-500'
+              : 'bg-red-500/20 text-red-400'
+            }`}>
+              {gridMix.clean_pct}% Clean
             </span>
           )}
         </div>
