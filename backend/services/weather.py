@@ -28,14 +28,14 @@ def _get_solar_config() -> dict:
     }
 
 
-@cached(ttl=3600, key_prefix="solar_forecast")
 async def fetch_solar_forecast() -> list[dict]:
     """Fetch solar irradiance forecast from Open-Meteo.
 
     Uses Global Tilted Irradiance (GTI) when panel tilt/azimuth are configured,
     falling back to horizontal GHI. Estimates PV output based on panel config.
 
-    Cached for 1 hour to reduce API calls.
+    NOT cached — this function writes to the database as a side effect.
+    Called by the scheduler every 6 hours.
     """
     latitude = setup_store.get_latitude()
     longitude = setup_store.get_longitude()
