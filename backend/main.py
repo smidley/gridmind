@@ -26,6 +26,7 @@ from api.routes_health import router as health_router
 from api.routes_ai import router as ai_router
 from api.routes_achievements import router as achievements_router
 from api.routes_cache import router as cache_router
+from api.routes_db import router as db_router
 
 # Configure logging
 logging.basicConfig(
@@ -296,6 +297,7 @@ app.include_router(health_router)
 app.include_router(ai_router)
 app.include_router(achievements_router)
 app.include_router(cache_router)
+app.include_router(db_router)
 
 
 # --- WebSocket for real-time updates ---

@@ -32,16 +32,11 @@ INDEXES_TO_CREATE = [
         "table": "energy_readings",
         "columns": ["timestamp", "grid_power"],
     },
-    # VehicleReading: vehicle_id + timestamp for per-vehicle history
+    # VehicleChargeReading: timestamp + battery_level for charge history
+    # Note: vehicle_id+timestamp composite index already defined in database.py model
     {
-        "name": "ix_vehicle_readings_vehicle_timestamp",
-        "table": "vehicle_readings",
-        "columns": ["vehicle_id", "timestamp"],
-    },
-    # VehicleReading: timestamp + battery_level for charge history
-    {
-        "name": "ix_vehicle_readings_timestamp_battery",
-        "table": "vehicle_readings",
+        "name": "ix_vehicle_charge_readings_timestamp_battery",
+        "table": "vehicle_charge_readings",
         "columns": ["timestamp", "battery_level"],
     },
     # DailyEnergySummary: date for range queries (already has unique index)
@@ -105,10 +100,10 @@ async def analyze_tables() -> dict:
     tables = [
         "energy_readings",
         "daily_energy_summary",
-        "vehicle_readings",
+        "vehicle_charge_readings",
         "automation_rules",
         "rule_execution_log",
-        "solar_forecast",
+        "solar_forecasts",
     ]
     
     results = {"analyzed": [], "failed": []}
@@ -133,10 +128,10 @@ async def get_table_stats() -> dict:
     tables = [
         "energy_readings",
         "daily_energy_summary",
-        "vehicle_readings",
+        "vehicle_charge_readings",
         "automation_rules",
         "rule_execution_log",
-        "solar_forecast",
+        "solar_forecasts",
     ]
     
     stats = {}
