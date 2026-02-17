@@ -543,56 +543,60 @@ export default function Dashboard() {
               {/* Expanded thinking section */}
               {enabled && optimizeExpanded && (
                 <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
-                  {/* Thinking Feed — futuristic AI terminal */}
-                  <div className="relative rounded-lg overflow-hidden" style={{ border: '1px solid rgba(16, 185, 129, 0.15)' }}>
-                    {/* Scanline overlay */}
-                    <div className="absolute inset-0 pointer-events-none z-10" style={{
-                      background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)',
-                    }} />
-                    {/* Subtle glow at bottom */}
-                    <div className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none z-10" style={{
-                      background: 'linear-gradient(to top, rgba(16, 185, 129, 0.04), transparent)',
+                  {/* Thinking Feed — modern AI stream */}
+                  <style>{`
+                    @keyframes thinkPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+                    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+                  `}</style>
+                  <div className="relative rounded-xl overflow-hidden bg-slate-950/80 backdrop-blur-sm" style={{
+                    border: '1px solid rgba(100, 116, 139, 0.12)',
+                  }}>
+                    {/* Animated gradient accent line at top */}
+                    <div className="h-[2px]" style={{
+                      background: 'linear-gradient(90deg, transparent, #3b82f6, #10b981, #8b5cf6, transparent)',
+                      backgroundSize: '200% 100%',
+                      animation: 'shimmer 3s linear infinite',
                     }} />
 
-                    {/* Header bar */}
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/5 border-b border-emerald-500/10">
-                      <div className="flex gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/20" />
+                    {/* Header */}
+                    <div className="flex items-center gap-2.5 px-4 py-2 border-b border-slate-800/60">
+                      <div className="relative w-2 h-2">
+                        <div className="absolute inset-0 rounded-full bg-blue-500" style={{ animation: 'thinkPulse 2s ease-in-out infinite' }} />
+                        <div className="absolute inset-[-2px] rounded-full bg-blue-500/20" style={{ animation: 'thinkPulse 2s ease-in-out infinite' }} />
                       </div>
-                      <span className="font-mono text-[9px] text-emerald-500/50 uppercase tracking-[0.2em]">GridMind Neural Engine</span>
-                      <span className="ml-auto font-mono text-[9px] text-emerald-500/30">
-                        {verbose.last_evaluate_at ? new Date(verbose.last_evaluate_at).toLocaleTimeString() : '—'}
-                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium tracking-wide">Decision Engine</span>
+                      <div className="ml-auto flex items-center gap-2">
+                        <span className="text-[9px] text-slate-600">
+                          {verbose.last_evaluate_at ? new Date(verbose.last_evaluate_at).toLocaleTimeString() : ''}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Thought lines */}
-                    <div
-                      className="bg-[#020a06] px-3 py-2.5 overflow-hidden"
-                      style={{
-                        height: 170,
-                        maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 100%)',
-                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 100%)',
-                      }}
-                    >
-                      <div className="flex flex-col justify-end h-full gap-[3px]">
+                    {/* Thought stream */}
+                    <div className="px-4 py-3 overflow-hidden" style={{
+                      height: 175,
+                      maskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 100%)',
+                      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 12%, black 100%)',
+                    }}>
+                      <div className="flex flex-col justify-end h-full gap-1">
                         {thoughts.length === 0 ? (
-                          <div className="font-mono text-[11px] text-emerald-500/30">
-                            <span className="animate-pulse">Initializing decision engine...</span>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <div className="w-1 h-1 rounded-full bg-blue-500/50" style={{ animation: 'thinkPulse 1.5s ease-in-out infinite' }} />
+                            Waiting for next evaluation...
                           </div>
                         ) : (
                           thoughts.map((thought: string, i: number) => {
                             const isNewest = i === thoughts.length - 1
                             const age = thoughts.length - 1 - i
-                            const opacity = Math.max(0.15, 1 - age * 0.12)
+                            const opacity = Math.max(0.08, 1 - age * 0.13)
                             return (
-                              <div key={`${i}-${thought.slice(0,20)}`} className="font-mono text-[11px] leading-relaxed flex items-start gap-1.5" style={{ opacity }}>
-                                <span className={`shrink-0 mt-[3px] w-1 h-1 rounded-full ${isNewest ? 'bg-emerald-400 shadow-[0_0_4px_rgba(16,185,129,0.6)]' : 'bg-emerald-500/30'}`} />
-                                <span className={isNewest ? 'text-emerald-300' : 'text-emerald-500/60'}>
+                              <div key={`${i}-${thought.slice(0,20)}`} className="flex items-start gap-2 text-[11px] leading-relaxed transition-opacity duration-500" style={{ opacity }}>
+                                <span className={`shrink-0 mt-[5px] w-1 h-1 rounded-full transition-all ${
+                                  isNewest ? 'bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.5)]' : 'bg-slate-600'
+                                }`} style={isNewest ? { animation: 'thinkPulse 2s ease-in-out infinite' } : undefined} />
+                                <span className={isNewest ? 'text-slate-200' : 'text-slate-500'}>
                                   {thought}
                                 </span>
-                                {isNewest && <span className="text-emerald-400 animate-[blink_1s_steps(2)_infinite] ml-0.5">|</span>}
                               </div>
                             )
                           })
@@ -600,7 +604,6 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <style>{`@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
 
                   {/* Calculation breakdown — shown during peak phases */}
                   {optimizeStatus.last_calculation && (isHolding || isDumping || isPoweringHome) && (() => {
