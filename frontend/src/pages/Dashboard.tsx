@@ -380,7 +380,7 @@ export default function Dashboard() {
             // Distinguish actual exporting vs powering home during "dumping" phase
             // grid_power < -50 means actually exporting to grid
             // battery_power > 50 means battery is discharging (positive = discharging)
-            const isExporting = enabled && phase === 'dumping' && status && status.grid_power < -50
+            const isExporting = enabled && phase === 'dumping' && status && status.grid_power < -50 && status.battery_power > 50
             const isPoweringHome = enabled && phase === 'dumping' && status && status.battery_power > 50 && status.grid_power >= -50
             const isDumping = isExporting || isPoweringHome  // Battery is active (exporting or serving home)
             const isWaiting = enabled && !isDumping && !isHolding && !isComplete
