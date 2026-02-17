@@ -84,6 +84,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limit control endpoints (POST/PUT/DELETE) to prevent abuse
+from middleware.rate_limit import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware, max_requests=10, window_seconds=60)
+
 # --- App Authentication ---
 
 # Paths that don't require authentication
