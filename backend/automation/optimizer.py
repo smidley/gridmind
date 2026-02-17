@@ -395,6 +395,49 @@ async def _check_clean_grid_preference(status):
             logger.error("Failed to restore autonomous mode: %s", e)
 
 
+async def _check_stuck_reserve():
+    """One-time check for a stuck reserve from a previous optimizer cycle.
+
+    If the Powerwall's reserve is at or below min_reserve_pct (e.g. 5%) and we're
+    not currently in a peak phase, the reserve was likely not restored properly.
+    Fix it immediately.
+    """
+    if _state.get("_reserve_check_done"):
+        return
+    _state["_reserve_check_done"] = True
+
+    # Only check when idle (not actively optimizing)
+    if _state["phase"] != "idle":
+        return
+
+    status = get_latest_status()
+    if status is None:
+        return
+
+    min_reserve = _state["min_reserve_pct"]
+    actual_reserve = status.backup_reserve
+
+    if actual_reserve <= min_reserve + 1:
+        logger.warning(
+            "GridMind Optimize: Reserve stuck at %.0f%% (min_reserve=%d%%) — restoring to 20%%",
+            actual_reserve, min_reserve,
+        )
+        try:
+            from tesla.commands import set_backup_reserve
+            await set_backup_reserve(20)
+            logger.info("GridMind Optimize: Successfully restored reserve to 20%%")
+        except Exception as e:
+            logger.error("GridMind Optimize: Failed to restore stuck reserve: %s", e)
+
+        # Also clear any stale persisted pre-optimize values
+        setup_store.update({
+            "gridmind_optimize_pre_mode": None,
+            "gridmind_optimize_pre_reserve": None,
+            "gridmind_optimize_pre_export": None,
+            "gridmind_optimize_pre_grid_charging": None,
+        })
+
+
 async def evaluate():
     """Main evaluation loop -- called every ~2 minutes by the scheduler.
 
@@ -404,6 +447,9 @@ async def evaluate():
     """
     if not _state["enabled"]:
         return
+
+    # One-time startup check for stuck reserve
+    await _check_stuck_reserve()
 
     now = _get_local_now()
 
