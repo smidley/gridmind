@@ -157,16 +157,16 @@ export default function DetailHome() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="srcSolar" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
                     </linearGradient>
                     <linearGradient id="srcBattery" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
                     </linearGradient>
                     <linearGradient id="srcGrid" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f87171" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#f87171" stopOpacity={0.05} />
+                      <stop offset="5%" stopColor="#f87171" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#f87171" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -180,9 +180,9 @@ export default function DetailHome() {
                       name === 'solar' ? 'Solar' : name === 'battery' ? 'Battery' : 'Grid',
                     ]}
                   />
-                  <Area type="monotone" dataKey="solar" stackId="1" stroke="#f59e0b" fill="url(#srcSolar)" strokeWidth={1.5} dot={false} />
-                  <Area type="monotone" dataKey="battery" stackId="1" stroke="#3b82f6" fill="url(#srcBattery)" strokeWidth={1.5} dot={false} />
-                  <Area type="monotone" dataKey="grid" stackId="1" stroke="#f87171" fill="url(#srcGrid)" strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="solar" stroke="#f59e0b" fill="url(#srcSolar)" strokeWidth={2} dot={false} />
+                  <Area type="monotone" dataKey="battery" stroke="#3b82f6" fill="url(#srcBattery)" strokeWidth={2} dot={false} />
+                  <Area type="monotone" dataKey="grid" stroke="#f87171" fill="url(#srcGrid)" strokeWidth={2} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </>
