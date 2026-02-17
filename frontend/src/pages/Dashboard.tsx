@@ -470,7 +470,7 @@ export default function Dashboard() {
                   <p className="text-xs text-slate-500">
                     {enabled
                       ? isPartialArb && optimizeStatus.partial_arb_calculation
-                        ? `Mid-peak arbitrage · Exporting ${optimizeStatus.partial_arb_calculation.dump_kwh} kWh · Solar will recover before peak`
+                        ? `Mid-peak arbitrage · Exporting ${optimizeStatus.partial_arb_calculation?.dump_kwh ?? '?'} kWh · Solar will recover before peak`
                         : isDumping && optimizeStatus.estimated_finish
                         ? `Exporting battery to grid · ${status ? `${(Math.abs(status.grid_power) / 1000).toFixed(1)} kW to grid` : ''} · Est. finish: ${optimizeStatus.estimated_finish}`
                         : isPoweringHome
@@ -522,10 +522,11 @@ export default function Dashboard() {
               {/* Partial-peak arbitrage breakdown */}
               {enabled && isPartialArb && optimizeStatus.partial_arb_calculation && (() => {
                 const arb = optimizeStatus.partial_arb_calculation
+                const hasEvLoad = arb.ev_load_kw > 0
                 return (
                   <div className="mt-4 pt-3 border-t border-slate-200/30 dark:border-slate-800/50">
                     <div className="text-[10px] text-violet-400 font-medium uppercase tracking-wider mb-2">Solar Arbitrage Breakdown</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div className={`grid grid-cols-2 ${hasEvLoad ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-3 text-xs`}>
                       <div>
                         <span className="text-slate-500">Dumping</span>
                         <p className="font-bold text-violet-400">{arb.dump_kwh} kWh</p>
@@ -541,6 +542,13 @@ export default function Dashboard() {
                         <p className="font-bold text-cyan-400">{arb.avg_home_load_kw} kW</p>
                         <p className="text-[10px] text-slate-600">~{arb.home_consumption_kwh} kWh needed</p>
                       </div>
+                      {hasEvLoad && (
+                        <div>
+                          <span className="text-slate-500">EV Charging</span>
+                          <p className="font-bold text-orange-400">{arb.ev_load_kw} kW</p>
+                          <p className="text-[10px] text-slate-600">~{arb.ev_consumption_kwh} kWh deducted</p>
+                        </div>
+                      )}
                       <div>
                         <span className="text-slate-500">Net Recoverable</span>
                         <p className="font-bold text-emerald-400">{arb.safe_recoverable_kwh} kWh</p>
@@ -551,6 +559,7 @@ export default function Dashboard() {
                       <span>Reserve: {arb.current_soc}% → {arb.target_reserve_pct}%</span>
                       <span>Hours until peak: {arb.hours_until_peak}h</span>
                       <span>Strategy: dump only what solar can recover</span>
+                      {hasEvLoad && <span>EV load deducted from solar budget</span>}
                     </div>
                   </div>
                 )

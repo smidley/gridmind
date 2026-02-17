@@ -455,8 +455,21 @@ async def _start_partial_arb(status, arb_calc: dict):
         pass
 
 
-async def _end_partial_arb():
-    """End partial-peak arbitrage: restore normal settings before peak."""
+async def _end_partial_arb(skip_restore: bool = False):
+    """End partial-peak arbitrage.
+
+    Args:
+        skip_restore: If True, only clear arb state without restoring Tesla settings.
+                      Used when transitioning directly to peak_hold (which sets its own settings).
+    """
+    _state["partial_arb_active"] = False
+    _state["partial_arb_calculation"] = None
+
+    if skip_restore:
+        logger.info("GridMind Optimize: Ending partial-peak arbitrage (skipping restore — transitioning to peak)")
+        _set_phase("idle")
+        return
+
     from tesla.commands import set_operation_mode, set_backup_reserve, set_grid_import_export
 
     logger.info("GridMind Optimize: Ending partial-peak arbitrage, restoring settings")
@@ -470,6 +483,10 @@ async def _end_partial_arb():
     prev_export = (_state.get("pre_optimize_export")
                    or setup_store.get("gridmind_optimize_pre_export")
                    or "battery_ok")
+    prev_grid_charging = _state.get("pre_optimize_grid_charging")
+    if prev_grid_charging is None:
+        prev_grid_charging = setup_store.get("gridmind_optimize_pre_grid_charging", True)
+    grid_charging_disallowed = not prev_grid_charging
 
     try:
         await set_operation_mode(prev_mode)
@@ -482,12 +499,13 @@ async def _end_partial_arb():
         logger.error("Partial arb: failed to restore reserve: %s", e)
 
     try:
-        await set_grid_import_export(customer_preferred_export_rule=prev_export)
+        await set_grid_import_export(
+            disallow_charge_from_grid_with_solar_installed=grid_charging_disallowed,
+            customer_preferred_export_rule=prev_export,
+        )
     except Exception as e:
-        logger.error("Partial arb: failed to restore export rule: %s", e)
+        logger.error("Partial arb: failed to restore grid settings: %s", e)
 
-    _state["partial_arb_active"] = False
-    _state["partial_arb_calculation"] = None
     _set_phase("idle")
 
 
@@ -558,13 +576,15 @@ async def evaluate():
                         # Start new arb session
                         await _start_partial_arb(status, arb_calc)
                     else:
-                        # Already in arb — update calculation and adjust reserve if needed
+                        # Already in arb — update calculation display
                         _state["partial_arb_calculation"] = arb_calc
                         target = int(arb_calc["target_reserve_pct"])
                         if status.battery_soc <= target + 1:
-                            # Battery has dumped enough, end arb early
-                            logger.info("Partial arb: battery reached target reserve, ending arb")
-                            await _end_partial_arb()
+                            # Battery has dumped enough — keep phase active (holds settings)
+                            # but stop recalculating. Settings stay until peak starts or
+                            # period changes, so solar can recharge the battery.
+                            logger.info("Partial arb: battery at target reserve %.0f%%, holding until period change",
+                                        status.battery_soc)
                 elif _state["phase"] == "partial_arb":
                     # Was in arb but conditions changed (solar forecast dropped, etc.)
                     logger.info("Partial arb: conditions no longer favorable, ending")
@@ -580,10 +600,11 @@ async def evaluate():
             await _check_clean_grid_preference(status)
         return
 
-    # Entering peak: end partial arb if still active
+    # Entering peak: end partial arb without restoring settings
+    # (peak_hold will immediately set its own settings, avoiding double API calls)
     if _state["phase"] == "partial_arb":
         logger.info("GridMind Optimize: peak starting, ending partial-peak arbitrage")
-        await _end_partial_arb()
+        await _end_partial_arb(skip_restore=True)
 
     # In peak: store peak end time for dump timing calculations
     _state["_peak_end_minutes"] = tou.get("peak_end_minutes")
