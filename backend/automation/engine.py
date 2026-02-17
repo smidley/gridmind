@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -149,7 +150,13 @@ async def evaluate_all_rules():
     if not rules:
         return
 
-    now = datetime.now()
+    from services import setup_store as _ss
+    tz_name = _ss.get_timezone()
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("America/New_York")
+    now = datetime.now(tz)
 
     for rule in rules:
         try:

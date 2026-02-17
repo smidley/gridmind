@@ -5,8 +5,16 @@ import json
 import time
 from datetime import datetime, date, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from services import setup_store
+
+
+def _local_now() -> datetime:
+    try:
+        return datetime.now(ZoneInfo(setup_store.get_timezone()))
+    except Exception:
+        return datetime.now(ZoneInfo("America/New_York"))
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +107,7 @@ async def generate_insights(energy_data: list[dict], today_data: dict, forecast:
         insights = json.loads(text)
         result = {
             "insights": insights,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": _local_now().isoformat(),
             "model": "gpt-4o-mini",
         }
 
@@ -199,7 +207,7 @@ async def detect_anomalies(readings: list[dict], daily_summaries: list[dict]) ->
                 "avg_consumed_kwh": round(avg_consumed, 1),
                 "days_analyzed": n,
             },
-            "checked_at": datetime.now().isoformat(),
+            "checked_at": _local_now().isoformat(),
             "model": "gpt-4o-mini",
         }
 

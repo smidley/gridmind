@@ -650,7 +650,7 @@ async def _start_dump(estimated_finish: datetime):
     from services.notifications import send_notification
 
     _set_phase("dumping")
-    _state["dump_started_at"] = datetime.now().isoformat()
+    _state["dump_started_at"] = _get_local_now().isoformat()
     _state["estimated_finish"] = estimated_finish.strftime("%H:%M")
     min_reserve = _state["min_reserve_pct"]
 

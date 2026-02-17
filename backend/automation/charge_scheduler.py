@@ -7,6 +7,7 @@ import logging
 import math
 from datetime import datetime, time as dtime, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from services import setup_store
 from services.collector import get_latest_status
@@ -15,6 +16,16 @@ from tesla.client import tesla_client, TeslaAPIError
 from tesla.vehicle_commands import charge_start, charge_stop, set_charging_amps
 
 logger = logging.getLogger(__name__)
+
+
+def _get_local_now() -> datetime:
+    """Get current time in user's configured timezone."""
+    tz_name = setup_store.get_timezone()
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("America/New_York")
+    return datetime.now(tz)
 
 # Track scheduler state
 _scheduler_state: dict = {
@@ -63,7 +74,7 @@ def _get_current_tou_period() -> dict | None:
         periods = tariff.get("periods", {})
         sell_tariff = tariff.get("sell_tariff", {})
 
-        now = datetime.now()
+        now = _get_local_now()
         current_hour = now.hour
         current_day = now.weekday()  # 0=Monday
 
@@ -110,7 +121,7 @@ async def _safe_charge_start(vehicle_id: str) -> bool:
     try:
         await charge_start(vehicle_id)
         _scheduler_state["last_action"] = "charge_start"
-        _scheduler_state["last_action_time"] = datetime.now().isoformat()
+        _scheduler_state["last_action_time"] = _get_local_now().isoformat()
         _scheduler_state["charging_by_scheduler"] = True
         return True
     except TeslaAPIError as e:
@@ -123,7 +134,7 @@ async def _safe_charge_stop(vehicle_id: str) -> bool:
     try:
         await charge_stop(vehicle_id)
         _scheduler_state["last_action"] = "charge_stop"
-        _scheduler_state["last_action_time"] = datetime.now().isoformat()
+        _scheduler_state["last_action_time"] = _get_local_now().isoformat()
         _scheduler_state["charging_by_scheduler"] = False
         return True
     except TeslaAPIError as e:
@@ -136,7 +147,7 @@ async def _safe_set_amps(vehicle_id: str, amps: int) -> bool:
     try:
         await set_charging_amps(vehicle_id, amps)
         _scheduler_state["last_action"] = f"set_amps_{amps}"
-        _scheduler_state["last_action_time"] = datetime.now().isoformat()
+        _scheduler_state["last_action_time"] = _get_local_now().isoformat()
         return True
     except TeslaAPIError as e:
         logger.warning("Failed to set amps to %d: %s", amps, e)
@@ -240,7 +251,7 @@ async def _strategy_departure(vehicle_id: str, charge_state: dict, config: dict)
     except (ValueError, AttributeError):
         departure = dtime(7, 30)
 
-    now = datetime.now()
+    now = _get_local_now()
     today_departure = now.replace(hour=departure.hour, minute=departure.minute, second=0, microsecond=0)
 
     # If departure is already past today, target tomorrow

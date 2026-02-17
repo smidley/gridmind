@@ -170,7 +170,7 @@ async def vehicle_status():
                 "charge_state": None,
                 "vehicle_config": cached_config,
                 "wc_plugged_in": wc_plugged_in,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now().isoformat(),
             }
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
 
