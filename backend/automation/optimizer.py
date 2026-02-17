@@ -482,6 +482,18 @@ async def _start_peak_hold(status):
         _state["pre_optimize_export"] = "battery_ok"
         _state["pre_optimize_grid_charging"] = True
 
+    # Safety: if the captured reserve looks like a leftover from a previous optimize
+    # cycle (e.g. 5% min_reserve that wasn't properly restored), use 20% instead.
+    # Normal user reserves are typically 15-30%; the optimizer's min_reserve (5%) should
+    # never be treated as the "normal" setting to restore to.
+    min_reserve = _state["min_reserve_pct"]
+    if _state["pre_optimize_reserve"] <= min_reserve:
+        logger.warning(
+            "GridMind Optimize: Captured reserve %s%% looks like a stuck optimizer value (min_reserve=%d%%), using 20%% instead",
+            _state["pre_optimize_reserve"], min_reserve,
+        )
+        _state["pre_optimize_reserve"] = 20
+
     # Persist pre-optimize settings so they survive container restarts
     setup_store.update({
         "gridmind_optimize_pre_mode": _state["pre_optimize_mode"],
@@ -748,3 +760,16 @@ async def _end_peak():
     _set_phase("idle")
     _state["dump_started_at"] = None
     _state["estimated_finish"] = None
+
+    # Clear pre-optimize state so stale values don't persist to the next cycle.
+    # If the container restarts before tomorrow's peak, init() won't load stale values.
+    _state["pre_optimize_mode"] = None
+    _state["pre_optimize_reserve"] = None
+    _state["pre_optimize_export"] = None
+    _state["pre_optimize_grid_charging"] = None
+    setup_store.update({
+        "gridmind_optimize_pre_mode": None,
+        "gridmind_optimize_pre_reserve": None,
+        "gridmind_optimize_pre_export": None,
+        "gridmind_optimize_pre_grid_charging": None,
+    })
