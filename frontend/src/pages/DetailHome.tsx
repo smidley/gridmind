@@ -173,15 +173,16 @@ export default function DetailHome() {
                   <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} interval="preserveStartEnd" />
                   <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}kW`} />
                   <Tooltip
-                   
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                    labelStyle={{ color: '#94a3b8' }}
                     formatter={(v: number, name: string) => [
                       `${v.toFixed(1)} kW`,
                       name === 'solar' ? 'Solar' : name === 'battery' ? 'Battery' : 'Grid',
                     ]}
                   />
-                  <Area type="monotone" dataKey="grid" stackId="1" stroke="#f87171" fill="url(#srcGrid)" strokeWidth={1.5} dot={false} />
-                  <Area type="monotone" dataKey="battery" stackId="1" stroke="#3b82f6" fill="url(#srcBattery)" strokeWidth={1.5} dot={false} />
                   <Area type="monotone" dataKey="solar" stackId="1" stroke="#f59e0b" fill="url(#srcSolar)" strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="battery" stackId="1" stroke="#3b82f6" fill="url(#srcBattery)" strokeWidth={1.5} dot={false} />
+                  <Area type="monotone" dataKey="grid" stackId="1" stroke="#f87171" fill="url(#srcGrid)" strokeWidth={1.5} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </>

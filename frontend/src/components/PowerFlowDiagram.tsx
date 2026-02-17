@@ -357,12 +357,10 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
       {(() => {
         const tileW = isMobile ? 100 : 140
         const tileH = isMobile ? 96 : 130
-        const tileBase = `flex flex-col items-center justify-center rounded-xl border transition-all duration-500`
+        const tileBase = `flex flex-col items-center justify-center rounded-xl border p-2 transition-all duration-500`
         const tileInactive = 'border-stone-200 bg-stone-50/90 dark:border-slate-800 dark:bg-slate-900/95'
         const tileStyle = { width: tileW, height: tileH }
-        const evTileW = isMobile ? 86 : 118
-        const evTileH = isMobile ? 82 : 116
-        const evTileStyle = { width: evTileW, height: evTileH }
+        const evTileStyle = { width: tileW, height: tileH }
 
         return (<>
       {/* Solar - top center */}
@@ -387,8 +385,8 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
               ? 'border-violet-400/40 bg-violet-50 shadow-lg shadow-violet-500/10 dark:bg-violet-950/80 dark:shadow-violet-500/20'
               : 'border-violet-400/20 bg-violet-50/50 dark:border-violet-800/30 dark:bg-violet-950/40'
           }`} style={evTileStyle}>
-            <Car className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} mb-1 ${evCharging ? 'text-violet-500 dark:text-violet-400' : 'text-violet-400/60 dark:text-violet-500/60'}`} />
-            <span className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold tabular-nums ${evCharging ? 'text-violet-600 dark:text-violet-400' : 'text-violet-500/70 dark:text-violet-400/70'}`}>
+            <Car className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${evCharging ? 'text-violet-500 dark:text-violet-400' : 'text-violet-400/60 dark:text-violet-500/60'}`} />
+            <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${evCharging ? 'text-violet-600 dark:text-violet-400' : 'text-violet-500/70 dark:text-violet-400/70'}`}>
               {evCharging ? formatPower(evChargingWatts) : evSoc !== undefined ? `${evSoc}%` : '—'}
             </span>
             <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-violet-400/60 dark:text-violet-500/50 font-medium uppercase tracking-wider mt-0.5`}>
