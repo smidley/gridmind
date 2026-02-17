@@ -181,6 +181,123 @@ async def site_tariff():
         raise HTTPException(status_code=e.status_code or 500, detail=str(e))
 
 
+@router.get("/site/tariff/schedule")
+async def site_tariff_schedule():
+    """Get a 24-hour TOU rate schedule for weekday and weekend.
+
+    Returns an array of 24 entries (one per hour) for both weekday and weekend,
+    each with the period name, display name, and rate.
+    Used to render a visual TOU schedule chart.
+    """
+    if not tesla_client.is_authenticated:
+        raise HTTPException(status_code=401, detail="Not authenticated with Tesla")
+    try:
+        from tesla.commands import get_site_info
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        info = await get_site_info()
+        tariff = info.get("tariff_content", {})
+
+        if not tariff:
+            return {"configured": False}
+
+        seasons = tariff.get("seasons", {})
+        energy_charges = tariff.get("energy_charges", {})
+        period_display = {
+            "OFF_PEAK": "Off-Peak",
+            "ON_PEAK": "Peak",
+            "PARTIAL_PEAK": "Mid-Peak",
+        }
+
+        user_tz_name = setup_store.get_timezone()
+        try:
+            user_tz = ZoneInfo(user_tz_name)
+        except Exception:
+            user_tz = ZoneInfo("America/New_York")
+        now = datetime.now(user_tz)
+
+        # Find active season
+        active_season = None
+        active_season_name = None
+        for season_name, season_data in seasons.items():
+            from_month = season_data.get("fromMonth", 1)
+            to_month = season_data.get("toMonth", 12)
+            if from_month <= now.month <= to_month:
+                active_season = season_data
+                active_season_name = season_name
+                break
+
+        if not active_season:
+            return {"configured": True, "error": "No active season found"}
+
+        tou_periods = active_season.get("tou_periods", {})
+        season_charges = energy_charges.get(active_season_name, {})
+
+        def build_hourly(day_of_week: int) -> list:
+            """Build a 24-entry array for a given day of week."""
+            hourly = []
+            for hour in range(24):
+                current_minutes = hour * 60
+                matched_period = "OFF_PEAK"
+
+                for period_name, schedules in tou_periods.items():
+                    schedule_list = schedules if isinstance(schedules, list) else []
+                    for sched in schedule_list:
+                        from_dow = sched.get("fromDayOfWeek", 0)
+                        to_dow = sched.get("toDayOfWeek", 6)
+                        if not (from_dow <= day_of_week <= to_dow):
+                            continue
+
+                        from_hr = sched.get("fromHour", 0)
+                        from_min = sched.get("fromMinute", 0)
+                        to_hr = sched.get("toHour", 0)
+                        to_min = sched.get("toMinute", 0)
+                        from_minutes = from_hr * 60 + from_min
+                        to_minutes = to_hr * 60 + to_min
+
+                        # All-day period
+                        if from_hr == 0 and to_hr == 0 and from_min == 0 and to_min == 0:
+                            matched_period = period_name
+                            break
+
+                        if from_minutes < to_minutes:
+                            if from_minutes <= current_minutes < to_minutes:
+                                matched_period = period_name
+                                break
+                        else:
+                            if current_minutes >= from_minutes or current_minutes < to_minutes:
+                                matched_period = period_name
+                                break
+
+                rate = season_charges.get(matched_period, 0)
+                hourly.append({
+                    "hour": hour,
+                    "period": matched_period,
+                    "display": period_display.get(matched_period, matched_period),
+                    "rate": rate,
+                })
+            return hourly
+
+        # Tuesday (1) for weekday, Saturday (5) for weekend
+        weekday = build_hourly(1)
+        weekend = build_hourly(5)
+
+        return {
+            "configured": True,
+            "utility": tariff.get("utility", ""),
+            "plan_name": tariff.get("name", ""),
+            "season": active_season_name,
+            "currency": tariff.get("currency", "USD"),
+            "current_hour": now.hour,
+            "is_weekday": now.weekday() < 5,
+            "weekday": weekday,
+            "weekend": weekend,
+        }
+    except TeslaAPIError as e:
+        raise HTTPException(status_code=e.status_code or 500, detail=str(e))
+
+
 @router.get("/grid/energy-mix")
 async def grid_energy_mix():
     """Get current grid energy source mix from EIA API.

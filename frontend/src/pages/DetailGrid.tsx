@@ -22,6 +22,7 @@ export default function DetailGrid() {
   const { data: rangeStats } = useApi<any>(`/history/range-stats?${tr.apiParam}`)
   const { data: readings } = useApi<any>(`/history/readings?${tr.apiParam}&resolution=${tr.resolution}`)
   const { data: tariff } = useApi('/site/tariff')
+  const { data: touSchedule } = useApi<any>('/site/tariff/schedule')
   const { data: value } = useAutoRefresh<any>('/history/value', 60000)
   const { data: gridMix } = useAutoRefresh<any>('/grid/energy-mix', 300000)
 
@@ -91,6 +92,126 @@ export default function DetailGrid() {
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
       </div>
+
+      {/* TOU Rate Schedule */}
+      {touSchedule?.configured && touSchedule.weekday && (() => {
+        const isWeekday = touSchedule.is_weekday
+        const schedule = isWeekday ? touSchedule.weekday : touSchedule.weekend
+        const altSchedule = isWeekday ? touSchedule.weekend : touSchedule.weekday
+        const currentHour = touSchedule.current_hour
+
+        const periodColors: Record<string, { bg: string, text: string, bar: string }> = {
+          'Peak': { bg: 'bg-red-500/15', text: 'text-red-500 dark:text-red-400', bar: '#ef4444' },
+          'Mid-Peak': { bg: 'bg-amber-500/15', text: 'text-amber-500 dark:text-amber-400', bar: '#f59e0b' },
+          'Off-Peak': { bg: 'bg-emerald-500/15', text: 'text-emerald-500 dark:text-emerald-400', bar: '#10b981' },
+        }
+
+        // Get unique periods with rates for the legend
+        const periods = new Map<string, number>()
+        schedule.forEach((h: any) => { if (!periods.has(h.display)) periods.set(h.display, h.rate) })
+
+        const formatHour = (h: number) => {
+          if (h === 0 || h === 24) return '12a'
+          if (h === 12) return '12p'
+          return h < 12 ? `${h}a` : `${h - 12}p`
+        }
+
+        // Check if weekday and weekend are different
+        const schedulesDiffer = JSON.stringify(touSchedule.weekday.map((h: any) => h.period)) !==
+                                JSON.stringify(touSchedule.weekend.map((h: any) => h.period))
+
+        return (
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="card-header mb-0">Rate Schedule</div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {touSchedule.utility} · {touSchedule.plan_name || touSchedule.season}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {Array.from(periods.entries()).map(([display, rate]) => (
+                  <div key={display} className="flex items-center gap-1.5 text-xs">
+                    <span className={`w-2.5 h-2.5 rounded-sm`} style={{ backgroundColor: periodColors[display]?.bar || '#64748b' }} />
+                    <span className="text-slate-500 dark:text-slate-400">{display}</span>
+                    {rate > 0 && <span className="font-medium text-slate-700 dark:text-slate-300">${rate.toFixed(2)}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Today's schedule */}
+            <div className="mb-2">
+              <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1.5">
+                {isWeekday ? 'Weekday' : 'Weekend'} (Today)
+              </div>
+              <div className="flex h-8 rounded-lg overflow-hidden">
+                {schedule.map((h: any, i: number) => {
+                  const color = periodColors[h.display] || periodColors['Off-Peak']
+                  const isCurrent = h.hour === currentHour
+                  return (
+                    <div
+                      key={i}
+                      className="relative flex items-center justify-center transition-all duration-300"
+                      style={{
+                        width: `${100 / 24}%`,
+                        backgroundColor: color.bar,
+                        opacity: isCurrent ? 1 : 0.6,
+                      }}
+                      title={`${formatHour(h.hour)} — ${h.display}${h.rate ? ` · $${h.rate.toFixed(2)}/kWh` : ''}`}
+                    >
+                      {isCurrent && (
+                        <div className="absolute inset-0 border-2 border-white dark:border-slate-200 rounded-sm animate-pulse" />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {/* Hour labels */}
+              <div className="flex mt-1">
+                {[0, 3, 6, 9, 12, 15, 18, 21].map(h => (
+                  <div key={h} className="text-[9px] text-slate-500" style={{ width: `${(3 / 24) * 100}%` }}>
+                    {formatHour(h)}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Alternate schedule (weekday/weekend) if different */}
+            {schedulesDiffer && (
+              <div className="mt-3 pt-3 border-t border-slate-200/30 dark:border-slate-800/50">
+                <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1.5">
+                  {isWeekday ? 'Weekend' : 'Weekday'}
+                </div>
+                <div className="flex h-6 rounded-lg overflow-hidden opacity-70">
+                  {altSchedule.map((h: any, i: number) => {
+                    const color = periodColors[h.display] || periodColors['Off-Peak']
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center justify-center"
+                        style={{
+                          width: `${100 / 24}%`,
+                          backgroundColor: color.bar,
+                          opacity: 0.6,
+                        }}
+                        title={`${formatHour(h.hour)} — ${h.display}${h.rate ? ` · $${h.rate.toFixed(2)}/kWh` : ''}`}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="flex mt-1">
+                  {[0, 3, 6, 9, 12, 15, 18, 21].map(h => (
+                    <div key={h} className="text-[9px] text-slate-500" style={{ width: `${(3 / 24) * 100}%` }}>
+                      {formatHour(h)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Value Summary */}
       {value && !value.error && (
