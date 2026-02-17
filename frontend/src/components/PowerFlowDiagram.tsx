@@ -9,9 +9,16 @@ interface TariffInfo {
   currency?: string
 }
 
+interface GridMixInfo {
+  configured: boolean
+  clean_pct?: number
+  fossil_pct?: number
+}
+
 interface Props {
   status: PowerwallStatus
   tariff?: TariffInfo | null
+  gridMix?: GridMixInfo | null
   evChargingWatts?: number  // Vehicle charger power in watts (0 or undefined = no EV / not charging)
   evSoc?: number            // Vehicle battery level 0-100
   evName?: string           // Vehicle display name
@@ -258,7 +265,7 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
   )
 }
 
-export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, evSoc, evName }: Props) {
+export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWatts = 0, evSoc, evName }: Props) {
   const solarActive = status.solar_power > 50
   const gridImporting = status.grid_power > 50
   const gridExporting = status.grid_power < -50
@@ -447,6 +454,15 @@ export default function PowerFlowDiagram({ status, tariff, evChargingWatts = 0, 
           }`}>
             {gridImporting ? 'Importing' : gridExporting ? 'Exporting' : 'Idle'}
           </span>
+          {gridImporting && gridMix?.configured && gridMix.clean_pct != null && (
+            <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} mt-0.5 px-1.5 py-0.5 rounded-full font-medium ${
+              gridMix.clean_pct >= 80 ? 'bg-emerald-500/20 text-emerald-500'
+              : gridMix.clean_pct >= 50 ? 'bg-amber-500/20 text-amber-500'
+              : 'bg-red-500/20 text-red-400'
+            }`}>
+              {gridMix.clean_pct}% Clean
+            </span>
+          )}
           {tariff?.configured && tariff.current_period_display && (
             <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} mt-0.5 px-1.5 py-0.5 rounded-full font-medium ${
               tariff.current_period_display === 'Peak'

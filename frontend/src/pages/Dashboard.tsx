@@ -230,6 +230,7 @@ export default function Dashboard() {
             <PowerFlowDiagram
               status={status}
               tariff={tariff}
+              gridMix={gridMix}
               evChargingWatts={evChargingW}
               evSoc={hasVehicle ? vehicleCS.battery_level : undefined}
               evName={vehicleInfo?.display_name}

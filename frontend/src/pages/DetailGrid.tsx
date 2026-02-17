@@ -63,6 +63,15 @@ export default function DetailGrid() {
             {status ? formatPower(status.grid_power) : '—'}
           </div>
           <div className="stat-label">{importing ? 'Importing' : exporting ? 'Exporting' : 'Idle'}</div>
+          {importing && gridMix?.configured && gridMix.clean_pct != null && (
+            <div className={`mt-1.5 text-xs font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
+              gridMix.clean_pct >= 80 ? 'bg-emerald-500/15 text-emerald-500'
+              : gridMix.clean_pct >= 50 ? 'bg-amber-500/15 text-amber-500'
+              : 'bg-red-500/15 text-red-400'
+            }`}>
+              {gridMix.clean_pct}% Clean
+            </div>
+          )}
         </div>
         <div className="card">
           <div className="card-header">Exported</div>
