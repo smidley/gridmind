@@ -189,9 +189,13 @@ async def powerwall_throughput(days: int = 30):
     total_cycles = round(total_discharged / capacity, 1) if capacity > 0 else 0
     avg_daily_cycles = round(total_cycles / len(summaries), 3) if summaries else 0
 
-    # Self-powered percentage (clamped 0-100)
+    # Self-powered percentage: fraction of home consumption served by solar + battery
+    # (not from grid). Grid imports also charge the battery, so imported > consumed
+    # is normal. We cap grid_to_home at total_consumed to avoid negative values.
+    # self_powered = (consumed - grid_to_home) / consumed
+    grid_to_home = min(total_imported, total_consumed)
     self_powered_pct = round(
-        max(0, (1 - total_imported / total_consumed)) * 100, 1
+        max(0, min(100, (1 - grid_to_home / total_consumed) * 100)), 1
     ) if total_consumed > 0 else 0
 
     return {
@@ -483,6 +487,14 @@ async def powerwall_capacity():
     cap_info = await get_battery_capacity()
     NOMINAL_CAPACITY = cap_info["capacity_kwh"]
 
+    from zoneinfo import ZoneInfo
+    from services import setup_store
+    user_tz_name = setup_store.get_timezone()
+    try:
+        user_tz = ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = ZoneInfo("America/New_York")
+
     async with async_session() as session:
         # Get all daily stats for cycle analysis
         result = await session.execute(
@@ -491,34 +503,57 @@ async def powerwall_capacity():
         )
         daily_summaries = result.scalars().all()
 
-        # Get readings for detailed cycle detection
+        # Get all readings for cycle detection — group by LOCAL date in Python
+        # to avoid UTC/local date mismatch (SQLite func.date uses UTC, but
+        # DailyEnergySummary dates are local time)
         result = await session.execute(
-            select(
-                func.date(EnergyReading.timestamp).label("day"),
-                func.min(EnergyReading.battery_soc).label("min_soc"),
-                func.max(EnergyReading.battery_soc).label("max_soc"),
-                func.max(EnergyReading.battery_power).label("peak_discharge_w"),
-                func.min(EnergyReading.battery_power).label("peak_charge_w"),
-            )
-            .group_by(func.date(EnergyReading.timestamp))
-            .order_by(func.date(EnergyReading.timestamp).asc())
+            select(EnergyReading.timestamp, EnergyReading.battery_soc, EnergyReading.battery_power)
+            .where(EnergyReading.battery_soc.isnot(None))
+            .order_by(EnergyReading.timestamp.asc())
         )
-        daily_readings = result.all()
+        all_readings = result.all()
+
+    # Group readings by local date
+    from collections import defaultdict
+    readings_by_day: dict[str, list] = defaultdict(list)
+    for r in all_readings:
+        ts = r.timestamp
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=ZoneInfo("UTC"))
+        local_dt = ts.astimezone(user_tz)
+        day_str = local_dt.strftime("%Y-%m-%d")
+        readings_by_day[day_str].append(r)
+
+    # Build daily SOC/power stats from local-time-grouped readings
+    daily_readings = []
+    for day_str in sorted(readings_by_day.keys()):
+        day_data = readings_by_day[day_str]
+        socs = [r.battery_soc for r in day_data if r.battery_soc is not None]
+        powers = [r.battery_power for r in day_data if r.battery_power is not None]
+        if not socs:
+            continue
+        daily_readings.append({
+            "day": day_str,
+            "min_soc": min(socs),
+            "max_soc": max(socs),
+            "peak_discharge_w": max(powers) if powers else 0,
+            "peak_charge_w": min(powers) if powers else 0,
+        })
 
     # --- Capacity Estimation ---
     # Find days with deep cycles (SOC swing > 30%) where we have both
     # charged kWh and SOC data to estimate effective capacity
     capacity_estimates = []
     for dr in daily_readings:
-        day_str = dr.day
-        min_soc = dr.min_soc or 0
-        max_soc = dr.max_soc or 0
+        day_str = dr["day"]
+        min_soc = dr["min_soc"] or 0
+        max_soc = dr["max_soc"] or 0
         soc_swing = max_soc - min_soc
 
         if soc_swing < 30:
             continue  # Need a meaningful swing for estimation
 
-        # Find matching daily summary for kWh data
+        # Find matching daily summary for kWh data (both use local dates now)
         summary = next((s for s in daily_summaries if s.date == day_str), None)
         if not summary or not summary.battery_charged_kwh:
             continue
@@ -584,11 +619,11 @@ async def powerwall_capacity():
     # --- Peak Power Tracking ---
     peak_power_data = []
     for dr in daily_readings:
-        peak_discharge = dr.peak_discharge_w or 0  # Max positive (discharge)
-        peak_charge = abs(dr.peak_charge_w or 0)  # Min negative (charge), take abs
+        peak_discharge = dr["peak_discharge_w"] or 0  # Max positive (discharge)
+        peak_charge = abs(dr["peak_charge_w"] or 0)  # Min negative (charge), take abs
         if peak_discharge > 100 or peak_charge > 100:
             peak_power_data.append({
-                "date": dr.day,
+                "date": dr["day"],
                 "peak_discharge_kw": round(peak_discharge / 1000, 2),
                 "peak_charge_kw": round(peak_charge / 1000, 2),
             })
