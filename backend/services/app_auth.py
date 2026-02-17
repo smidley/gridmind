@@ -1,6 +1,7 @@
 """Application authentication — password-based login with JWT session cookies."""
 
 import logging
+import re
 import secrets
 import time
 from typing import Optional
@@ -15,6 +16,12 @@ logger = logging.getLogger(__name__)
 # JWT signing key — generated once and stored persistently
 _JWT_ALGORITHM = "HS256"
 _SESSION_DURATION = 60 * 60 * 24 * 30  # 30 days
+
+# Password requirements
+MIN_PASSWORD_LENGTH = 12
+PASSWORD_PATTERN = re.compile(
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]'
+)
 
 
 def _get_jwt_secret() -> str:
@@ -36,10 +43,35 @@ def is_auth_enabled() -> bool:
     return is_auth_configured()
 
 
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """Validate password meets security requirements.
+
+    Returns:
+        (is_valid, error_message)
+    """
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one number"
+
+    if not re.search(r'[@$!%*?&]', password):
+        return False, "Password must contain at least one special character (@$!%*?&)"
+
+    return True, ""
+
+
 def set_password(username: str, password: str):
     """Set or update the login credentials."""
-    if len(password) < 4:
-        raise ValueError("Password must be at least 4 characters")
+    is_valid, error_msg = validate_password_strength(password)
+    if not is_valid:
+        raise ValueError(error_msg)
 
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     setup_store.update({
