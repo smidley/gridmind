@@ -80,6 +80,12 @@ def get_state() -> dict:
             }
             result["current_tou_period"] = period_display.get(tou["period_name"], tou["period_name"])
             result["tou_in_peak"] = tou["in_peak"]
+
+            # Check if peak exists today at all (weekdays have peak, weekends typically don't)
+            # Used by dashboard to distinguish "waiting for peak" vs "no peak today"
+            is_weekday = now.weekday() < 5
+            peak_start = _get_peak_start_hour(now)
+            result["tou_has_peak_today"] = is_weekday and peak_start is not None
         except Exception:
             pass
 
