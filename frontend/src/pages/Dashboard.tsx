@@ -231,6 +231,16 @@ export default function Dashboard() {
               status={status}
               tariff={tariff}
               gridMix={gridMix}
+              onNodeClick={(node) => {
+                const routes: Record<string, string> = {
+                  solar: '/detail/solar',
+                  battery: '/detail/battery',
+                  home: '/detail/home',
+                  grid: '/detail/grid',
+                  ev: '/vehicle',
+                }
+                if (routes[node]) navigate(routes[node])
+              }}
               evChargingWatts={evChargingW}
               evSoc={hasVehicle ? vehicleCS.battery_level : undefined}
               evName={vehicleInfo?.display_name}

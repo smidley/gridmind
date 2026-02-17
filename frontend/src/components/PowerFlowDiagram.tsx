@@ -19,6 +19,7 @@ interface Props {
   status: PowerwallStatus
   tariff?: TariffInfo | null
   gridMix?: GridMixInfo | null
+  onNodeClick?: (node: 'solar' | 'battery' | 'home' | 'grid' | 'ev') => void
   evChargingWatts?: number  // Vehicle charger power in watts (0 or undefined = no EV / not charging)
   evSoc?: number            // Vehicle battery level 0-100
   evName?: string           // Vehicle display name
@@ -265,7 +266,7 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
   )
 }
 
-export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWatts = 0, evSoc, evName }: Props) {
+export default function PowerFlowDiagram({ status, tariff, gridMix, onNodeClick, evChargingWatts = 0, evSoc, evName }: Props) {
   const solarActive = status.solar_power > 50
   const gridImporting = status.grid_power > 50
   const gridExporting = status.grid_power < -50
@@ -357,7 +358,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
       {(() => {
         const tileW = isMobile ? 100 : 140
         const tileH = isMobile ? 96 : 130
-        const tileBase = `flex flex-col items-center justify-center rounded-xl border p-2 transition-all duration-500`
+        const tileBase = `flex flex-col items-center justify-center rounded-xl border p-2 transition-all duration-500${onNodeClick ? ' cursor-pointer hover:scale-105 active:scale-95' : ''}`
         const tileInactive = 'border-stone-200 bg-stone-50/90 dark:border-slate-800 dark:bg-slate-900/95'
         const tileStyle = { width: tileW, height: tileH }
         const evTileStyle = { width: tileW, height: tileH }
@@ -365,7 +366,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
         return (<>
       {/* Solar - top center */}
       <div className="absolute z-10" style={{ left: '50%', top: `${nodePositions.solar.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
-        <div className={`${tileBase} ${
+        <div onClick={() => onNodeClick?.('solar')} className={`${tileBase} ${
           solarActive ? 'border-amber-400/40 bg-amber-50 shadow-lg shadow-amber-500/10 dark:bg-amber-950/80 dark:shadow-amber-500/20' : tileInactive
         }`} style={tileStyle}>
           <Sun className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${solarActive ? 'text-amber-500 dark:text-amber-400' : 'text-stone-400 dark:text-slate-600'}`} />
@@ -380,7 +381,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
       {/* EV - left of battery (only shown when vehicle data available) */}
       {showEv && (
         <div className="absolute z-10" style={{ left: `${nodePositions.ev.x * 100}%`, top: `${nodePositions.ev.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
-          <div className={`${tileBase} ${
+          <div onClick={() => onNodeClick?.('ev')} className={`${tileBase} ${
             evCharging
               ? 'border-violet-400/40 bg-violet-50 shadow-lg shadow-violet-500/10 dark:bg-violet-950/80 dark:shadow-violet-500/20'
               : 'border-violet-400/20 bg-violet-50/50 dark:border-violet-800/30 dark:bg-violet-950/40'
@@ -403,7 +404,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
 
       {/* Battery - center */}
       <div className="absolute z-10" style={{ left: '50%', top: `${nodePositions.battery.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
-        <div className={`${tileBase} ${
+        <div onClick={() => onNodeClick?.('battery')} className={`${tileBase} ${
           batteryCharging || batteryDischarging ? 'border-blue-400/40 bg-blue-50 shadow-lg shadow-blue-500/10 dark:bg-blue-950/80 dark:shadow-blue-500/20' : tileInactive
         }`} style={tileStyle}>
           <Battery className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${status.battery_soc > 20 ? 'text-blue-500 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`} />
@@ -421,7 +422,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
 
       {/* Home - bottom left */}
       <div className="absolute z-10" style={{ left: `${nodePositions.home.x * 100}%`, top: `${nodePositions.home.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
-        <div className={`${tileBase} ${
+        <div onClick={() => onNodeClick?.('home')} className={`${tileBase} ${
           homeActive ? 'border-cyan-400/40 bg-cyan-50 shadow-lg shadow-cyan-500/10 dark:bg-cyan-950/80 dark:shadow-cyan-500/20' : tileInactive
         }`} style={tileStyle}>
           <Home className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${homeActive ? 'text-cyan-500 dark:text-cyan-400' : 'text-stone-400 dark:text-slate-600'}`} />
@@ -435,7 +436,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
 
       {/* Grid - bottom right */}
       <div className="absolute z-10" style={{ left: `${nodePositions.grid.x * 100}%`, top: `${nodePositions.grid.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
-        <div className={`${tileBase} ${
+        <div onClick={() => onNodeClick?.('grid')} className={`${tileBase} ${
           gridImporting ? 'border-red-400/40 bg-red-50 shadow-lg shadow-red-500/10 dark:bg-red-950/80 dark:shadow-red-500/20'
           : gridExporting ? 'border-emerald-400/40 bg-emerald-50 shadow-lg shadow-emerald-500/10 dark:bg-emerald-950/80 dark:shadow-emerald-500/20'
           : tileInactive
