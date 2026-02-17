@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # State
 _state = {
     "enabled": False,
-    "phase": "idle",          # idle | peak_hold | dumping | complete
+    "phase": "idle",          # idle | partial_arb | peak_hold | dumping | complete
     "peak_start_hour": 17,    # 5pm
     "peak_end_hour": 21,      # 9pm
     "buffer_minutes": 15,     # Safety buffer
@@ -38,6 +38,9 @@ _state = {
     "last_calculation": None,
     "pre_optimize_mode": None,
     "pre_optimize_reserve": None,
+    # Partial-peak arbitrage
+    "partial_arb_active": False,
+    "partial_arb_calculation": None,
 }
 
 
@@ -61,6 +64,8 @@ def get_state() -> dict:
         "estimated_finish": _state["estimated_finish"],
         "last_calculation": _state["last_calculation"],
         "tou_source": _state.get("_tou_source", "manual"),
+        "partial_arb_active": _state.get("partial_arb_active", False),
+        "partial_arb_calculation": _state.get("partial_arb_calculation"),
     }
 
     # Add live TOU period info so the dashboard can show weekend/off-peak status
@@ -300,6 +305,45 @@ def _get_capacity_info() -> dict:
     }
 
 
+def _get_peak_start_hour(now: datetime) -> int:
+    """Find when ON_PEAK starts today from TOU data, or fall back to manual setting."""
+    try:
+        from tesla.commands import _cached_site_config
+        if not _cached_site_config:
+            raise ValueError("Site config not cached yet")
+
+        tariff = _cached_site_config.get("tariff_content", {})
+        if not tariff or not tariff.get("seasons"):
+            tariff = _cached_site_config.get("components", {}).get("tariff_content", {})
+        if not tariff or not tariff.get("seasons"):
+            raise ValueError("No TOU data")
+
+        day_of_week = now.weekday()
+        seasons = tariff.get("seasons", {})
+
+        for season_name, season_data in seasons.items():
+            from_month = season_data.get("fromMonth", 1)
+            to_month = season_data.get("toMonth", 12)
+            if not (from_month <= now.month <= to_month):
+                continue
+
+            tou_periods = season_data.get("tou_periods", {})
+            for period_name, schedules in tou_periods.items():
+                if period_name != "ON_PEAK":
+                    continue
+                schedule_list = schedules if isinstance(schedules, list) else []
+                for sched in schedule_list:
+                    from_dow = sched.get("fromDayOfWeek", 0)
+                    to_dow = sched.get("toDayOfWeek", 6)
+                    if from_dow <= day_of_week <= to_dow:
+                        return sched.get("fromHour", _state["peak_start_hour"])
+
+    except Exception:
+        pass
+
+    return _state["peak_start_hour"]
+
+
 async def _check_clean_grid_preference(status):
     """If clean grid preference is enabled, switch to self-consumption when grid is dirty.
 
@@ -350,6 +394,103 @@ async def _check_clean_grid_preference(status):
             logger.error("Failed to restore autonomous mode: %s", e)
 
 
+async def _start_partial_arb(status, arb_calc: dict):
+    """Begin partial-peak arbitrage: dump a calculated amount during mid-peak."""
+    from tesla.commands import set_operation_mode, set_backup_reserve, set_grid_import_export, get_site_config
+    from services.notifications import send_notification
+
+    logger.info("GridMind Optimize: Starting partial-peak arbitrage — dumping %.1f kWh (%.0f%% → %.0f%% reserve)",
+                arb_calc["dump_kwh"], status.battery_soc, arb_calc["target_reserve_pct"])
+
+    # Save current settings if not already saved (first arb of the day)
+    if not _state.get("pre_optimize_mode"):
+        try:
+            config = await get_site_config()
+            _state["pre_optimize_mode"] = config.get("operation_mode", "autonomous")
+            _state["pre_optimize_reserve"] = config.get("backup_reserve_percent", 20)
+            _state["pre_optimize_export"] = config.get("export_rule", "battery_ok")
+            _state["pre_optimize_grid_charging"] = not config.get("grid_charging_disabled", False)
+        except Exception:
+            _state["pre_optimize_mode"] = status.operation_mode
+            _state["pre_optimize_reserve"] = status.backup_reserve
+            _state["pre_optimize_export"] = "battery_ok"
+            _state["pre_optimize_grid_charging"] = True
+
+        setup_store.update({
+            "gridmind_optimize_pre_mode": _state["pre_optimize_mode"],
+            "gridmind_optimize_pre_reserve": _state["pre_optimize_reserve"],
+            "gridmind_optimize_pre_export": _state["pre_optimize_export"],
+            "gridmind_optimize_pre_grid_charging": _state.get("pre_optimize_grid_charging", True),
+        })
+
+    _set_phase("partial_arb")
+    _state["partial_arb_active"] = True
+    _state["partial_arb_calculation"] = arb_calc
+
+    target_reserve = int(arb_calc["target_reserve_pct"])
+
+    try:
+        await set_operation_mode("autonomous")
+    except Exception as e:
+        logger.error("Partial arb: failed to set autonomous mode: %s", e)
+
+    try:
+        await set_grid_import_export(customer_preferred_export_rule="battery_ok")
+    except Exception as e:
+        logger.error("Partial arb: failed to set export rule: %s", e)
+
+    try:
+        await set_backup_reserve(target_reserve)
+    except Exception as e:
+        logger.error("Partial arb: failed to set reserve to %d%%: %s", target_reserve, e)
+
+    try:
+        await send_notification(
+            "GridMind: Mid-Peak Arbitrage Started",
+            f"Exporting {arb_calc['dump_kwh']:.1f} kWh during mid-peak. "
+            f"Solar will recover before peak starts. Reserve set to {target_reserve}%.",
+            "info",
+        )
+    except Exception:
+        pass
+
+
+async def _end_partial_arb():
+    """End partial-peak arbitrage: restore normal settings before peak."""
+    from tesla.commands import set_operation_mode, set_backup_reserve, set_grid_import_export
+
+    logger.info("GridMind Optimize: Ending partial-peak arbitrage, restoring settings")
+
+    prev_mode = (_state.get("pre_optimize_mode")
+                 or setup_store.get("gridmind_optimize_pre_mode")
+                 or "autonomous")
+    prev_reserve = (_state.get("pre_optimize_reserve")
+                    or setup_store.get("gridmind_optimize_pre_reserve")
+                    or 20)
+    prev_export = (_state.get("pre_optimize_export")
+                   or setup_store.get("gridmind_optimize_pre_export")
+                   or "battery_ok")
+
+    try:
+        await set_operation_mode(prev_mode)
+    except Exception as e:
+        logger.error("Partial arb: failed to restore mode: %s", e)
+
+    try:
+        await set_backup_reserve(prev_reserve)
+    except Exception as e:
+        logger.error("Partial arb: failed to restore reserve: %s", e)
+
+    try:
+        await set_grid_import_export(customer_preferred_export_rule=prev_export)
+    except Exception as e:
+        logger.error("Partial arb: failed to restore export rule: %s", e)
+
+    _state["partial_arb_active"] = False
+    _state["partial_arb_calculation"] = None
+    _set_phase("idle")
+
+
 async def evaluate():
     """Main evaluation loop -- called every ~2 minutes by the scheduler.
 
@@ -385,17 +526,64 @@ async def evaluate():
     tou = _get_tou_peak_info(now)
     in_peak = tou["in_peak"]
 
-    # Not in peak: restore settings if needed, otherwise idle
+    # Not in peak: restore settings if needed, check partial-peak arb, or idle
     if not in_peak:
         if _state["phase"] in ("peak_hold", "dumping", "complete"):
             await _end_peak()
+        elif _state["phase"] == "partial_arb":
+            # If we left PARTIAL_PEAK (moved to OFF_PEAK or weekend), end arb
+            period_name = tou.get("period_name", "OFF_PEAK")
+            if period_name != "PARTIAL_PEAK":
+                await _end_partial_arb()
         elif _state["phase"] != "idle":
             _set_phase("idle")
 
+        # Partial-peak solar arbitrage: during PARTIAL_PEAK, dump what solar can recover
+        period_name = tou.get("period_name", "OFF_PEAK")
+        if period_name == "PARTIAL_PEAK" and _state["phase"] in ("idle", "partial_arb"):
+            try:
+                from automation.partial_peak_arb import calculate_arbitrage
+
+                cap = _get_capacity_info()
+                peak_start_hour = _get_peak_start_hour(now)
+
+                arb_calc = await calculate_arbitrage(
+                    battery_soc=status.battery_soc,
+                    battery_capacity_kwh=cap["capacity_kwh"],
+                    peak_start_hour=peak_start_hour,
+                )
+
+                if arb_calc and arb_calc["feasible"]:
+                    if _state["phase"] != "partial_arb":
+                        # Start new arb session
+                        await _start_partial_arb(status, arb_calc)
+                    else:
+                        # Already in arb — update calculation and adjust reserve if needed
+                        _state["partial_arb_calculation"] = arb_calc
+                        target = int(arb_calc["target_reserve_pct"])
+                        if status.battery_soc <= target + 1:
+                            # Battery has dumped enough, end arb early
+                            logger.info("Partial arb: battery reached target reserve, ending arb")
+                            await _end_partial_arb()
+                elif _state["phase"] == "partial_arb":
+                    # Was in arb but conditions changed (solar forecast dropped, etc.)
+                    logger.info("Partial arb: conditions no longer favorable, ending")
+                    await _end_partial_arb()
+            except Exception as e:
+                logger.error("Partial arb evaluation error: %s", e)
+                if _state["phase"] == "partial_arb":
+                    await _end_partial_arb()
+
         # Clean grid preference: if grid is fossil-heavy, switch to self-consumption
         # to avoid importing dirty power (uses battery + solar instead)
-        await _check_clean_grid_preference(status)
+        if _state["phase"] not in ("partial_arb",):
+            await _check_clean_grid_preference(status)
         return
+
+    # Entering peak: end partial arb if still active
+    if _state["phase"] == "partial_arb":
+        logger.info("GridMind Optimize: peak starting, ending partial-peak arbitrage")
+        await _end_partial_arb()
 
     # In peak: store peak end time for dump timing calculations
     _state["_peak_end_minutes"] = tou.get("peak_end_minutes")
