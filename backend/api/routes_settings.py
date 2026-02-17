@@ -754,3 +754,10 @@ async def test_notification():
         "info",
     )
     return {"results": [{"channel": r[0], "success": r[1]} for r in results]}
+
+
+@router.get("/notifications/webhook-queue")
+async def webhook_queue_stats():
+    """Get webhook retry queue statistics."""
+    from services.webhook_retry import get_queue_stats
+    return get_queue_stats()
