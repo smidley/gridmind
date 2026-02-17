@@ -88,12 +88,17 @@ app.add_middleware(
 from middleware.rate_limit import RateLimitMiddleware
 app.add_middleware(RateLimitMiddleware, max_requests=10, window_seconds=60)
 
+# CSRF protection for state-changing endpoints
+from middleware.csrf import CSRFMiddleware
+app.add_middleware(CSRFMiddleware)
+
 # --- App Authentication ---
 
 # Paths that don't require authentication
 AUTH_EXEMPT_PATHS = {
     "/api/app-auth/login",
     "/api/app-auth/status",
+    "/api/csrf-token",
     "/api/health",
     "/auth/callback",
     "/ws",
@@ -136,6 +141,13 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
 
     return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+
+
+@app.get("/api/csrf-token")
+async def csrf_token(request: Request):
+    """Get a CSRF token for state-changing requests."""
+    from middleware.csrf import get_csrf_token
+    return {"csrf_token": get_csrf_token(request)}
 
 
 @app.get("/api/app-auth/status")

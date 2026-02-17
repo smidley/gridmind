@@ -2,14 +2,29 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 const API_BASE = '/api'
 
+/** Read the CSRF token from the cookie for state-changing requests. */
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)gridmind_csrf_token=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : ''
+}
+
 export async function apiFetch<T = any>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  // Include CSRF token header for state-changing methods
+  const method = options?.method?.toUpperCase() || 'GET'
+  const csrfHeaders: Record<string, string> = {}
+  if (method !== 'GET' && method !== 'HEAD') {
+    const token = getCsrfToken()
+    if (token) csrfHeaders['X-CSRF-Token'] = token
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...csrfHeaders,
       ...options?.headers,
     },
     ...options,

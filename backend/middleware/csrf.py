@@ -84,12 +84,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Set CSRF token cookie on response (refresh on every request)
+        from config import settings
         response.set_cookie(
             key=CSRF_COOKIE_NAME,
             value=csrf_token,
             httponly=False,  # Must be readable by JavaScript to send in headers
-            secure=True,  # Only send over HTTPS in production
-            samesite="strict",  # Strict CSRF protection
+            secure=not settings.debug,  # HTTPS only in production
+            samesite="lax",  # Lax allows normal navigation; strict breaks some flows
             max_age=86400,  # 24 hours
         )
 
