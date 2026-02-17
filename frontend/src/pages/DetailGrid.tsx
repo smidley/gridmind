@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Zap, ArrowLeft } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Legend } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell, Legend } from 'recharts'
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -391,6 +391,7 @@ export default function DetailGrid() {
 
       {/* Grid Cleanliness Over Time */}
       {gridMix?.configured && gridMix?.hourly?.length > 0 && (() => {
+        const currentHour = new Date().getHours()
         // Build chart data from hourly breakdown
         const chartData = gridMix.hourly.map((h: any) => {
           // Use local_hour from backend (already converted from UTC)
@@ -399,6 +400,7 @@ export default function DetailGrid() {
           return {
             label,
             hour: hr,
+            isCurrent: hr === currentHour,
             WAT: h.WAT || 0,
             WND: h.WND || 0,
             SUN: h.SUN || 0,
@@ -411,6 +413,7 @@ export default function DetailGrid() {
             clean_pct: h.clean_pct || 0,
           }
         })
+        const currentIndex = chartData.findIndex((d: any) => d.isCurrent)
 
         return (
           <div className="card">
@@ -424,15 +427,40 @@ export default function DetailGrid() {
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={chartData} stackOffset="expand">
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} />
+                <XAxis
+                  dataKey="label"
+                  stroke="#475569"
+                  fontSize={10}
+                  tickLine={false}
+                  tick={({ x, y, payload }: any) => {
+                    const idx = chartData.findIndex((d: any) => d.label === payload.value)
+                    const isNow = idx >= 0 && chartData[idx].isCurrent
+                    return (
+                      <text x={x} y={y + 12} textAnchor="middle" fontSize={10}
+                        fill={isNow ? '#10b981' : '#475569'}
+                        fontWeight={isNow ? 700 : 400}>
+                        {isNow ? 'Now' : payload.value}
+                      </text>
+                    )
+                  }}
+                />
                 <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
                 <Tooltip
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                  labelStyle={{ color: '#94a3b8' }}
                   cursor={{ fill: 'rgba(148, 163, 184, 0.06)' }}
+                  labelFormatter={(label) => {
+                    const idx = chartData.findIndex((d: any) => d.label === label)
+                    return idx >= 0 && chartData[idx].isCurrent ? `${label} (Now)` : label
+                  }}
                   formatter={(v: number, name: string) => {
                     const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', BAT: 'Battery', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
                     return [`${v.toFixed(1)}%`, nameMap[name] || name]
                   }}
                 />
+                {currentIndex >= 0 && (
+                  <ReferenceLine x={chartData[currentIndex].label} stroke="#10b981" strokeWidth={2} strokeDasharray="4 2" />
+                )}
                 <Legend formatter={(val) => {
                   const nameMap: Record<string, string> = { WAT: 'Hydro', WND: 'Wind', SUN: 'Solar', NUC: 'Nuclear', BAT: 'Battery', NG: 'Gas', COL: 'Coal', OIL: 'Oil', OTH: 'Other' }
                   return <span className="text-xs text-slate-600 dark:text-slate-300">{nameMap[val] || val}</span>
@@ -459,9 +487,16 @@ export default function DetailGrid() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis dataKey="label" stroke="#475569" fontSize={10} tickLine={false} />
                   <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Clean Energy']} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                    labelStyle={{ color: '#94a3b8' }}
+                    formatter={(v: number) => [`${v.toFixed(1)}%`, 'Clean Energy']}
+                  />
                   <Area type="monotone" dataKey="clean_pct" stroke="#10b981" fill="#10b98120" strokeWidth={2} dot={false} />
                   <ReferenceLine y={50} stroke="#475569" strokeDasharray="3 3" />
+                  {currentIndex >= 0 && (
+                    <ReferenceLine x={chartData[currentIndex].label} stroke="#10b981" strokeWidth={2} strokeDasharray="4 2" />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
