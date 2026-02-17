@@ -346,7 +346,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
     )
   }
 
-  const diagramHeight = isMobile ? (showEv ? 360 : 330) : (showEv ? 450 : 420)
+  const diagramHeight = isMobile ? (showEv ? 380 : 350) : (showEv ? 480 : 450)
 
   return (
     <div className="relative w-full" style={{ height: diagramHeight }}>
@@ -355,13 +355,13 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, evChargingWa
 
       {/* Shared tile size — smaller on mobile to prevent overlap */}
       {(() => {
-        const tileW = isMobile ? 96 : 130
-        const tileH = isMobile ? 82 : 110
+        const tileW = isMobile ? 100 : 140
+        const tileH = isMobile ? 96 : 130
         const tileBase = `flex flex-col items-center justify-center rounded-xl border transition-all duration-500`
         const tileInactive = 'border-stone-200 bg-stone-50/90 dark:border-slate-800 dark:bg-slate-900/95'
         const tileStyle = { width: tileW, height: tileH }
-        const evTileW = isMobile ? 82 : 110
-        const evTileH = isMobile ? 74 : 100
+        const evTileW = isMobile ? 86 : 118
+        const evTileH = isMobile ? 82 : 116
         const evTileStyle = { width: evTileW, height: evTileH }
 
         return (<>
