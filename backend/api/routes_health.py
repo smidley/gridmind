@@ -100,7 +100,7 @@ async def powerwall_health():
             "system": {
                 "site_name": site.get("site_name", ""),
                 "battery_count": site.get("battery_count", 0),
-                "capacity_kwh": site.get("battery_count", 0) * 13.5,
+                "capacity_kwh": site.get("battery_count", 0) * 13.5,  # PW3 = 13.5 kWh/unit
                 "nameplate_power_w": site.get("nameplate_power", 0),
                 "nameplate_power_kw": round(site.get("nameplate_power", 0) / 1000, 1),
                 "firmware": site.get("version", ""),
@@ -182,8 +182,10 @@ async def powerwall_throughput(days: int = 30):
             "imported_kwh": round(s.grid_imported_kwh or 0, 2),
         })
 
-    # Calculate lifetime cycle estimate (based on 13.5 kWh per PW3)
-    capacity = 13.5 * 2  # User has 2 batteries
+    # Calculate lifetime cycle estimate
+    from services.battery_capacity import get_battery_capacity_sync
+    cap_info = get_battery_capacity_sync()
+    capacity = cap_info["capacity_kwh"]
     total_cycles = round(total_discharged / capacity, 1) if capacity > 0 else 0
     avg_daily_cycles = round(total_cycles / len(summaries), 3) if summaries else 0
 
@@ -468,17 +470,10 @@ async def powerwall_capacity():
     """
     EFFICIENCY_ESTIMATE = 0.92  # Typical round-trip efficiency for LFP
 
-    # Get nominal capacity from Tesla API (battery_count × 13.5 kWh)
-    # Falls back to 27 kWh (2 batteries) if API unavailable
-    NOMINAL_CAPACITY = 27.0
-    try:
-        from tesla.commands import get_site_config
-        config = await get_site_config()
-        api_capacity = config.get("total_capacity_kwh", 0)
-        if api_capacity > 0:
-            NOMINAL_CAPACITY = api_capacity
-    except Exception:
-        pass  # Use fallback
+    # Get nominal capacity from centralized battery service
+    from services.battery_capacity import get_battery_capacity
+    cap_info = await get_battery_capacity()
+    NOMINAL_CAPACITY = cap_info["capacity_kwh"]
 
     async with async_session() as session:
         # Get all daily stats for cycle analysis

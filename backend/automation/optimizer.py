@@ -291,25 +291,12 @@ def _get_tou_peak_info(now: datetime) -> dict:
 
 
 def _get_capacity_info() -> dict:
-    """Get battery capacity info."""
-    # PW3 = 13.5 kWh per unit, max output from site config
-    battery_count = 2  # Default
-    capacity_kwh = battery_count * 13.5
-    max_power_kw = 11.5
-
-    # Try to get from cached site config
-    try:
-        from tesla.commands import _cached_site_config
-        if _cached_site_config:
-            battery_count = _cached_site_config.get("battery_count", 2)
-            capacity_kwh = battery_count * 13.5
-            max_power_kw = _cached_site_config.get("nameplate_power", 11520) / 1000
-    except Exception:
-        pass
-
+    """Get battery capacity info from centralized service."""
+    from services.battery_capacity import get_battery_capacity_sync
+    info = get_battery_capacity_sync()
     return {
-        "capacity_kwh": capacity_kwh,
-        "max_power_kw": max_power_kw,
+        "capacity_kwh": info["capacity_kwh"],
+        "max_power_kw": info["nameplate_power_kw"],
     }
 
 

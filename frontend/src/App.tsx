@@ -173,7 +173,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v1.3.3</span>
+              <span>GridMind v1.3.4</span>
             </a>
           </div>
         </nav>

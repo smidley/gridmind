@@ -428,15 +428,11 @@ async def _compute_lifetime_optimize_savings(db, get_period_and_rate, now, displ
     except Exception:
         user_tz = ZoneInfo("America/New_York")
 
-    # Battery specs
-    try:
-        from tesla.commands import _cached_site_config
-        battery_count = _cached_site_config.get("battery_count", 2)
-        max_discharge_w = _cached_site_config.get("nameplate_power", 11520)
-    except Exception:
-        battery_count = 2
-        max_discharge_w = 11520
-    capacity_kwh = battery_count * 13.5
+    # Battery specs from centralized service
+    from services.battery_capacity import get_battery_capacity_sync
+    cap_info = get_battery_capacity_sync()
+    capacity_kwh = cap_info["capacity_kwh"]
+    max_discharge_w = cap_info["nameplate_power_kw"] * 1000
     reserve_pct = 20  # Normal reserve when Optimize is not running
 
     # Group hourly data by local date

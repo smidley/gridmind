@@ -73,8 +73,9 @@ async def get_achievements():
     total_discharged = sum(s.battery_discharged_kwh or 0 for s in summaries)
     days_tracked = len(summaries)
 
-    # Battery cycles (27 kWh nominal for 2x PW3)
-    capacity = 27.0
+    # Battery cycles — use actual capacity from API
+    from services.battery_capacity import get_battery_capacity_sync
+    capacity = get_battery_capacity_sync()["capacity_kwh"]
     total_cycles = total_discharged / capacity if capacity > 0 else 0
 
     # Financial estimate
