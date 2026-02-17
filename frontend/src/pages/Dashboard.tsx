@@ -383,10 +383,11 @@ export default function Dashboard() {
             const isExporting = enabled && phase === 'dumping' && status && status.grid_power < -50
             const isPoweringHome = enabled && phase === 'dumping' && status && status.battery_power > 50 && status.grid_power >= -50
             const isDumping = isExporting || isPoweringHome  // Battery is active (exporting or serving home)
-            const isWaiting = enabled && !isDumping && !isHolding && !isComplete
+            const isPartialArb = enabled && phase === 'partial_arb'
+            const isWaiting = enabled && !isDumping && !isHolding && !isComplete && !isPartialArb
 
-            const solidColor = isDumping ? '#f59e0b' : isPoweringHome ? '#06b6d4' : isHolding ? '#3b82f6' : '#10b981'
-            const glowColor = isDumping ? 'rgba(245,158,11,0.12)' : isPoweringHome ? 'rgba(6,182,212,0.10)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
+            const solidColor = isPartialArb ? '#8b5cf6' : isDumping ? '#f59e0b' : isPoweringHome ? '#06b6d4' : isHolding ? '#3b82f6' : '#10b981'
+            const glowColor = isPartialArb ? 'rgba(139,92,246,0.12)' : isDumping ? 'rgba(245,158,11,0.12)' : isPoweringHome ? 'rgba(6,182,212,0.10)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
 
             return (
             <div className="relative rounded-xl" style={{
@@ -434,6 +435,7 @@ export default function Dashboard() {
                   <div className="relative">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                       !enabled ? 'bg-slate-200/60 dark:bg-slate-800'
+                        : isPartialArb ? 'bg-violet-500/15 dark:bg-violet-500/20'
                         : isDumping ? 'bg-amber-500/15 dark:bg-amber-500/20'
                         : isPoweringHome ? 'bg-cyan-500/15 dark:bg-cyan-500/20'
                         : isHolding ? 'bg-blue-500/15 dark:bg-blue-500/20'
@@ -441,15 +443,16 @@ export default function Dashboard() {
                     }`}>
                       <Activity className={`w-6 h-6 ${
                         !enabled ? 'text-slate-400 dark:text-slate-600'
+                          : isPartialArb ? 'text-violet-500'
                           : isDumping ? 'text-amber-500'
                           : isPoweringHome ? 'text-cyan-500'
                           : isHolding ? 'text-blue-500'
                           : 'text-emerald-500'
                       }`} />
                     </div>
-                    {(isDumping || isPoweringHome || isHolding) && (
+                    {(isDumping || isPoweringHome || isHolding || isPartialArb) && (
                       <div className={`absolute -inset-1 rounded-xl border-2 animate-pulse ${
-                        isDumping ? 'border-amber-500/30' : isPoweringHome ? 'border-cyan-500/30' : 'border-blue-500/30'
+                        isPartialArb ? 'border-violet-500/30' : isDumping ? 'border-amber-500/30' : isPoweringHome ? 'border-cyan-500/30' : 'border-blue-500/30'
                       }`} />
                     )}
                   </div>
@@ -474,6 +477,8 @@ export default function Dashboard() {
                         ? `Self-powered during peak · ${optimizeStatus.last_calculation?.available_kwh || '?'} kWh available · Calculating optimal dump time`
                         : isComplete
                         ? 'Peak period finished · Normal operation restored'
+                        : isPartialArb
+                        ? `Mid-peak arbitrage · Exporting ${optimizeStatus.partial_arb_calculation?.dump_kwh || '?'} kWh · Solar will recover before peak`
                         : optimizeStatus.current_tou_period && !optimizeStatus.tou_in_peak
                         ? `Currently ${optimizeStatus.current_tou_period} · No peak period today`
                         : `Waiting for peak · ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`
@@ -485,7 +490,9 @@ export default function Dashboard() {
                 <div className="shrink-0">
                   {enabled ? (
                     <div className={`px-4 py-2 rounded-lg font-bold text-sm uppercase tracking-wider ${
-                      isDumping
+                      isPartialArb
+                        ? 'bg-violet-500/20 text-violet-600 dark:text-violet-400 animate-pulse'
+                        : isDumping
                         ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
                         : isPoweringHome
                         ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400'
@@ -495,7 +502,8 @@ export default function Dashboard() {
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                         : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                     }`}>
-                      {isExporting ? 'Dumping to Grid'
+                      {isPartialArb ? 'Mid-Peak Arb'
+                        : isExporting ? 'Dumping to Grid'
                         : isPoweringHome ? 'Powering Home'
                         : isHolding ? 'Holding'
                         : isComplete ? 'Complete'

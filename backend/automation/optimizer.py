@@ -22,13 +22,14 @@ from zoneinfo import ZoneInfo
 from config import settings
 from services import setup_store
 from services.collector import get_latest_status
+from automation.partial_peak_arb import calculate_partial_peak_arbitrage
 
 logger = logging.getLogger(__name__)
 
 # State
 _state = {
     "enabled": False,
-    "phase": "idle",          # idle | peak_hold | dumping | complete
+    "phase": "idle",          # idle | partial_arb | peak_hold | dumping | complete
     "peak_start_hour": 17,    # 5pm
     "peak_end_hour": 21,      # 9pm
     "buffer_minutes": 15,     # Safety buffer
@@ -38,6 +39,11 @@ _state = {
     "last_calculation": None,
     "pre_optimize_mode": None,
     "pre_optimize_reserve": None,
+    # Partial-peak arbitrage state
+    "partial_arb_enabled": True,  # Enable/disable partial-peak arbitrage
+    "partial_arb_active": False,
+    "partial_arb_reserve": None,  # Reserve set during partial-peak arb
+    "partial_arb_calculation": None,
 }
 
 
@@ -61,6 +67,10 @@ def get_state() -> dict:
         "estimated_finish": _state["estimated_finish"],
         "last_calculation": _state["last_calculation"],
         "tou_source": _state.get("_tou_source", "manual"),
+        # Partial-peak arbitrage
+        "partial_arb_enabled": _state.get("partial_arb_enabled", True),
+        "partial_arb_active": _state.get("partial_arb_active", False),
+        "partial_arb_calculation": _state.get("partial_arb_calculation"),
     }
 
     # Add live TOU period info so the dashboard can show weekend/off-peak status
@@ -363,6 +373,106 @@ async def _check_clean_grid_preference(status):
             logger.error("Failed to restore autonomous mode: %s", e)
 
 
+async def _check_partial_peak_arbitrage(status, now):
+    """Check if partial-peak arbitrage makes sense and execute if so.
+    
+    During PARTIAL_PEAK, we can dump battery to grid if:
+    1. Solar forecast shows we can recover before ON_PEAK starts
+    2. Battery has enough charge to make it worthwhile (>10% dump)
+    """
+    from tesla.commands import set_backup_reserve, set_operation_mode
+    
+    cap = _get_capacity_info()
+    battery_capacity_kwh = cap.get("total_kwh", 13.5)
+    
+    arb = await calculate_partial_peak_arbitrage(
+        battery_soc=status.battery_soc,
+        battery_capacity_kwh=battery_capacity_kwh,
+        on_peak_start_hour=_state["peak_start_hour"],
+        min_reserve_pct=20.0,
+        safety_buffer_pct=15.0,
+    )
+    
+    _state["partial_arb_calculation"] = arb
+    
+    if arb is None or not arb.get("feasible"):
+        if _state["phase"] == "partial_arb":
+            await _end_partial_arb()
+        elif _state["phase"] != "idle":
+            _set_phase("idle")
+        _state["partial_arb_active"] = False
+        return
+    
+    target_reserve = int(arb["target_reserve_pct"])
+    
+    if _state["phase"] != "partial_arb":
+        logger.info(
+            "GridMind Partial-Peak Arb: Starting - dump %.1f%% (%.1f kWh), "
+            "target reserve %d%%, solar remaining %.1f kWh",
+            arb["dump_pct"], arb["dump_kwh"], target_reserve, arb["solar_remaining_kwh"]
+        )
+        
+        if _state["pre_optimize_mode"] is None:
+            from tesla.commands import get_site_config
+            try:
+                config = await get_site_config()
+                _state["pre_optimize_mode"] = config.get("operation_mode", "autonomous")
+                _state["pre_optimize_reserve"] = config.get("backup_reserve_percent", 20)
+            except Exception:
+                _state["pre_optimize_mode"] = "autonomous"
+                _state["pre_optimize_reserve"] = 20
+        
+        try:
+            await set_backup_reserve(target_reserve)
+            _state["partial_arb_reserve"] = target_reserve
+        except Exception as e:
+            logger.error("Failed to set reserve for partial-peak arb: %s", e)
+            return
+        
+        try:
+            await set_operation_mode("autonomous")
+        except Exception as e:
+            logger.error("Failed to set mode for partial-peak arb: %s", e)
+        
+        _set_phase("partial_arb")
+        _state["partial_arb_active"] = True
+    else:
+        current_reserve = _state.get("partial_arb_reserve", 100)
+        if abs(target_reserve - current_reserve) > 5:
+            logger.info("GridMind Partial-Peak Arb: Adjusting reserve %d%% -> %d%%",
+                current_reserve, target_reserve)
+            try:
+                await set_backup_reserve(target_reserve)
+                _state["partial_arb_reserve"] = target_reserve
+            except Exception as e:
+                logger.error("Failed to adjust reserve: %s", e)
+
+
+async def _end_partial_arb():
+    """End partial-peak arbitrage and restore settings."""
+    from tesla.commands import set_backup_reserve, set_operation_mode
+    
+    logger.info("GridMind Partial-Peak Arb: Ending, restoring settings")
+    
+    pre_mode = _state.get("pre_optimize_mode", "autonomous")
+    pre_reserve = _state.get("pre_optimize_reserve", 20)
+    
+    try:
+        await set_backup_reserve(pre_reserve)
+    except Exception as e:
+        logger.error("Failed to restore reserve after partial-peak arb: %s", e)
+    
+    try:
+        await set_operation_mode(pre_mode)
+    except Exception as e:
+        logger.error("Failed to restore mode after partial-peak arb: %s", e)
+    
+    _state["partial_arb_active"] = False
+    _state["partial_arb_reserve"] = None
+    _state["partial_arb_calculation"] = None
+    _set_phase("idle")
+
+
 async def evaluate():
     """Main evaluation loop -- called every ~2 minutes by the scheduler.
 
@@ -398,12 +508,21 @@ async def evaluate():
     tou = _get_tou_peak_info(now)
     in_peak = tou["in_peak"]
 
-    # Not in peak: restore settings if needed, otherwise idle
+    # Not in peak: check for partial-peak arbitrage or restore settings
     if not in_peak:
         if _state["phase"] in ("peak_hold", "dumping", "complete"):
             await _end_peak()
+        
+        # Check for partial-peak arbitrage opportunity
+        period_name = tou.get("period_name", "")
+        if period_name == "PARTIAL_PEAK" and _state.get("partial_arb_enabled", True):
+            await _check_partial_peak_arbitrage(status, now)
+        elif _state["phase"] == "partial_arb":
+            # Exited partial peak, restore settings
+            await _end_partial_arb()
         elif _state["phase"] != "idle":
             _set_phase("idle")
+            _state["partial_arb_active"] = False
 
         # Clean grid preference: if grid is fossil-heavy, switch to self-consumption
         # to avoid importing dirty power (uses battery + solar instead)

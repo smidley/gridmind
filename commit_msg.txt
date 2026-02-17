@@ -1,0 +1,17 @@
+feat: Add partial-peak solar arbitrage
+
+During PARTIAL_PEAK periods, GridMind can dump battery to grid when
+solar production can recover the charge before ON_PEAK starts.
+
+Backend:
+- New module: automation/partial_peak_arb.py
+- New optimizer phase: partial_arb
+- New functions: _check_partial_peak_arbitrage(), _end_partial_arb()
+- API includes partial_arb_calculation
+
+Frontend:
+- Violet color scheme for partial-peak arbitrage
+- Mid-Peak Arb badge when active
+
+Auto-activates if TOU plan has PARTIAL_PEAK periods.
+
