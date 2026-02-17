@@ -243,7 +243,7 @@ def _get_tou_peak_info(now: datetime) -> dict:
 
                     # All-day period (from 0:00 to 0:00)
                     if from_hr == 0 and to_hr == 0 and from_min == 0 and to_min == 0:
-                        is_peak = period_name in ("ON_PEAK", "PARTIAL_PEAK")
+                        is_peak = period_name == "ON_PEAK"
                         return {
                             "in_peak": is_peak,
                             "peak_end_minutes": 24 * 60 if is_peak else None,
@@ -260,7 +260,7 @@ def _get_tou_peak_info(now: datetime) -> dict:
                         in_range = current_minutes >= from_minutes or current_minutes < to_minutes
 
                     if in_range:
-                        is_peak = period_name in ("ON_PEAK", "PARTIAL_PEAK")
+                        is_peak = period_name == "ON_PEAK"
                         return {
                             "in_peak": is_peak,
                             "peak_end_minutes": to_minutes if is_peak else None,
