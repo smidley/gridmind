@@ -19,7 +19,10 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 
-# Install dependencies
+# Install system dependencies first (rarely changes, caches well)
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies (only re-runs when requirements.txt changes)
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -38,9 +41,6 @@ ENV GRIDMIND_HOST=0.0.0.0
 ENV GRIDMIND_PORT=8000
 
 EXPOSE 8000
-
-# Install curl for health check (not in slim image by default)
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8000/api/health || exit 1
