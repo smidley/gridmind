@@ -32,6 +32,7 @@ import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import PowerFlowDiagram from '../components/PowerFlowDiagram'
 import BatteryGauge from '../components/BatteryGauge'
 import SolarGoal from '../components/SolarGoal'
+import AnimatedValue from '../components/AnimatedValue'
 
 function formatEnergy(kwh: number): string {
   if (kwh >= 100) return `${Math.round(kwh)} kWh`
@@ -228,7 +229,7 @@ export default function Dashboard() {
         <>
           {/* Power Flow */}
           <div className="card">
-            <div className="card-header">Power Flow</div>
+            <div className="card-header flex items-center gap-2">Power Flow <span className="live-dot" /></div>
             <PowerFlowDiagram
               status={status}
               tariff={tariff}
@@ -250,7 +251,7 @@ export default function Dashboard() {
           </div>
 
           {/* Daily Totals + Battery */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ position: 'relative' }}>
             {/* Solar Generated Today */}
             <div className="card cursor-pointer hover:ring-1 hover:ring-amber-500/30 transition-all" onClick={() => navigate('/detail/solar')}>
               <div className="flex items-center gap-2 mb-2">
@@ -258,7 +259,7 @@ export default function Dashboard() {
                 <span className="card-header mb-0">Generated</span>
               </div>
               <div className="stat-value text-amber-400">
-                {todayTotals ? formatEnergy(todayTotals.solar_generated_kwh) : '—'}
+                {todayTotals ? <AnimatedValue value={todayTotals.solar_generated_kwh} format={formatEnergy} /> : '—'}
               </div>
               <div className="stat-label">Solar today</div>
               {forecast?.today && forecast.today.remaining_sunlight_hours !== null && forecast.today.remaining_sunlight_hours > 0 && (
@@ -281,7 +282,7 @@ export default function Dashboard() {
                 <span className="card-header mb-0">Exported</span>
               </div>
               <div className="stat-value text-emerald-400">
-                {todayTotals ? formatEnergy(todayTotals.grid_exported_kwh) : '—'}
+                {todayTotals ? <AnimatedValue value={todayTotals.grid_exported_kwh} format={formatEnergy} /> : '—'}
               </div>
               <div className="stat-label">To grid today</div>
               {valueData && !valueData.error && valueData.export_credits > 0 && (
@@ -296,7 +297,7 @@ export default function Dashboard() {
                 <span className="card-header mb-0">Consumed</span>
               </div>
               <div className="stat-value text-cyan-400">
-                {todayTotals ? formatEnergy(todayTotals.home_consumed_kwh) : '—'}
+                {todayTotals ? <AnimatedValue value={todayTotals.home_consumed_kwh} format={formatEnergy} /> : '—'}
               </div>
               <div className="stat-label">Home today</div>
               {valueData && !valueData.error && valueData.import_costs > 0 && (

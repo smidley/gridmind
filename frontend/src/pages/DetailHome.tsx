@@ -53,7 +53,7 @@ export default function DetailHome() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
-          <div className="card-header">Current Load</div>
+          <div className="card-header flex items-center gap-2">Current Load <span className="live-dot" /></div>
           <div className="stat-value text-cyan-500 dark:text-cyan-400">{status ? formatPower(status.home_power) : '—'}</div>
         </div>
         <div className="card">

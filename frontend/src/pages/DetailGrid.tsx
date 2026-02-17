@@ -59,7 +59,7 @@ export default function DetailGrid() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
-          <div className="card-header">Current</div>
+          <div className="card-header flex items-center gap-2">Current <span className="live-dot" /></div>
           <div className={`stat-value ${importing ? 'text-red-500 dark:text-red-400' : exporting ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-500'}`}>
             {status ? formatPower(status.grid_power) : '—'}
           </div>

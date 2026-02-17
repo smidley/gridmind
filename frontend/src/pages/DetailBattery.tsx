@@ -85,7 +85,7 @@ export default function DetailBattery() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
-          <div className="card-header">Current Power</div>
+          <div className="card-header flex items-center gap-2">Current Power <span className="live-dot" /></div>
           <div className={`stat-value ${charging ? 'text-emerald-500 dark:text-emerald-400' : discharging ? 'text-blue-500 dark:text-blue-400' : 'text-slate-500'}`}>
             {status ? formatPower(status.battery_power) : '—'}
           </div>

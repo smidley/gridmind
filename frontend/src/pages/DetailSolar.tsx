@@ -69,7 +69,7 @@ export default function DetailSolar() {
       {/* Live + Range Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
-          <div className="card-header">Current Output</div>
+          <div className="card-header flex items-center gap-2">Current Output <span className="live-dot" /></div>
           <div className="stat-value text-amber-500 dark:text-amber-400">{status ? formatPower(status.solar_power) : '—'}</div>
         </div>
         <div className="card">

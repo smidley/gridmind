@@ -1,6 +1,7 @@
 import { useEffect, useRef, useMemo, useState } from 'react'
 import { Sun, Home, Zap, Battery, Car } from 'lucide-react'
 import type { PowerwallStatus } from '../hooks/useWebSocket'
+import AnimatedValue from './AnimatedValue'
 
 interface TariffInfo {
   configured: boolean
@@ -370,9 +371,11 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, onNodeClick,
           solarActive ? 'border-amber-400/40 bg-amber-50 shadow-lg shadow-amber-500/10 dark:bg-amber-950/80 dark:shadow-amber-500/20' : tileInactive
         }`} style={tileStyle}>
           <Sun className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${solarActive ? 'text-amber-500 dark:text-amber-400' : 'text-stone-400 dark:text-slate-600'}`} />
-          <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${solarActive ? 'text-amber-600 dark:text-amber-400' : 'text-stone-400 dark:text-slate-600'}`}>
-            {formatPower(status.solar_power)}
-          </span>
+          <AnimatedValue
+            value={Math.abs(status.solar_power)}
+            format={formatPower}
+            className={`${isMobile ? 'text-base' : 'text-xl'} font-bold ${solarActive ? 'text-amber-600 dark:text-amber-400' : 'text-stone-400 dark:text-slate-600'}`}
+          />
           <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-stone-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5`}>Solar</span>
           {solarActive && <span className={`${isMobile ? 'text-[8px]' : 'text-[9px]'} text-amber-500/70 dark:text-amber-400/70`}>Generating</span>}
         </div>
@@ -408,9 +411,11 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, onNodeClick,
           batteryCharging || batteryDischarging ? 'border-blue-400/40 bg-blue-50 shadow-lg shadow-blue-500/10 dark:bg-blue-950/80 dark:shadow-blue-500/20' : tileInactive
         }`} style={tileStyle}>
           <Battery className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${status.battery_soc > 20 ? 'text-blue-500 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`} />
-          <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${status.battery_soc > 20 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
-            {formatPower(status.battery_power)}
-          </span>
+          <AnimatedValue
+            value={Math.abs(status.battery_power)}
+            format={formatPower}
+            className={`${isMobile ? 'text-base' : 'text-xl'} font-bold ${status.battery_soc > 20 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}
+          />
           <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-stone-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5`}>Battery</span>
           <span className={`${isMobile ? 'text-[8px]' : 'text-[9px]'} ${batteryCharging || batteryDischarging ? 'text-blue-500/70 dark:text-blue-400/70' : 'text-stone-400 dark:text-slate-600'}`}>
             {batteryCharging ? `Charging · ${status.battery_soc.toFixed(0)}%`
@@ -426,9 +431,11 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, onNodeClick,
           homeActive ? 'border-cyan-400/40 bg-cyan-50 shadow-lg shadow-cyan-500/10 dark:bg-cyan-950/80 dark:shadow-cyan-500/20' : tileInactive
         }`} style={tileStyle}>
           <Home className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${homeActive ? 'text-cyan-500 dark:text-cyan-400' : 'text-stone-400 dark:text-slate-600'}`} />
-          <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${homeActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-stone-400 dark:text-slate-600'}`}>
-            {formatPower(actualHomePower)}
-          </span>
+          <AnimatedValue
+            value={Math.abs(actualHomePower)}
+            format={formatPower}
+            className={`${isMobile ? 'text-base' : 'text-xl'} font-bold ${homeActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-stone-400 dark:text-slate-600'}`}
+          />
           <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-stone-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5`}>Home</span>
           {homeActive && <span className={`${isMobile ? 'text-[8px]' : 'text-[9px]'} text-cyan-500/70 dark:text-cyan-400/70`}>Consuming</span>}
         </div>
@@ -442,11 +449,13 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, onNodeClick,
           : tileInactive
         }`} style={tileStyle}>
           <Zap className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${gridImporting ? 'text-red-500 dark:text-red-400' : gridExporting ? 'text-emerald-500 dark:text-emerald-400' : 'text-stone-400 dark:text-slate-600'}`} />
-          <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${
-            gridImporting ? 'text-red-600 dark:text-red-400' : gridExporting ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-400 dark:text-slate-600'
-          }`}>
-            {formatPower(status.grid_power)}
-          </span>
+          <AnimatedValue
+            value={Math.abs(status.grid_power)}
+            format={formatPower}
+            className={`${isMobile ? 'text-base' : 'text-xl'} font-bold ${
+              gridImporting ? 'text-red-600 dark:text-red-400' : gridExporting ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-400 dark:text-slate-600'
+            }`}
+          />
           <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-stone-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5`}>Grid</span>
           <span className={`${isMobile ? 'text-[8px]' : 'text-[9px]'} ${
             gridImporting ? 'text-red-500/70 dark:text-red-400/70' : gridExporting ? 'text-emerald-500/70 dark:text-emerald-400/70' : 'text-stone-400 dark:text-slate-600'
