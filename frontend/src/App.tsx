@@ -28,6 +28,7 @@ import DetailSolar from './pages/DetailSolar'
 import DetailGrid from './pages/DetailGrid'
 import DetailHome from './pages/DetailHome'
 import DetailBattery from './pages/DetailBattery'
+import DetailOptimize from './pages/DetailOptimize'
 import VehiclePage from './pages/Vehicle'
 import Achievements from './pages/Achievements'
 import Login from './pages/Login'
@@ -173,7 +174,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v1.5.0</span>
+              <span>GridMind v1.6.0</span>
             </a>
           </div>
         </nav>
@@ -192,6 +193,7 @@ export default function App() {
             <Route path="/detail/grid" element={<DetailGrid />} />
             <Route path="/detail/home" element={<DetailHome />} />
             <Route path="/detail/battery" element={<DetailBattery />} />
+            <Route path="/detail/optimize" element={<DetailOptimize />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>

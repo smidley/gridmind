@@ -38,7 +38,17 @@ _state = {
     "last_calculation": None,
     "pre_optimize_mode": None,
     "pre_optimize_reserve": None,
+    # Verbose thinking feed (last 8 plain-text lines)
+    "thoughts": [],
+    "last_evaluate_at": None,
 }
+
+
+def _think(msg: str):
+    """Record a thought for the verbose thinking feed."""
+    _state["thoughts"].append(msg)
+    if len(_state["thoughts"]) > 8:
+        _state["thoughts"] = _state["thoughts"][-8:]
 
 
 def _set_phase(phase: str):
@@ -68,19 +78,76 @@ def get_state() -> dict:
         try:
             now = _get_local_now()
             tou = _get_tou_peak_info(now)
-            period_display = {
+            period_display_map = {
                 "OFF_PEAK": "Off-Peak",
                 "ON_PEAK": "Peak",
                 "PARTIAL_PEAK": "Mid-Peak",
             }
-            result["current_tou_period"] = period_display.get(tou["period_name"], tou["period_name"])
+            tou_period_name = tou.get("period_name", "OFF_PEAK")
+            result["current_tou_period"] = period_display_map.get(tou_period_name, tou_period_name)
             result["tou_in_peak"] = tou["in_peak"]
 
-            # Check if peak exists today at all (weekdays have peak, weekends typically don't)
-            # Used by dashboard to distinguish "waiting for peak" vs "no peak today"
             is_weekday = now.weekday() < 5
             peak_start = _get_peak_start_hour(now)
             result["tou_has_peak_today"] = is_weekday and peak_start is not None
+
+            # Verbose section for detail page
+            status = get_latest_status()
+            current_inputs = {}
+            if status:
+                current_inputs = {
+                    "battery_soc": round(status.battery_soc, 1),
+                    "battery_power": round(status.battery_power, 0),
+                    "solar_power": round(status.solar_power, 0),
+                    "grid_power": round(status.grid_power, 0),
+                    "home_power": round(status.home_power, 0),
+                    "operation_mode": status.operation_mode,
+                    "backup_reserve": round(status.backup_reserve, 0),
+                }
+
+            # Minutes until peak
+            minutes_until_peak = None
+            if peak_start is not None and not tou["in_peak"]:
+                peak_start_time = now.replace(hour=peak_start, minute=0, second=0)
+                if peak_start_time > now:
+                    minutes_until_peak = int((peak_start_time - now).total_seconds() / 60)
+
+            # Clean grid info
+            clean_grid_info = {
+                "enabled": bool(setup_store.get("gridmind_clean_grid_enabled")),
+                "active": _state.get("_clean_grid_active", False),
+                "fossil_pct": None,
+                "threshold": int(setup_store.get("gridmind_fossil_threshold_pct") or 50),
+            }
+            try:
+                from services.grid_mix import get_cached_mix
+                mix = get_cached_mix()
+                if mix:
+                    clean_grid_info["fossil_pct"] = mix.get("fossil_pct")
+            except Exception:
+                pass
+
+            result["verbose"] = {
+                "thoughts": list(_state.get("thoughts", [])),
+                "current_inputs": current_inputs,
+                "tou_context": {
+                    "period_name": period_display_map.get(tou_period_name, tou_period_name),
+                    "in_peak": tou["in_peak"],
+                    "source": tou.get("source", "manual"),
+                    "peak_start_hour": peak_start,
+                    "peak_end_hour": _state["peak_end_hour"],
+                    "is_weekday": is_weekday,
+                    "minutes_until_peak": minutes_until_peak,
+                },
+                "clean_grid": clean_grid_info,
+                "settings": {
+                    "buffer_minutes": _state["buffer_minutes"],
+                    "min_reserve_pct": _state["min_reserve_pct"],
+                    "pre_optimize_mode": _state.get("pre_optimize_mode"),
+                    "pre_optimize_reserve": _state.get("pre_optimize_reserve"),
+                },
+                "last_evaluate_at": _state.get("last_evaluate_at"),
+            }
         except Exception:
             pass
 
@@ -370,6 +437,7 @@ async def _check_clean_grid_preference(status):
     if grid_dirty and battery_ok and status.operation_mode != "self_consumption":
         # Grid is dirty — prefer battery/solar over grid
         if not _state.get("_clean_grid_active"):
+            _think(f"Grid is {fossil_pct:.0f}% fossil (threshold {threshold}%) — switching to self-consumption")
             logger.info(
                 "GridMind Clean Grid: fossil %.1f%% > %d%% threshold, switching to self-consumption",
                 fossil_pct, threshold,
@@ -452,10 +520,14 @@ async def evaluate():
     await _check_stuck_reserve()
 
     now = _get_local_now()
+    _state["last_evaluate_at"] = now.isoformat()
 
     status = get_latest_status()
     if status is None:
+        _think("Waiting for Powerwall data...")
         return
+
+    _think(f"Battery at {status.battery_soc:.1f}% — solar {status.solar_power/1000:.1f} kW, home {status.home_power/1000:.1f} kW, grid {status.grid_power/1000:.1f} kW")
 
     # Safety: if peak_hold/dumping has been active for over 6 hours, something is wrong.
     # No peak window is that long — force restore to prevent getting stuck.
@@ -465,6 +537,7 @@ async def evaluate():
             try:
                 phase_age_hours = (now - datetime.fromisoformat(phase_persisted_at)).total_seconds() / 3600
                 if phase_age_hours > 6:
+                    _think(f"Phase '{_state['phase']}' stuck for {phase_age_hours:.0f}h — forcing restore")
                     logger.warning("GridMind Optimize: phase '%s' stuck for %.1f hours — forcing restore",
                                    _state["phase"], phase_age_hours)
                     await _end_peak()
@@ -475,13 +548,31 @@ async def evaluate():
     # Check TOU schedule to determine if we're in peak
     tou = _get_tou_peak_info(now)
     in_peak = tou["in_peak"]
+    period_display = {"OFF_PEAK": "Off-Peak", "ON_PEAK": "Peak", "PARTIAL_PEAK": "Mid-Peak"}
+    period_name = period_display.get(tou.get("period_name", ""), tou.get("period_name", "unknown"))
+    _think(f"TOU check: currently {period_name}" + (" — in peak window" if in_peak else ""))
 
     # Not in peak: restore settings if needed, otherwise idle
     if not in_peak:
         if _state["phase"] in ("peak_hold", "dumping", "complete"):
+            _think("Peak ended — restoring normal operation")
             await _end_peak()
         elif _state["phase"] != "idle":
             _set_phase("idle")
+
+        # Show time until peak if applicable
+        peak_start = _get_peak_start_hour(now)
+        is_weekday = now.weekday() < 5
+        if is_weekday and peak_start is not None:
+            hours_to_peak = peak_start - now.hour
+            if hours_to_peak > 0:
+                _think(f"Peak starts at {peak_start if peak_start <= 12 else peak_start - 12}:00 {'PM' if peak_start >= 12 else 'AM'} — {hours_to_peak}h from now")
+            else:
+                _think("Past peak hours — idle until tomorrow")
+        elif not is_weekday:
+            _think("Weekend — no peak period today")
+        else:
+            _think("Off-peak — no actions needed")
 
         # Clean grid preference: if grid is fossil-heavy, switch to self-consumption
         # to avoid importing dirty power (uses battery + solar instead)
@@ -494,6 +585,7 @@ async def evaluate():
 
     # During peak hours
     if _state["phase"] == "idle":
+        _think("Peak just started — entering hold phase")
         # Peak just started -- enter hold phase
         await _start_peak_hold(status)
         return
@@ -577,7 +669,7 @@ async def _check_dump_timing(status, now: datetime):
     available_kwh = (available_pct / 100) * cap["capacity_kwh"]
 
     if available_kwh <= 0.5:
-        # Not enough to dump
+        _think(f"Only {available_kwh:.1f} kWh available — not enough to dump")
         _state["last_calculation"] = {
             "time": now.isoformat(),
             "decision": "skip",
@@ -624,15 +716,20 @@ async def _check_dump_timing(status, now: datetime):
         "decision": "wait" if minutes_needed < trigger_at else "dump",
     }
 
+    _think(f"Home drawing {estimated_home_kw:.1f} kW — net export rate {net_export_kw:.1f} kW")
+    _think(f"Need {minutes_needed:.0f} min to dump {available_kwh:.1f} kWh — {minutes_remaining:.0f} min remain in peak")
+
     if minutes_needed >= trigger_at:
         # Time to dump!
         estimated_finish = now + timedelta(minutes=minutes_needed)
+        _think(f"Trigger threshold reached — starting battery dump, est. finish {estimated_finish.strftime('%I:%M %p')}")
         logger.info(
             "GridMind Optimize: DUMPING -- %.1f kWh at %.1f kW net, estimated finish %s",
             available_kwh, net_export_kw, estimated_finish.strftime("%H:%M"),
         )
         await _start_dump(estimated_finish)
     else:
+        _think(f"Trigger at {trigger_at:.0f} min remaining ({buffer_min}m buffer) — holding")
         logger.debug(
             "GridMind Optimize: Holding -- need %.0f min, have %.0f min (trigger at %.0f)",
             minutes_needed, minutes_remaining, trigger_at,
@@ -723,11 +820,14 @@ async def _monitor_dump(status, now: datetime):
         "decision": "dump",
     }
 
+    _think(f"Dumping to grid — {available_kwh:.1f} kWh left at {net_export_kw:.1f} kW, ~{minutes_needed:.0f} min remaining")
+
     # Safety check: verify the reserve is actually set to min_reserve.
     # If a previous set_backup_reserve call failed silently, the Powerwall
     # won't discharge below its current reserve (e.g. 20%), wasting the dump.
     actual_reserve = status.backup_reserve
     if actual_reserve > min_reserve + 2:
+        _think(f"Reserve at {actual_reserve:.0f}% but should be {min_reserve}% — resending command")
         logger.warning(
             "GridMind Optimize: Reserve is %.0f%% but should be %d%% — resending command",
             actual_reserve, min_reserve,
@@ -739,8 +839,8 @@ async def _monitor_dump(status, now: datetime):
             logger.error("GridMind Optimize: Failed to correct reserve: %s", e)
 
     if status.battery_soc <= min_reserve + 1:
+        _think(f"Dump complete — battery at {status.battery_soc:.1f}%, stopping export")
         logger.info("GridMind Optimize: Dump complete, battery at %.1f%%", status.battery_soc)
-        # Battery is drained to reserve, stop exporting
         from tesla.commands import set_grid_import_export
         try:
             await set_grid_import_export(customer_preferred_export_rule="pv_only")

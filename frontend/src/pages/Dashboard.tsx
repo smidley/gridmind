@@ -400,7 +400,7 @@ export default function Dashboard() {
             const glowColor = isDumping ? 'rgba(245,158,11,0.12)' : isPoweringHome ? 'rgba(6,182,212,0.10)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
 
             return (
-            <div className="relative rounded-xl" style={{
+            <div className="relative rounded-xl cursor-pointer" onClick={() => navigate('/detail/optimize')} style={{
               padding: enabled ? '2px' : 0,
               boxShadow: enabled ? `0 0 12px ${glowColor}, 0 0 24px ${glowColor}` : undefined,
             }}>
