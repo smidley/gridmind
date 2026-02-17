@@ -264,6 +264,13 @@ async def powerwall_alerts():
         })
 
     # Detect low SOC events (below 10%)
+    # Skip short events caused by optimizer dumps — when GridMind Optimize is
+    # dumping, the battery intentionally drops to 5%. Only alert if the low SOC
+    # persists for an unusually long time (>3 hours), suggesting a real problem.
+    from automation.optimizer import get_state as get_optimizer_state
+    optimizer_enabled = get_optimizer_state().get("enabled", False)
+    low_soc_min_duration = 180 if optimizer_enabled else 0  # 3 hours if optimizer active
+
     low_soc_start = None
     for r in readings:
         if r.battery_soc is not None and r.battery_soc < 10:
@@ -271,14 +278,15 @@ async def powerwall_alerts():
                 low_soc_start = r.timestamp
         elif low_soc_start:
             duration_min = (r.timestamp - low_soc_start).total_seconds() / 60
-            alerts.append({
-                "type": "low_battery",
-                "severity": "warning",
-                "message": f"Battery below 10% for {duration_min:.0f} minutes",
-                "started": low_soc_start.isoformat(),
-                "ended": r.timestamp.isoformat(),
-                "duration_minutes": round(duration_min, 1),
-            })
+            if duration_min > low_soc_min_duration:
+                alerts.append({
+                    "type": "low_battery",
+                    "severity": "warning",
+                    "message": f"Battery below 10% for {duration_min:.0f} minutes",
+                    "started": low_soc_start.isoformat(),
+                    "ended": r.timestamp.isoformat(),
+                    "duration_minutes": round(duration_min, 1),
+                })
             low_soc_start = None
 
     # Current status alerts
