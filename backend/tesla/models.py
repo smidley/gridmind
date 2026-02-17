@@ -13,7 +13,7 @@ class PowerwallStatus(BaseModel):
 
     timestamp: datetime
     battery_soc: float  # State of charge 0-100
-    battery_power: float  # Watts (+ = charging, - = discharging)
+    battery_power: float  # Watts (+ = discharging, - = charging)
     solar_power: float  # Watts generated
     grid_power: float  # Watts (+ = importing, - = exporting)
     home_power: float  # Watts consumed
