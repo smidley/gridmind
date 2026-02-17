@@ -24,6 +24,7 @@ import {
   PiggyBank,
   BarChart3,
   CloudLightning,
+  ChevronDown,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi, apiFetch } from '../hooks/useApi'
@@ -83,6 +84,7 @@ export default function Dashboard() {
   // Storm alert: check if severe weather in next 24h (today or tomorrow)
   const [stormDismissed, setStormDismissed] = useState(false)
   const [reserveUpdating, setReserveUpdating] = useState(false)
+  const [optimizeExpanded, setOptimizeExpanded] = useState(false)
   const stormSoon = weather?.days?.slice(0, 2).find((d: any) => d.storm_watch_likely || d.is_storm)
   const currentReserve = healthData?.battery?.backup_reserve_pct || 0
   const showStormAlert = stormSoon && !stormDismissed && currentReserve < 100 && !healthData?.connectivity?.storm_mode_active
@@ -399,8 +401,13 @@ export default function Dashboard() {
             const solidColor = isDumping ? '#f59e0b' : isPoweringHome ? '#06b6d4' : isHolding ? '#3b82f6' : '#10b981'
             const glowColor = isDumping ? 'rgba(245,158,11,0.12)' : isPoweringHome ? 'rgba(6,182,212,0.10)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
 
+            const verbose = optimizeStatus.verbose || {}
+            const thoughts = verbose.thoughts || []
+            const tou = verbose.tou_context || {}
+            const cleanGridInfo = verbose.clean_grid || {}
+
             return (
-            <div className="relative rounded-xl cursor-pointer" onClick={() => navigate('/detail/optimize')} style={{
+            <div className="relative rounded-xl cursor-pointer" onClick={() => enabled && setOptimizeExpanded(!optimizeExpanded)} style={{
               padding: enabled ? '2px' : 0,
               boxShadow: enabled ? `0 0 12px ${glowColor}, 0 0 24px ${glowColor}` : undefined,
             }}>
@@ -526,43 +533,118 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Calculation breakdown — shown during peak phases */}
-              {enabled && optimizeStatus.last_calculation && (isHolding || isDumping || isPoweringHome) && (() => {
-                const calc = optimizeStatus.last_calculation
-                return (
-                  <div className="mt-4 pt-3 border-t border-slate-200/30 dark:border-slate-800/50">
-                    <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-2">How It's Thinking</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                      <div>
-                        <span className="text-slate-500">Available Energy</span>
-                        <p className="font-bold text-blue-400">{calc.available_kwh} kWh</p>
-                        <p className="text-[10px] text-slate-600">at {calc.battery_soc.toFixed(0)}% SOC</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-500">Home Load</span>
-                        <p className="font-bold text-cyan-400">{calc.home_load_kw} kW</p>
-                        <p className="text-[10px] text-slate-600">rolling average</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-500">Net Export Rate</span>
-                        <p className="font-bold text-emerald-400">{calc.net_export_kw} kW</p>
-                        <p className="text-[10px] text-slate-600">to grid after home</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-500">Time Needed</span>
-                        <p className="font-bold text-amber-400">{calc.minutes_needed > 60 ? `${Math.floor(calc.minutes_needed / 60)}h ${Math.round(calc.minutes_needed % 60)}m` : `${Math.round(calc.minutes_needed)}m`}</p>
-                        <p className="text-[10px] text-slate-600">to fully export</p>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500">
-                      <span>Peak remaining: {calc.minutes_remaining > 60 ? `${Math.floor(calc.minutes_remaining / 60)}h ${Math.round(calc.minutes_remaining % 60)}m` : `${Math.round(calc.minutes_remaining)}m`}</span>
-                      <span>Buffer: {optimizeStatus.buffer_minutes}m safety margin</span>
-                      <span>Trigger: {isHolding ? `starts when ≤${Math.round(calc.trigger_at_minutes)}m remain` : `triggered at ${Math.round(calc.trigger_at_minutes)}m`}</span>
-                      <span>Decision: <span className={`font-medium ${calc.decision === 'dump' ? 'text-amber-400' : calc.decision === 'hold' ? 'text-blue-400' : 'text-slate-400'}`}>{calc.decision === 'dump' ? 'Export now' : calc.decision === 'hold' ? 'Keep holding' : calc.decision}</span></span>
+              {/* Expand chevron */}
+              {enabled && (
+                <div className="mt-3 flex justify-center">
+                  <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${optimizeExpanded ? 'rotate-180' : ''}`} />
+                </div>
+              )}
+
+              {/* Expanded thinking section */}
+              {enabled && optimizeExpanded && (
+                <div className="mt-3 space-y-3" onClick={(e) => e.stopPropagation()}>
+                  {/* Thinking Feed — terminal style */}
+                  <div
+                    className="bg-slate-950 rounded-lg p-3 overflow-hidden"
+                    style={{
+                      height: 180,
+                      maskImage: 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)',
+                      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)',
+                    }}
+                  >
+                    <div className="flex flex-col justify-end h-full gap-0.5">
+                      {thoughts.length === 0 ? (
+                        <span className="font-mono text-xs text-emerald-500/40">Waiting for next evaluation cycle...</span>
+                      ) : (
+                        thoughts.map((thought: string, i: number) => {
+                          const isNewest = i === thoughts.length - 1
+                          const opacity = 0.3 + (i / Math.max(thoughts.length - 1, 1)) * 0.7
+                          return (
+                            <div key={i} className="font-mono text-[11px] leading-relaxed" style={{ opacity }}>
+                              <span className={isNewest ? 'text-emerald-400' : 'text-emerald-500/70'}>
+                                {thought}
+                              </span>
+                              {isNewest && <span className="text-emerald-400 animate-pulse ml-0.5">_</span>}
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </div>
-                )
-              })()}
+
+                  {/* Calculation breakdown — shown during peak phases */}
+                  {optimizeStatus.last_calculation && (isHolding || isDumping || isPoweringHome) && (() => {
+                    const calc = optimizeStatus.last_calculation
+                    return (
+                      <div className="pt-3 border-t border-slate-200/30 dark:border-slate-800/50">
+                        <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-2">Calculation</div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                          <div>
+                            <span className="text-slate-500">Available Energy</span>
+                            <p className="font-bold text-blue-400">{calc.available_kwh} kWh</p>
+                            <p className="text-[10px] text-slate-600">at {calc.battery_soc?.toFixed(0)}% SOC</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Home Load</span>
+                            <p className="font-bold text-cyan-400">{calc.home_load_kw} kW</p>
+                            <p className="text-[10px] text-slate-600">rolling average</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Net Export Rate</span>
+                            <p className="font-bold text-emerald-400">{calc.net_export_kw} kW</p>
+                            <p className="text-[10px] text-slate-600">to grid after home</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Time Needed</span>
+                            <p className="font-bold text-amber-400">{calc.minutes_needed > 60 ? `${Math.floor(calc.minutes_needed / 60)}h ${Math.round(calc.minutes_needed % 60)}m` : `${Math.round(calc.minutes_needed)}m`}</p>
+                            <p className="text-[10px] text-slate-600">to fully export</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500">
+                          <span>Peak remaining: {calc.minutes_remaining > 60 ? `${Math.floor(calc.minutes_remaining / 60)}h ${Math.round(calc.minutes_remaining % 60)}m` : `${Math.round(calc.minutes_remaining)}m`}</span>
+                          <span>Buffer: {optimizeStatus.buffer_minutes}m safety margin</span>
+                          <span>Trigger: {isHolding ? `starts when ≤${Math.round(calc.trigger_at_minutes)}m remain` : `triggered at ${Math.round(calc.trigger_at_minutes)}m`}</span>
+                          <span>Decision: <span className={`font-medium ${calc.decision === 'dump' ? 'text-amber-400' : calc.decision === 'hold' ? 'text-blue-400' : 'text-slate-400'}`}>{calc.decision === 'dump' ? 'Export now' : calc.decision === 'hold' ? 'Keep holding' : calc.decision}</span></span>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Context row: TOU + Clean Grid */}
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="bg-slate-200/40 dark:bg-slate-800/40 rounded-lg p-2.5">
+                      <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1">TOU</div>
+                      <p className={`font-bold ${
+                        tou.period_name === 'Peak' ? 'text-red-400' : tou.period_name === 'Mid-Peak' ? 'text-amber-400' : 'text-emerald-400'
+                      }`}>{tou.period_name || '—'}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        {tou.minutes_until_peak != null
+                          ? `Peak in ${tou.minutes_until_peak > 60 ? `${Math.floor(tou.minutes_until_peak / 60)}h ${tou.minutes_until_peak % 60}m` : `${tou.minutes_until_peak}m`}`
+                          : tou.in_peak ? 'In peak now' : tou.is_weekday === false ? 'Weekend' : '—'}
+                      </p>
+                    </div>
+                    {cleanGridInfo.enabled && (
+                      <div className="bg-slate-200/40 dark:bg-slate-800/40 rounded-lg p-2.5">
+                        <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1">Clean Grid</div>
+                        <p className={`font-bold ${cleanGridInfo.active ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {cleanGridInfo.active ? 'Avoiding dirty grid' : 'Normal'}
+                        </p>
+                        {cleanGridInfo.fossil_pct != null && (
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            Fossil: {cleanGridInfo.fossil_pct}% (threshold {cleanGridInfo.threshold}%)
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {verbose.last_evaluate_at && (
+                    <p className="text-[10px] text-slate-500 text-center">
+                      Last evaluated: {new Date(verbose.last_evaluate_at).toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             </div>
             )

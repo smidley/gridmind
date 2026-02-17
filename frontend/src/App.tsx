@@ -28,7 +28,7 @@ import DetailSolar from './pages/DetailSolar'
 import DetailGrid from './pages/DetailGrid'
 import DetailHome from './pages/DetailHome'
 import DetailBattery from './pages/DetailBattery'
-import DetailOptimize from './pages/DetailOptimize'
+// DetailOptimize is now inline in the Dashboard optimize card (expandable)
 import VehiclePage from './pages/Vehicle'
 import Achievements from './pages/Achievements'
 import Login from './pages/Login'
@@ -193,7 +193,6 @@ export default function App() {
             <Route path="/detail/grid" element={<DetailGrid />} />
             <Route path="/detail/home" element={<DetailHome />} />
             <Route path="/detail/battery" element={<DetailBattery />} />
-            <Route path="/detail/optimize" element={<DetailOptimize />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
