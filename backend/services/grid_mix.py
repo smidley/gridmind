@@ -185,9 +185,10 @@ async def fetch_grid_mix() -> dict | None:
         logger.debug("Grid mix: no balancing authority configured or detected")
         return None
 
-    # Request last 24 hours of data
+    # Request last 48 hours of data to ensure we have a full 24 local hours
+    # (EIA data lags 1-2 hours, plus timezone offsets can shift the window)
     now = datetime.utcnow()
-    start = (now - timedelta(hours=24)).strftime("%Y-%m-%dT%H")
+    start = (now - timedelta(hours=48)).strftime("%Y-%m-%dT%H")
 
     try:
         params = {
@@ -234,18 +235,32 @@ async def fetch_grid_mix() -> dict | None:
         if not by_period:
             return _cached_mix
 
-        # Build current (latest) period summary
-        latest_period = sorted(by_period.keys(), reverse=True)[0]
-        fuel_mwh = by_period[latest_period]
-        total_mwh = sum(fuel_mwh.values())
+        # --- Timezone setup ---
+        from zoneinfo import ZoneInfo
+        user_tz_name = setup_store.get_timezone()
+        try:
+            user_tz = ZoneInfo(user_tz_name)
+        except Exception:
+            user_tz = ZoneInfo("America/New_York")
 
+        # --- Build rolling average summary from the last 6 hours ---
+        # Using multiple hours smooths out wild swings from a single hour
+        sorted_periods = sorted(by_period.keys(), reverse=True)
+        recent_periods = sorted_periods[:6]  # Last 6 available hours
+
+        combined_fuel_mwh: dict[str, float] = {}
+        for period in recent_periods:
+            for fuel, mwh in by_period[period].items():
+                combined_fuel_mwh[fuel] = combined_fuel_mwh.get(fuel, 0) + mwh
+
+        total_mwh = sum(combined_fuel_mwh.values())
         if total_mwh <= 0:
             return _cached_mix
 
         sources = {}
         clean_pct = 0.0
         fossil_pct = 0.0
-        for fuel, mwh in sorted(fuel_mwh.items(), key=lambda x: -x[1]):
+        for fuel, mwh in sorted(combined_fuel_mwh.items(), key=lambda x: -x[1]):
             pct = round((mwh / total_mwh) * 100, 1)
             sources[fuel] = {
                 "name": FUEL_DISPLAY.get(fuel, fuel),
@@ -257,22 +272,14 @@ async def fetch_grid_mix() -> dict | None:
             elif fuel in FOSSIL_FUELS:
                 fossil_pct += pct
 
-        # Build hourly breakdown for the chart, converting UTC to local time
-        from zoneinfo import ZoneInfo
-        user_tz_name = setup_store.get_timezone()
-        try:
-            user_tz = ZoneInfo(user_tz_name)
-        except Exception:
-            user_tz = ZoneInfo("America/New_York")
-
-        hourly = []
+        # --- Build hourly breakdown, converting UTC periods to local time ---
+        hourly_all = []
         for period in sorted(by_period.keys()):
             fuels = by_period[period]
             period_total = sum(fuels.values())
             if period_total <= 0:
                 continue
 
-            # Convert UTC period to local time for display
             local_period = period
             local_hour = None
             try:
@@ -294,9 +301,13 @@ async def fetch_grid_mix() -> dict | None:
                     period_clean += pct
             entry["clean_pct"] = round(period_clean, 1)
             entry["fossil_pct"] = round(100 - period_clean, 1)
-            hourly.append(entry)
+            hourly_all.append(entry)
 
-        # Convert latest period to local time for display
+        # Trim to the last 24 entries for the chart
+        hourly = hourly_all[-24:] if len(hourly_all) > 24 else hourly_all
+
+        # Latest period display (for the "last updated" text)
+        latest_period = sorted_periods[0]
         try:
             utc_dt = datetime.strptime(latest_period, "%Y-%m-%dT%H")
             utc_dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
@@ -313,6 +324,7 @@ async def fetch_grid_mix() -> dict | None:
             "fossil_pct": round(fossil_pct, 1),
             "total_mwh": round(total_mwh, 1),
             "hourly": hourly,
+            "hours_averaged": len(recent_periods),
             "fetched_at": now.isoformat(),
             "attribution": "Source: U.S. Energy Information Administration (EIA)",
             "attribution_url": "https://www.eia.gov/opendata/",
