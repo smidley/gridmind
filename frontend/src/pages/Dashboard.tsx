@@ -116,7 +116,7 @@ export default function Dashboard() {
               <h3 className="text-sm font-bold text-amber-500">Severe Weather Approaching</h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 <span className="font-medium">{stormSoon.description}</span> forecast for{' '}
-                {stormSoon.date === new Date().toISOString().slice(0, 10) ? 'today' : 'tomorrow'}
+                {(() => { const n = new Date(); return stormSoon.date === `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}` ? 'today' : 'tomorrow'; })()}
                 {stormSoon.wind_max_kmh > 30 ? ` with winds up to ${Math.round(stormSoon.wind_max_kmh * 0.621)} mph` : ''}.
                 {' '}Would you like to set the battery to 100% reserve for backup?
               </p>

@@ -270,8 +270,12 @@ export default function DetailSolar() {
           <div className="card-header">7-Day Weather</div>
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
             {weather.days.map((day: any) => {
-              const isToday = day.date === new Date().toISOString().slice(0, 10)
-              const dayName = new Date(day.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short' })
+              const [yr, mo, dy] = day.date.split('-').map(Number)
+              const localDate = new Date(yr, mo - 1, dy)
+              const dayName = localDate.toLocaleDateString([], { weekday: 'short' })
+              const now = new Date()
+              const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+              const isToday = day.date === todayStr
               return (
                 <div key={day.date} className={`p-2 rounded-xl text-center ${
                   day.is_storm ? 'bg-red-500/10 border border-red-500/30' :

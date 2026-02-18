@@ -28,6 +28,10 @@ _cached_mix: dict | None = None
 _cache_time: float = 0
 CACHE_TTL = 1800  # 30 minutes
 
+# Stable hourly data — once an hour is recorded, don't change it
+# (EIA revises past hours, causing visual instability on refresh)
+_stable_hourly: dict[str, dict[str, float]] = {}  # period -> {fuel: mwh}
+
 # Fuel type categories
 CLEAN_FUELS = {"SUN", "WND", "WAT", "NUC", "BAT"}  # Solar, Wind, Hydro, Nuclear, Battery Storage
 FOSSIL_FUELS = {"NG", "COL", "OIL", "OTH"}          # Gas, Coal, Oil, Other
@@ -234,6 +238,23 @@ async def fetch_grid_mix() -> dict | None:
 
         if not by_period:
             return _cached_mix
+
+        # Stabilize hourly data: only update the latest 2 hours (EIA may still
+        # revise them). For older hours, keep what we first saw so the chart
+        # doesn't visually jump on each refresh.
+        global _stable_hourly
+        sorted_all = sorted(by_period.keys())
+        latest_2 = set(sorted_all[-2:]) if len(sorted_all) >= 2 else set(sorted_all)
+        for period, fuels in by_period.items():
+            if period in latest_2 or period not in _stable_hourly:
+                _stable_hourly[period] = fuels
+        # Use stable data for everything
+        by_period = {k: v for k, v in _stable_hourly.items() if k in by_period or k in _stable_hourly}
+        # Trim to last 48 hours of data to prevent unbounded growth
+        if len(by_period) > 48:
+            trimmed = sorted(by_period.keys())[-48:]
+            by_period = {k: by_period[k] for k in trimmed}
+            _stable_hourly = {k: v for k, v in _stable_hourly.items() if k in by_period}
 
         # --- Timezone setup ---
         from zoneinfo import ZoneInfo
