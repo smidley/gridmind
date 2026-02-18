@@ -8,6 +8,7 @@ import {
   LineChart, Line, ReferenceArea,
 } from 'recharts'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import AnimatedValue from '../components/AnimatedValue'
 import MoneyGoal from '../components/MoneyGoal'
 
 function formatMoney(amount: number): string {
@@ -313,7 +314,7 @@ export default function ValuePage() {
                 <ArrowUpFromLine className="w-4 h-4 text-emerald-400" />
                 <span className="card-header mb-0">Export Credits</span>
               </div>
-              <div className="stat-value text-emerald-400">+{formatMoney(value.export_credits)}</div>
+              <div className="stat-value text-emerald-400">+<AnimatedValue value={value.export_credits} format={formatMoney} /></div>
               <div className="stat-label">Earned from grid exports</div>
             </div>
             <div className="card">
@@ -321,7 +322,7 @@ export default function ValuePage() {
                 <Sun className="w-4 h-4 text-amber-400" />
                 <span className="card-header mb-0">Solar Savings</span>
               </div>
-              <div className="stat-value text-amber-400">+{formatMoney(value.solar_savings)}</div>
+              <div className="stat-value text-amber-400">+<AnimatedValue value={value.solar_savings} format={formatMoney} /></div>
               <div className="stat-label">Avoided grid purchase</div>
             </div>
             <div className="card">
@@ -329,7 +330,7 @@ export default function ValuePage() {
                 <ArrowDownToLine className="w-4 h-4 text-red-400" />
                 <span className="card-header mb-0">Import Costs</span>
               </div>
-              <div className="stat-value text-red-400">-{formatMoney(value.import_costs)}</div>
+              <div className="stat-value text-red-400">-<AnimatedValue value={value.import_costs} format={formatMoney} /></div>
               <div className="stat-label">Paid for grid imports</div>
             </div>
           </div>

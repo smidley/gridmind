@@ -23,6 +23,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useApi, apiFetch } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
+import AnimatedValue from '../components/AnimatedValue'
 import ChargeGauge from '../components/ChargeGauge'
 
 type Strategy = 'off' | 'tou_aware' | 'solar_surplus' | 'departure'
@@ -287,12 +288,12 @@ export default function VehiclePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="card">
             <div className="card-header">Battery Level</div>
-            <div className="stat-value text-violet-500 dark:text-violet-400">{cs.battery_level}%</div>
+            <div className="stat-value text-violet-500 dark:text-violet-400"><AnimatedValue value={cs.battery_level} format={(v) => `${Math.round(v)}%`} /></div>
             <div className="stat-label">of {cs.charge_limit_soc}% limit</div>
           </div>
           <div className="card">
             <div className="card-header">Range</div>
-            <div className="stat-value text-blue-500 dark:text-blue-400">{Math.round(cs.battery_range)} mi</div>
+            <div className="stat-value text-blue-500 dark:text-blue-400"><AnimatedValue value={cs.battery_range} format={(v) => `${Math.round(v)} mi`} /></div>
             <div className="stat-label">Rated range</div>
           </div>
           {isCharging ? (

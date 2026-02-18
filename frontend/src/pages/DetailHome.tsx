@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
+import AnimatedValue from '../components/AnimatedValue'
 import TimeRangeSelector, { getTimeRange, formatChartTime } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
@@ -54,21 +55,21 @@ export default function DetailHome() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
           <div className="card-header flex items-center gap-2">Current Load <span className="live-dot" /></div>
-          <div className="stat-value text-cyan-500 dark:text-cyan-400">{status ? formatPower(status.home_power) : '—'}</div>
+          <div className="stat-value text-cyan-500 dark:text-cyan-400">{status ? <AnimatedValue value={Math.abs(status.home_power)} format={formatPower} /> : '—'}</div>
         </div>
         <div className="card">
           <div className="card-header">Consumed</div>
-          <div className="stat-value text-cyan-500 dark:text-cyan-400">{rs.consumed_kwh > 0 ? `${rs.consumed_kwh} kWh` : '—'}</div>
+          <div className="stat-value text-cyan-500 dark:text-cyan-400">{rs.consumed_kwh > 0 ? <AnimatedValue value={rs.consumed_kwh} format={(v) => `${v.toFixed(1)} kWh`} /> : '—'}</div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
           <div className="card-header">Peak Load</div>
-          <div className="stat-value text-slate-600 dark:text-slate-300">{rs.peak_load_w > 0 ? formatPower(rs.peak_load_w) : '—'}</div>
+          <div className="stat-value text-slate-600 dark:text-slate-300">{rs.peak_load_w > 0 ? <AnimatedValue value={Math.abs(rs.peak_load_w)} format={formatPower} /> : '—'}</div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
           <div className="card-header">Average Load</div>
-          <div className="stat-value text-slate-600 dark:text-slate-300">{rs.avg_load_w > 0 ? formatPower(rs.avg_load_w) : '—'}</div>
+          <div className="stat-value text-slate-600 dark:text-slate-300">{rs.avg_load_w > 0 ? <AnimatedValue value={Math.abs(rs.avg_load_w)} format={formatPower} /> : '—'}</div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
       </div>

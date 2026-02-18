@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
+import AnimatedValue from '../components/AnimatedValue'
 import TimeRangeSelector, { getTimeRange, formatChartTime } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
@@ -61,7 +62,7 @@ export default function DetailGrid() {
         <div className="card">
           <div className="card-header flex items-center gap-2">Current <span className="live-dot" /></div>
           <div className={`stat-value ${importing ? 'text-red-500 dark:text-red-400' : exporting ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-500'}`}>
-            {status ? formatPower(status.grid_power) : '—'}
+            {status ? <AnimatedValue value={Math.abs(status.grid_power)} format={formatPower} /> : '—'}
           </div>
           <div className="stat-label">{importing ? 'Importing' : exporting ? 'Exporting' : 'Idle'}</div>
           {importing && gridMix?.configured && gridMix.clean_pct != null && (
@@ -76,18 +77,18 @@ export default function DetailGrid() {
         </div>
         <div className="card">
           <div className="card-header">Exported</div>
-          <div className="stat-value text-emerald-500 dark:text-emerald-400">{rs.grid_exported_kwh > 0 ? `${rs.grid_exported_kwh} kWh` : '—'}</div>
+          <div className="stat-value text-emerald-500 dark:text-emerald-400">{rs.grid_exported_kwh > 0 ? <AnimatedValue value={rs.grid_exported_kwh} format={(v) => `${v.toFixed(1)} kWh`} /> : '—'}</div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
           <div className="card-header">Imported</div>
-          <div className="stat-value text-red-500 dark:text-red-400">{rs.grid_imported_kwh > 0 ? `${rs.grid_imported_kwh} kWh` : '—'}</div>
+          <div className="stat-value text-red-500 dark:text-red-400">{rs.grid_imported_kwh > 0 ? <AnimatedValue value={rs.grid_imported_kwh} format={(v) => `${v.toFixed(1)} kWh`} /> : '—'}</div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
           <div className="card-header">Net Credit</div>
           <div className={`stat-value ${netCredit >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
-            {rs.reading_count > 0 ? `${netCredit.toFixed(1)} kWh` : '—'}
+            {rs.reading_count > 0 ? <AnimatedValue value={netCredit} format={(v) => `${v.toFixed(1)} kWh`} /> : '—'}
           </div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>

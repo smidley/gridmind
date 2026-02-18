@@ -6,6 +6,7 @@ import { useApi } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { useWebSocket } from '../hooks/useWebSocket'
 import SolarGoal from '../components/SolarGoal'
+import AnimatedValue from '../components/AnimatedValue'
 import TimeRangeSelector, { getTimeRange, formatChartTime } from '../components/TimeRangeSelector'
 
 function formatPower(w: number) { return Math.abs(w) >= 1000 ? `${(Math.abs(w)/1000).toFixed(1)} kW` : `${Math.round(Math.abs(w))} W` }
@@ -70,11 +71,11 @@ export default function DetailSolar() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
           <div className="card-header flex items-center gap-2">Current Output <span className="live-dot" /></div>
-          <div className="stat-value text-amber-500 dark:text-amber-400">{status ? formatPower(status.solar_power) : '—'}</div>
+          <div className="stat-value text-amber-500 dark:text-amber-400">{status ? <AnimatedValue value={Math.abs(status.solar_power)} format={formatPower} /> : '—'}</div>
         </div>
         <div className="card">
           <div className="card-header">Generated</div>
-          <div className="stat-value text-amber-500 dark:text-amber-400">{rs.solar_generated_kwh > 0 ? `${rs.solar_generated_kwh} kWh` : '—'}</div>
+          <div className="stat-value text-amber-500 dark:text-amber-400">{rs.solar_generated_kwh > 0 ? <AnimatedValue value={rs.solar_generated_kwh} format={(v) => `${v.toFixed(1)} kWh`} /> : '—'}</div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
         <div className="card">
