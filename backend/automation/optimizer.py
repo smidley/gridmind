@@ -238,13 +238,69 @@ def enable(peak_start: int = 17, peak_end: int = 21, buffer: int = 15, min_reser
     logger.info("GridMind Optimize enabled: peak %d:00-%d:00, buffer %dm", peak_start, peak_end, buffer)
 
 
-def disable():
-    """Disable GridMind Optimize mode."""
+async def disable():
+    """Disable GridMind Optimize mode and restore normal Tesla settings."""
+    was_active = _state["phase"] in ("peak_hold", "dumping")
+
     _state["enabled"] = False
     _set_phase("idle")
     _state["dump_started_at"] = None
     _state["estimated_finish"] = None
+    _state["_dump_paused"] = False
+    _state["thoughts"] = []
     setup_store.set("gridmind_optimize_enabled", False)
+
+    # Restore Tesla settings if optimizer had changed them
+    if was_active or _state.get("pre_optimize_mode"):
+        from tesla.commands import set_operation_mode, set_backup_reserve, set_grid_import_export
+
+        prev_mode = (_state.get("pre_optimize_mode")
+                     or setup_store.get("gridmind_optimize_pre_mode")
+                     or "autonomous")
+        prev_reserve = (_state.get("pre_optimize_reserve")
+                        or setup_store.get("gridmind_optimize_pre_reserve")
+                        or 20)
+        prev_export = (_state.get("pre_optimize_export")
+                       or setup_store.get("gridmind_optimize_pre_export")
+                       or "battery_ok")
+        prev_grid_charging = _state.get("pre_optimize_grid_charging")
+        if prev_grid_charging is None:
+            prev_grid_charging = setup_store.get("gridmind_optimize_pre_grid_charging", True)
+        grid_charging_disallowed = not prev_grid_charging
+
+        try:
+            await set_operation_mode(prev_mode)
+            logger.info("GridMind Optimize disabled: restored mode to %s", prev_mode)
+        except Exception as e:
+            logger.error("GridMind Optimize disable: failed to restore mode: %s", e)
+
+        try:
+            await set_backup_reserve(prev_reserve)
+            logger.info("GridMind Optimize disabled: restored reserve to %s%%", prev_reserve)
+        except Exception as e:
+            logger.error("GridMind Optimize disable: failed to restore reserve: %s", e)
+
+        try:
+            await set_grid_import_export(
+                disallow_charge_from_grid_with_solar_installed=grid_charging_disallowed,
+                customer_preferred_export_rule=prev_export,
+            )
+            logger.info("GridMind Optimize disabled: restored export=%s, grid_charging=%s", prev_export, not grid_charging_disallowed)
+        except Exception as e:
+            logger.error("GridMind Optimize disable: failed to restore grid settings: %s", e)
+
+    # Clear pre-optimize state
+    _state["pre_optimize_mode"] = None
+    _state["pre_optimize_reserve"] = None
+    _state["pre_optimize_export"] = None
+    _state["pre_optimize_grid_charging"] = None
+    setup_store.update({
+        "gridmind_optimize_pre_mode": None,
+        "gridmind_optimize_pre_reserve": None,
+        "gridmind_optimize_pre_export": None,
+        "gridmind_optimize_pre_grid_charging": None,
+    })
+
     logger.info("GridMind Optimize disabled")
 
 

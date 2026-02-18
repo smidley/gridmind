@@ -357,7 +357,7 @@ async def toggle_optimize(req: OptimizeRequest):
         )
         return {"success": True, "enabled": True, "message": "GridMind Optimize enabled", "state": get_state()}
     else:
-        disable()
+        await disable()
         return {"success": True, "enabled": False, "message": "GridMind Optimize disabled"}
 
 
