@@ -1,6 +1,7 @@
 import {
-  DollarSign, Sun, ArrowUpFromLine, ArrowDownToLine, Brain, Shield, Zap,
+  DollarSign, Sun, ArrowUpFromLine, ArrowDownToLine, Brain, Shield, Zap, Receipt,
 } from 'lucide-react'
+import { useApi } from '../hooks/useApi'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -77,6 +78,7 @@ export default function ValuePage() {
   const { data: todayTotals } = useAutoRefresh<any>('/history/today', 30000)
   const { data: forecast } = useAutoRefresh<any>('/history/forecast', 60000)
   const { data: savings } = useAutoRefresh<any>('/powerwall/health/savings', 60000)
+  const { data: billEstimate } = useApi<any>('/ai/bill-estimate')
 
   // Build hourly chart data
   const hourlyChart = value?.hourly_breakdown?.map((h: any) => ({
@@ -623,6 +625,73 @@ export default function ValuePage() {
               )}
             </div>
           )}
+          {/* AI Monthly Bill Estimate */}
+          {billEstimate && !billEstimate.error && billEstimate.estimated_total != null && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4.5 h-4.5 text-blue-400" />
+                  <span className="card-header mb-0">Estimated Monthly Bill</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {billEstimate.confidence && (
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                      billEstimate.confidence === 'high' ? 'bg-emerald-500/15 text-emerald-500'
+                      : billEstimate.confidence === 'medium' ? 'bg-amber-500/15 text-amber-500'
+                      : 'bg-slate-500/15 text-slate-400'
+                    }`}>
+                      {billEstimate.confidence} confidence
+                    </span>
+                  )}
+                  <span className="text-[9px] text-slate-500">{billEstimate.provider}</span>
+                </div>
+              </div>
+
+              <div className="text-center mb-4">
+                <div className="stat-value text-blue-400">
+                  <AnimatedValue value={billEstimate.estimated_total} format={(v) => `$${v.toFixed(2)}`} />
+                </div>
+                <div className="stat-label">{billEstimate.month} estimate</div>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {billEstimate.days_tracked} of {billEstimate.days_in_month} days tracked
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                {billEstimate.energy_charges != null && (
+                  <div>
+                    <span className="text-slate-500">Energy Charges</span>
+                    <p className="font-bold text-red-400">${billEstimate.energy_charges.toFixed(2)}</p>
+                  </div>
+                )}
+                {billEstimate.export_credits != null && (
+                  <div>
+                    <span className="text-slate-500">Export Credits</span>
+                    <p className="font-bold text-emerald-400">${Math.abs(billEstimate.export_credits).toFixed(2)}</p>
+                  </div>
+                )}
+                {billEstimate.fixed_fees != null && (
+                  <div>
+                    <span className="text-slate-500">Fixed Fees</span>
+                    <p className="font-bold text-slate-300">${billEstimate.fixed_fees.toFixed(2)}</p>
+                  </div>
+                )}
+                {billEstimate.taxes_and_fees != null && (
+                  <div>
+                    <span className="text-slate-500">Taxes & Fees</span>
+                    <p className="font-bold text-slate-300">${billEstimate.taxes_and_fees.toFixed(2)}</p>
+                  </div>
+                )}
+              </div>
+
+              {billEstimate.note && (
+                <p className="text-[10px] text-slate-500 mt-3 pt-3 border-t border-slate-200/30 dark:border-slate-800/50">
+                  {billEstimate.note}
+                </p>
+              )}
+            </div>
+          )}
+
         </>
       ) : null}
     </div>
