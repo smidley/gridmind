@@ -373,6 +373,32 @@ def _get_capacity_info() -> dict:
     }
 
 
+async def _get_rolling_home_load_kw(fallback_watts: float = 0) -> float:
+    """Get rolling average home load in kW from the last 2 hours of readings.
+
+    Falls back to the provided current reading if no database data available.
+    """
+    try:
+        from sqlalchemy import select, func
+        from database import async_session, EnergyReading
+
+        cutoff = datetime.utcnow() - timedelta(hours=2)
+        async with async_session() as session:
+            result = await session.execute(
+                select(func.avg(EnergyReading.home_power))
+                .where(EnergyReading.timestamp >= cutoff)
+            )
+            avg_watts = result.scalar()
+
+        if avg_watts is not None and avg_watts > 0:
+            return max(avg_watts / 1000, 0.3)
+    except Exception as e:
+        logger.debug("Failed to get rolling home load: %s", e)
+
+    # Fallback to current reading with buffer
+    return max(fallback_watts / 1000 * 1.1, 0.5)
+
+
 def _get_peak_start_hour(now: datetime) -> int:
     """Find when ON_PEAK starts today from TOU data, or fall back to manual setting."""
     try:
@@ -680,12 +706,8 @@ async def _check_dump_timing(status, now: datetime):
         }
         return
 
-    # Estimate home load from current reading
-    home_load_kw = max(status.home_power, 0) / 1000
-
-    # Use rolling average if we have it (more stable)
-    # For now, use current + a buffer for variability
-    estimated_home_kw = max(home_load_kw * 1.1, 0.5)  # 10% buffer, min 500W
+    # Use rolling 2-hour average for home load (more stable than instantaneous)
+    estimated_home_kw = await _get_rolling_home_load_kw(fallback_watts=max(status.home_power, 0))
 
     # Battery drain rate = total battery output (home + grid combined).
     # The battery serves both home and grid simultaneously, so it drains at
@@ -802,9 +824,10 @@ async def _monitor_dump(status, now: datetime):
     # Update last_calculation with current values so dashboard shows live info
     available_pct = max(status.battery_soc - min_reserve, 0)
     available_kwh = (available_pct / 100) * cap["capacity_kwh"]
-    home_kw = status.home_power / 1000
-    net_export_kw = max(cap["max_power_kw"] - home_kw, 0.1)
-    minutes_needed = (available_kwh / net_export_kw) * 60 if net_export_kw > 0 else 0
+    home_kw = await _get_rolling_home_load_kw(fallback_watts=max(status.home_power, 0))
+    drain_rate_kw = cap["max_power_kw"]
+    net_export_kw = max(drain_rate_kw - home_kw, 0.1)
+    minutes_needed = (available_kwh / drain_rate_kw) * 60 if drain_rate_kw > 0 else 0
     peak_end_hour = peak_end_minutes // 60
     peak_end_min = peak_end_minutes % 60
     peak_end_time = now.replace(hour=peak_end_hour, minute=peak_end_min, second=0)
