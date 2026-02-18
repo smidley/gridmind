@@ -11,7 +11,7 @@ FROM python:3.12-slim
 
 # OCI metadata labels
 LABEL org.opencontainers.image.title="GridMind"
-LABEL org.opencontainers.image.description="Personal Tesla Powerwall 3 automation and monitoring app"
+LABEL org.opencontainers.image.description="Smart energy automation and real-time monitoring app"
 LABEL org.opencontainers.image.url="https://github.com/smidley/gridmind"
 LABEL org.opencontainers.image.source="https://github.com/smidley/gridmind"
 LABEL org.opencontainers.image.vendor="smidley"

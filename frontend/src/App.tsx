@@ -114,7 +114,7 @@ export default function App() {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-slate-900 dark:text-white">GridMind</h1>
-                <p className="text-xs text-stone-400 dark:text-slate-500">Powerwall Automation</p>
+                <p className="text-xs text-stone-400 dark:text-slate-500">Energy Automation</p>
               </div>
             </div>
           </div>

@@ -94,7 +94,7 @@ async def send_email(subject: str, body: str, smtp: dict | None = None):
             <h2 style="color: #1a1a1a; margin-top: 0;">&#9889; {subject}</h2>
             <p style="color: #444; line-height: 1.6;">{body}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #888; font-size: 12px;">Sent by GridMind - Tesla Powerwall Automation</p>
+            <p style="color: #888; font-size: 12px;">Sent by GridMind - Energy Automation</p>
         </div>
     </body>
     </html>

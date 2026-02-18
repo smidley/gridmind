@@ -1,4 +1,4 @@
-"""GridMind - Tesla Powerwall 3 Automation App."""
+"""GridMind - Smart Energy Automation App."""
 
 import asyncio
 import json
@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="GridMind",
-    description="Tesla Powerwall 3 Automation",
+    description="Smart Energy Automation",
     version=settings.app_version,
     lifespan=lifespan,
 )

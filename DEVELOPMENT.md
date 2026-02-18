@@ -6,7 +6,7 @@ This file contains everything you need to continue development on GridMind. Read
 
 ## Project Overview
 
-GridMind is a self-hosted Tesla Powerwall 3 automation and monitoring app. It runs as a single Docker container with a Python/FastAPI backend and React/TypeScript frontend. The user runs it on Unraid at `https://gridmind.smidley.xyz` behind Nginx Proxy Manager with HTTPS.
+GridMind is a self-hosted smart energy automation and monitoring app. It runs as a single Docker container with a Python/FastAPI backend and React/TypeScript frontend. Currently supports Tesla Powerwall, with plans for additional battery systems. The user runs it on Unraid at `https://gridmind.smidley.xyz` behind Nginx Proxy Manager with HTTPS.
 
 ## Project Location & Git Workflow
 

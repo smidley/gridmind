@@ -1,4 +1,4 @@
-"""Powerwall health monitoring routes — diagnostics, alerts, connectivity."""
+"""Battery health monitoring routes — diagnostics, alerts, connectivity."""
 
 import logging
 from datetime import datetime, timedelta, date

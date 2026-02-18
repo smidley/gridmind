@@ -1,7 +1,7 @@
 {
   "name": "GridMind",
   "short_name": "GridMind",
-  "description": "Tesla Powerwall 3 automation and monitoring",
+  "description": "Real-time energy monitoring and automation",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

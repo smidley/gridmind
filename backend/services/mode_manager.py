@@ -100,7 +100,7 @@ def check_automation_allowed() -> tuple[bool, str]:
     if active == "offgrid":
         return False, "Off-Grid Mode is active -- automation rules are paused"
     if active == "optimizer":
-        return False, "GridMind Optimize is controlling the Powerwall -- automation rules are paused"
+        return False, "GridMind Optimize is controlling the battery -- automation rules are paused"
     return True, ""
 
 

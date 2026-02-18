@@ -30,7 +30,7 @@ async def geocode_address(address: str) -> Optional[dict]:
     }
 
     headers = {
-        "User-Agent": "GridMind/0.1.0 (personal Tesla Powerwall automation)",
+        "User-Agent": "GridMind/1.0 (energy automation)",
     }
 
     try:

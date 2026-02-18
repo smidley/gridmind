@@ -153,7 +153,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Dashboard</h2>
-          <p className="text-sm text-slate-500">Real-time Powerwall monitoring</p>
+          <p className="text-sm text-slate-500">Real-time energy monitoring</p>
         </div>
         <div className="relative group flex items-center gap-2 cursor-help">
           {connected ? (

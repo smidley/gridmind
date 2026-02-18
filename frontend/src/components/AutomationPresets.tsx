@@ -348,7 +348,7 @@ export default function AutomationPresets({ onInstalled }: Props) {
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Automation Presets</h3>
-        <p className="text-sm text-slate-500 mt-1">One-click templates for common Powerwall strategies. Install a preset to automatically create the rules.</p>
+        <p className="text-sm text-slate-500 mt-1">One-click templates for common energy strategies. Install a preset to automatically create the rules.</p>
       </div>
 
       {error && (

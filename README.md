@@ -5,7 +5,7 @@
 <h1 align="center">GridMind</h1>
 
 <p align="center">
-  <strong>Personal Tesla Powerwall 3 automation and monitoring app</strong><br>
+  <strong>Smart energy automation and real-time monitoring</strong><br>
   Real-time power flow · EV charging · Solar forecasting · Smart export optimization<br>
   <a href="https://buymeacoffee.com/smidley">
     <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-yellow?style=flat&logo=buy-me-a-coffee" alt="Buy Me a Coffee" />
@@ -17,7 +17,7 @@
 
 ---
 
-GridMind gives you full control over your Tesla Powerwall with a beautiful real-time dashboard, intelligent automation, EV charging integration, and AI-powered insights — all running as a self-hosted Docker container.
+GridMind gives you full control over your home energy system with a beautiful real-time dashboard, intelligent automation, EV charging integration, and AI-powered insights — all running as a self-hosted Docker container. Currently supports Tesla Powerwall, with plans for additional battery systems.
 
 ## Screenshots
 
