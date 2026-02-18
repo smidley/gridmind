@@ -549,9 +549,7 @@ export default function Dashboard() {
                     @keyframes thinkPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
                     @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
                   `}</style>
-                  <div className="relative rounded-xl overflow-hidden bg-slate-950/80 backdrop-blur-sm" style={{
-                    border: '1px solid rgba(100, 116, 139, 0.12)',
-                  }}>
+                  <div className="relative rounded-xl overflow-hidden bg-stone-100 dark:bg-slate-950/80 backdrop-blur-sm border border-stone-200/60 dark:border-slate-700/20">
                     {/* Animated gradient accent line at top */}
                     <div className="h-[2px]" style={{
                       background: 'linear-gradient(90deg, transparent, #3b82f6, #10b981, #8b5cf6, transparent)',
@@ -560,14 +558,14 @@ export default function Dashboard() {
                     }} />
 
                     {/* Header */}
-                    <div className="flex items-center gap-2.5 px-4 py-2 border-b border-slate-800/60">
+                    <div className="flex items-center gap-2.5 px-4 py-2 border-b border-stone-200/60 dark:border-slate-800/60">
                       <div className="relative w-2 h-2">
                         <div className="absolute inset-0 rounded-full bg-blue-500" style={{ animation: 'thinkPulse 2s ease-in-out infinite' }} />
                         <div className="absolute inset-[-2px] rounded-full bg-blue-500/20" style={{ animation: 'thinkPulse 2s ease-in-out infinite' }} />
                       </div>
-                      <span className="text-[10px] text-slate-400 font-medium tracking-wide">Decision Engine</span>
+                      <span className="text-[10px] text-stone-500 dark:text-slate-400 font-medium tracking-wide">Decision Engine</span>
                       <div className="ml-auto flex items-center gap-2">
-                        <span className="text-[9px] text-slate-600">
+                        <span className="text-[9px] text-stone-400 dark:text-slate-600">
                           {verbose.last_evaluate_at ? new Date(verbose.last_evaluate_at).toLocaleTimeString() : ''}
                         </span>
                       </div>
@@ -581,7 +579,7 @@ export default function Dashboard() {
                     }}>
                       <div className="flex flex-col justify-end h-full gap-1">
                         {thoughts.length === 0 ? (
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <div className="flex items-center gap-2 text-xs text-stone-400 dark:text-slate-500">
                             <div className="w-1 h-1 rounded-full bg-blue-500/50" style={{ animation: 'thinkPulse 1.5s ease-in-out infinite' }} />
                             Waiting for next evaluation...
                           </div>
@@ -593,9 +591,9 @@ export default function Dashboard() {
                             return (
                               <div key={`${i}-${thought.slice(0,20)}`} className="flex items-start gap-2 text-[11px] leading-relaxed transition-opacity duration-500" style={{ opacity }}>
                                 <span className={`shrink-0 mt-[5px] w-1 h-1 rounded-full transition-all ${
-                                  isNewest ? 'bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.5)]' : 'bg-slate-600'
+                                  isNewest ? 'bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.5)]' : 'bg-stone-300 dark:bg-slate-600'
                                 }`} style={isNewest ? { animation: 'thinkPulse 2s ease-in-out infinite' } : undefined} />
-                                <span className={isNewest ? 'text-slate-200' : 'text-slate-500'}>
+                                <span className={isNewest ? 'text-stone-700 dark:text-slate-200' : 'text-stone-400 dark:text-slate-500'}>
                                   {thought}
                                 </span>
                               </div>
