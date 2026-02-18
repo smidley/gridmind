@@ -73,7 +73,10 @@ def set_password(username: str, password: str):
     if not is_valid:
         raise ValueError(error_msg)
 
-    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    # bcrypt 5.0+ raises ValueError for passwords >72 bytes — truncate to match
+    # the original bcrypt spec (passwords were always silently truncated at 72 bytes)
+    password_bytes = password.encode()[:72]
+    password_hash = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode()
     setup_store.update({
         "auth_username": username,
         "auth_password_hash": password_hash,
@@ -92,7 +95,9 @@ def verify_password(username: str, password: str) -> bool:
     if username != stored_username:
         return False
 
-    return bcrypt.checkpw(password.encode(), stored_hash.encode())
+    # Truncate to 72 bytes to match bcrypt 5.0+ requirement and stay consistent
+    # with how the hash was generated
+    return bcrypt.checkpw(password.encode()[:72], stored_hash.encode())
 
 
 def create_session_token(username: str) -> str:
