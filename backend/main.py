@@ -25,6 +25,8 @@ from api.routes_vehicle import router as vehicle_router
 from api.routes_health import router as health_router
 from api.routes_ai import router as ai_router
 from api.routes_achievements import router as achievements_router
+from api.routes_backup import router as backup_router
+from api.routes_notification_templates import router as notification_templates_router
 from api.routes_cache import router as cache_router
 from api.routes_db import router as db_router
 
@@ -296,6 +298,8 @@ app.include_router(vehicle_router)
 app.include_router(health_router)
 app.include_router(ai_router)
 app.include_router(achievements_router)
+app.include_router(backup_router)
+app.include_router(notification_templates_router)
 app.include_router(cache_router)
 app.include_router(db_router)
 
