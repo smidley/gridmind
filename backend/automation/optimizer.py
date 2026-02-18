@@ -71,6 +71,7 @@ def get_state() -> dict:
         "estimated_finish": _state["estimated_finish"],
         "last_calculation": _state["last_calculation"],
         "tou_source": _state.get("_tou_source", "manual"),
+        "dump_paused": _state.get("_dump_paused", False),
     }
 
     # Add live TOU period info so the dashboard can show weekend/off-peak status
@@ -812,9 +813,44 @@ async def _start_dump(estimated_finish: datetime):
 
 
 async def _monitor_dump(status, now: datetime):
-    """Monitor dump progress and update calculation display."""
+    """Monitor dump progress and update calculation display.
+
+    Includes smart load protection: if home load is causing grid imports
+    during the dump, temporarily pause exporting to serve the home from
+    battery first. Resumes exporting when load drops.
+    """
     min_reserve = _state["min_reserve_pct"]
     cap = _get_capacity_info()
+
+    # --- Smart Load Protection ---
+    # If we're importing from grid during a dump, the home load exceeds what
+    # the battery + solar can cover. Pause export to prioritize home.
+    grid_importing = status.grid_power > 100  # importing >100W from grid
+    was_paused = _state.get("_dump_paused", False)
+
+    if grid_importing and not was_paused and status.battery_soc > min_reserve + 5:
+        _think(f"Home load causing grid import ({status.grid_power/1000:.1f} kW) — pausing export to serve home")
+        logger.info("GridMind Optimize: Pausing dump — grid importing %.0f W during peak, switching to self-consumption",
+                     status.grid_power)
+        try:
+            from tesla.commands import set_operation_mode
+            await set_operation_mode("self_consumption")
+            _state["_dump_paused"] = True
+        except Exception as e:
+            logger.error("GridMind Optimize: Failed to pause dump: %s", e)
+
+    elif was_paused and not grid_importing:
+        _think("Home load dropped — resuming battery export to grid")
+        logger.info("GridMind Optimize: Resuming dump — grid import stopped, switching back to autonomous")
+        try:
+            from tesla.commands import set_operation_mode
+            await set_operation_mode("autonomous")
+            _state["_dump_paused"] = False
+        except Exception as e:
+            logger.error("GridMind Optimize: Failed to resume dump: %s", e)
+
+    elif was_paused and grid_importing:
+        _think(f"Still serving home from battery — grid import {status.grid_power/1000:.1f} kW, waiting for load to drop")
 
     # Peak end time from TOU schedule (set by evaluate())
     peak_end_minutes = _state.get("_peak_end_minutes")
@@ -872,6 +908,7 @@ async def _monitor_dump(status, now: datetime):
     if status.battery_soc <= min_reserve + 1:
         _think(f"Dump complete — battery at {status.battery_soc:.1f}%, stopping export")
         logger.info("GridMind Optimize: Dump complete, battery at %.1f%%", status.battery_soc)
+        _state["_dump_paused"] = False
         from tesla.commands import set_grid_import_export
         try:
             await set_grid_import_export(customer_preferred_export_rule="pv_only")
@@ -937,6 +974,7 @@ async def _end_peak():
     _set_phase("idle")
     _state["dump_started_at"] = None
     _state["estimated_finish"] = None
+    _state["_dump_paused"] = False
 
     # Clear pre-optimize state so stale values don't persist to the next cycle.
     # If the container restarts before tomorrow's peak, init() won't load stale values.
