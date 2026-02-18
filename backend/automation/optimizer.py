@@ -564,9 +564,11 @@ async def evaluate():
         peak_start = _get_peak_start_hour(now)
         is_weekday = now.weekday() < 5
         if is_weekday and peak_start is not None:
-            hours_to_peak = peak_start - now.hour
-            if hours_to_peak > 0:
-                _think(f"Peak starts at {peak_start if peak_start <= 12 else peak_start - 12}:00 {'PM' if peak_start >= 12 else 'AM'} — {hours_to_peak}h from now")
+            peak_start_time = now.replace(hour=peak_start, minute=0, second=0)
+            minutes_to_peak = int((peak_start_time - now).total_seconds() / 60)
+            if minutes_to_peak > 0:
+                time_str = f"{minutes_to_peak // 60}h {minutes_to_peak % 60}m" if minutes_to_peak >= 60 else f"{minutes_to_peak}m"
+                _think(f"Peak starts at {peak_start if peak_start <= 12 else peak_start - 12}:00 {'PM' if peak_start >= 12 else 'AM'} — {time_str} from now")
             else:
                 _think("Past peak hours — idle until tomorrow")
         elif not is_weekday:
