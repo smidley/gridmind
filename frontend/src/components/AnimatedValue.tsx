@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 interface Props {
   value: number
   format?: (v: number) => string
-  duration?: number // ms, default 600
+  duration?: number // ms, default 1500
   className?: string
 }
 
@@ -11,7 +11,7 @@ interface Props {
  * Smoothly animates between numeric values using requestAnimationFrame.
  * When the value prop changes, the displayed number counts up/down with easing.
  */
-export default function AnimatedValue({ value, format, duration = 600, className = '' }: Props) {
+export default function AnimatedValue({ value, format, duration = 1500, className = '' }: Props) {
   const [display, setDisplay] = useState(value)
   const fromRef = useRef(value)
   const rafRef = useRef<number>(0)
