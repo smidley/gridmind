@@ -687,11 +687,17 @@ async def _check_dump_timing(status, now: datetime):
     # For now, use current + a buffer for variability
     estimated_home_kw = max(home_load_kw * 1.1, 0.5)  # 10% buffer, min 500W
 
-    # Net export rate (what actually goes to grid)
-    net_export_kw = max(cap["max_power_kw"] - estimated_home_kw, 1.0)
+    # Battery drain rate = total battery output (home + grid combined).
+    # The battery serves both home and grid simultaneously, so it drains at
+    # the TOTAL discharge rate, not just the grid export portion.
+    # Use max battery power as the drain rate (what the battery can output).
+    drain_rate_kw = cap["max_power_kw"]
 
-    # Time needed to dump
-    hours_needed = available_kwh / net_export_kw
+    # Net export rate (what goes to grid after home) — for display only
+    net_export_kw = max(drain_rate_kw - estimated_home_kw, 1.0)
+
+    # Time needed = total energy / total drain rate
+    hours_needed = available_kwh / drain_rate_kw
     minutes_needed = hours_needed * 60
 
     # Time remaining until peak ends (using TOU-derived end time)
