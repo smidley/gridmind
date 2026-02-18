@@ -1,4 +1,4 @@
-"""AI insights and anomaly detection routes."""
+"""AI insights, anomaly detection, and bill estimation routes."""
 
 import logging
 from datetime import datetime, timedelta, date
@@ -9,42 +9,83 @@ from sqlalchemy import select
 
 from database import async_session, EnergyReading, DailyEnergySummary
 from services import setup_store
-from services.ai_insights import generate_insights, detect_anomalies, is_configured
+from services.ai_insights import (
+    generate_insights, detect_anomalies, estimate_monthly_bill,
+    is_configured, get_provider_info, PROVIDERS,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
-class OpenAIKeyRequest(BaseModel):
+class AIConfigRequest(BaseModel):
+    provider: str
     api_key: str
+
+
+@router.get("/providers")
+async def ai_providers():
+    """List available AI providers."""
+    providers = []
+    for key, config in PROVIDERS.items():
+        providers.append({
+            "id": key,
+            "name": config["name"],
+            "key_prefix": config["key_prefix"],
+            "free_tier": config["free_tier"],
+            "key_url": config["key_url"],
+            "model": config["model"],
+        })
+    return {"providers": providers}
 
 
 @router.get("/status")
 async def ai_status():
-    """Check if OpenAI is configured."""
+    """Check if an AI provider is configured."""
+    info = get_provider_info()
     return {
         "configured": is_configured(),
-        "has_key": bool(setup_store.get("openai_api_key", "")),
+        "provider": info["provider"],
+        "provider_name": info["provider_name"],
+        "model": info["model"],
+        "has_key": bool(setup_store.get("ai_api_key", "") or setup_store.get("openai_api_key", "")),
     }
 
 
 @router.post("/configure")
-async def ai_configure(data: OpenAIKeyRequest):
-    """Save or update the OpenAI API key."""
-    if not data.api_key.startswith("sk-"):
-        raise HTTPException(status_code=400, detail="Invalid API key format (should start with sk-)")
+async def ai_configure(data: AIConfigRequest):
+    """Save AI provider and API key."""
+    if data.provider not in PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {data.provider}. Valid: {', '.join(PROVIDERS.keys())}")
 
-    setup_store.set("openai_api_key", data.api_key)
-    logger.info("OpenAI API key configured")
-    return {"status": "ok"}
+    if not data.api_key:
+        raise HTTPException(status_code=400, detail="API key is required")
+
+    config = PROVIDERS[data.provider]
+    if config["key_prefix"] and not data.api_key.startswith(config["key_prefix"]):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid key format for {config['name']}. Key should start with '{config['key_prefix']}'"
+        )
+
+    setup_store.set("ai_provider", data.provider)
+    setup_store.set("ai_api_key", data.api_key)
+    # Clear old key if migrating
+    if setup_store.get("openai_api_key"):
+        setup_store.set("openai_api_key", "")
+
+    logger.info("AI provider configured: %s", config["name"])
+    return {"status": "ok", "provider": data.provider, "provider_name": config["name"]}
 
 
 @router.delete("/configure")
-async def ai_remove_key():
-    """Remove the OpenAI API key."""
+async def ai_remove():
+    """Remove AI configuration."""
+    setup_store.set("ai_provider", "")
+    setup_store.set("ai_api_key", "")
     setup_store.set("openai_api_key", "")
-    logger.info("OpenAI API key removed")
+    logger.info("AI configuration removed")
     return {"status": "ok"}
 
 
@@ -52,11 +93,9 @@ async def ai_remove_key():
 async def ai_insights():
     """Get AI-generated energy insights."""
     if not is_configured():
-        return {"insights": [], "error": "OpenAI not configured. Add your API key in Settings."}
+        return {"insights": [], "error": "AI provider not configured. Add an API key in Settings."}
 
-    # Gather data for the AI
     async with async_session() as session:
-        # Last 7 days of daily summaries
         since = (date.today() - timedelta(days=7)).isoformat()
         result = await session.execute(
             select(DailyEnergySummary)
@@ -78,7 +117,6 @@ async def ai_insights():
         for s in summaries
     ]
 
-    # Today's data
     from services.collector import get_latest_status
     status = get_latest_status()
     today_data = {}
@@ -93,25 +131,23 @@ async def ai_insights():
     if energy_data:
         today_data.update(energy_data[-1])
 
-    # Forecast
     forecast = None
     try:
         from api.routes_history import _get_cached
-        forecast_data = await _get_cached("forecast_for_ai", lambda: _fetch_forecast_summary())
+        forecast = await _get_cached("forecast_for_ai", lambda: _fetch_forecast_summary())
     except Exception:
-        forecast_data = None
+        pass
 
-    return await generate_insights(energy_data, today_data, forecast_data)
+    return await generate_insights(energy_data, today_data, forecast)
 
 
 @router.get("/anomalies")
 async def ai_anomalies():
     """Detect energy anomalies using AI."""
     if not is_configured():
-        return {"anomalies": [], "error": "OpenAI not configured. Add your API key in Settings."}
+        return {"anomalies": [], "error": "AI provider not configured. Add an API key in Settings."}
 
     async with async_session() as session:
-        # Last 24h of readings (sampled)
         since = datetime.utcnow() - timedelta(hours=24)
         result = await session.execute(
             select(EnergyReading)
@@ -120,7 +156,6 @@ async def ai_anomalies():
         )
         readings_raw = result.scalars().all()
 
-        # Last 30 days of summaries for baseline
         since_days = (date.today() - timedelta(days=30)).isoformat()
         result = await session.execute(
             select(DailyEnergySummary)
@@ -154,6 +189,50 @@ async def ai_anomalies():
     ]
 
     return await detect_anomalies(readings, summaries)
+
+
+@router.get("/bill-estimate")
+async def ai_bill_estimate():
+    """Get AI-estimated monthly electricity bill."""
+    if not is_configured():
+        return {"error": "AI provider not configured. Add an API key in Settings."}
+
+    # Get this month's daily summaries
+    today = date.today()
+    month_start = today.replace(day=1).isoformat()
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(DailyEnergySummary)
+            .where(DailyEnergySummary.date >= month_start)
+            .order_by(DailyEnergySummary.date.asc())
+        )
+        summaries = result.scalars().all()
+
+    daily_data = [
+        {
+            "date": s.date,
+            "solar_generated_kwh": round(s.solar_generated_kwh or 0, 2),
+            "grid_imported_kwh": round(s.grid_imported_kwh or 0, 2),
+            "grid_exported_kwh": round(s.grid_exported_kwh or 0, 2),
+            "home_consumed_kwh": round(s.home_consumed_kwh or 0, 2),
+        }
+        for s in summaries
+    ]
+
+    # Get rate info if available
+    rate_info = None
+    try:
+        from tesla.commands import get_site_info
+        info = await get_site_info()
+        tariff = info.get("tariff_content", {})
+        if tariff:
+            from api.routes_status import site_tariff
+            rate_info = await site_tariff()
+    except Exception:
+        pass
+
+    return await estimate_monthly_bill(daily_data, rate_info)
 
 
 async def _fetch_forecast_summary():

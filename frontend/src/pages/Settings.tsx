@@ -438,31 +438,40 @@ function EIAConfig() {
 }
 
 
-/** Inline component for OpenAI API key configuration */
-function AIKeyConfig() {
+/** Inline component for AI provider configuration */
+function AIProviderConfig() {
+  const [provider, setProvider] = useState('')
   const [key, setKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const { data: aiStatus, refetch } = useApi<any>('/ai/status')
+  const { data: aiStatus, refetch: refetchStatus } = useApi<any>('/ai/status')
+  const { data: providersData } = useApi<any>('/ai/providers')
+  const providers = providersData?.providers || []
 
-  const saveKey = async () => {
+  const selectedConfig = providers.find((p: any) => p.id === provider)
+
+  const saveConfig = async () => {
     setSaving(true); setError(''); setSuccess('')
     try {
-      await apiFetch('/ai/configure', { method: 'POST', body: JSON.stringify({ api_key: key }) })
-      setSuccess('API key saved')
+      await apiFetch('/ai/configure', {
+        method: 'POST',
+        body: JSON.stringify({ provider, api_key: key }),
+      })
+      setSuccess(`${selectedConfig?.name || provider} configured`)
       setKey('')
-      refetch()
+      refetchStatus()
     } catch (e: any) { setError(e.message) }
     finally { setSaving(false) }
   }
 
-  const removeKey = async () => {
+  const removeConfig = async () => {
     setSaving(true); setError(''); setSuccess('')
     try {
       await apiFetch('/ai/configure', { method: 'DELETE' })
-      setSuccess('API key removed')
-      refetch()
+      setSuccess('AI provider removed')
+      setProvider('')
+      refetchStatus()
     } catch (e: any) { setError(e.message) }
     finally { setSaving(false) }
   }
@@ -473,25 +482,76 @@ function AIKeyConfig() {
         <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
           <div className="flex items-center gap-2">
             <Check className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm text-emerald-400 font-medium">OpenAI configured</span>
+            <span className="text-sm text-emerald-400 font-medium">{aiStatus.provider_name} configured</span>
+            <span className="text-[10px] text-slate-500">({aiStatus.model})</span>
           </div>
-          <button onClick={removeKey} disabled={saving} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300">
+          <button onClick={removeConfig} disabled={saving} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300">
             <Trash2 className="w-3 h-3" /> Remove
           </button>
         </div>
       ) : (
-        <div className="flex gap-2">
-          <input
-            type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder="sk-..."
-            className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
-          />
-          <button onClick={saveKey} disabled={saving || !key} className="btn-primary text-sm px-4">
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
+        <>
+          {/* Provider selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {providers.map((p: any) => (
+              <button
+                key={p.id}
+                onClick={() => setProvider(p.id)}
+                className={`text-left p-3 rounded-lg border transition-all text-sm ${
+                  provider === p.id
+                    ? 'border-blue-500/50 bg-blue-500/10 ring-1 ring-blue-500/30'
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-slate-700 dark:text-slate-200">{p.name}</span>
+                  {p.free_tier && (
+                    <span className="text-[9px] bg-emerald-500/15 text-emerald-500 px-1.5 py-0.5 rounded font-medium">Free</span>
+                  )}
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5">{p.model}</div>
+                {p.free_tier && (
+                  <a
+                    href={p.key_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] text-blue-400 hover:text-blue-300 underline mt-1 inline-block"
+                  >
+                    Get free API key &rarr;
+                  </a>
+                )}
+                {!p.free_tier && (
+                  <a
+                    href={p.key_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] text-slate-500 hover:text-slate-400 underline mt-1 inline-block"
+                  >
+                    Get API key &rarr;
+                  </a>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* API key input */}
+          {provider && (
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder={`${selectedConfig?.key_prefix || ''}...`}
+                className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"
+              />
+              <button onClick={saveConfig} disabled={saving || !key} className="btn-primary text-sm px-4">
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          )}
+        </>
       )}
       {error && <p className="text-xs text-red-400">{error}</p>}
       {success && <p className="text-xs text-emerald-400">{success}</p>}
@@ -1547,13 +1607,13 @@ export default function SettingsPage() {
       {/* Backup & Restore */}
       <BackupConfig />
 
-      {/* OpenAI Configuration */}
+      {/* AI Provider Configuration */}
       <div className="card">
-        <div className="card-header">AI Insights (OpenAI)</div>
+        <div className="card-header">AI Insights</div>
         <p className="text-xs text-slate-500 mb-4">
-          Add your OpenAI API key to enable AI-powered energy insights and anomaly detection on the dashboard.
+          Enable AI-powered energy insights, anomaly detection, and monthly bill estimates. Choose a provider and add an API key. Gemini and Groq offer free tiers.
         </p>
-        <AIKeyConfig />
+        <AIProviderConfig />
       </div>
 
       {/* EIA Grid Mix Configuration */}
