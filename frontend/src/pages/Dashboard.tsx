@@ -396,7 +396,8 @@ export default function Dashboard() {
             // battery_power > 50 means battery is discharging (positive = discharging)
             const isExporting = enabled && phase === 'dumping' && status && status.grid_power < -50 && status.battery_power > 50
             const isPoweringHome = enabled && phase === 'dumping' && status && status.battery_power > 50 && status.grid_power >= -50
-            const isDumping = isExporting || isPoweringHome  // Battery is active (exporting or serving home)
+            const isDumpPhase = enabled && phase === 'dumping'  // Phase is dumping regardless of live power
+            const isDumping = isExporting || isPoweringHome || isDumpPhase  // Include phase check
             const isWaiting = enabled && !isDumping && !isHolding && !isComplete
 
             const solidColor = isDumping ? '#f59e0b' : isPoweringHome ? '#06b6d4' : isHolding ? '#3b82f6' : '#10b981'
@@ -485,7 +486,9 @@ export default function Dashboard() {
                   )}
                   <p className="text-xs text-slate-500">
                     {enabled
-                      ? isDumping && optimizeStatus.estimated_finish
+                      ? isDumping && optimizeStatus.dump_paused
+                        ? `Export paused — serving home during high load · ${status ? `${(status.home_power / 1000).toFixed(1)} kW home` : ''} · Will resume when load drops`
+                        : isDumping && optimizeStatus.estimated_finish
                         ? `Exporting battery to grid · ${status ? `${(Math.abs(status.grid_power) / 1000).toFixed(1)} kW to grid` : ''} · Est. finish: ${optimizeStatus.estimated_finish}`
                         : isPoweringHome
                         ? `Battery powering home during peak · ${status ? `${(status.home_power / 1000).toFixed(1)} kW home load` : ''} · Exporting surplus when available`
