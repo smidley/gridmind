@@ -488,8 +488,8 @@ export default function Dashboard() {
                     {enabled
                       ? isDumping && optimizeStatus.dump_paused
                         ? `Export paused — serving home during high load · ${status ? `${(status.home_power / 1000).toFixed(1)} kW home` : ''} · Will resume when load drops`
-                        : isDumping && optimizeStatus.estimated_finish
-                        ? `Exporting battery to grid · ${status ? `${(Math.abs(status.grid_power) / 1000).toFixed(1)} kW to grid` : ''} · Est. finish: ${optimizeStatus.estimated_finish}`
+                        : isDumping
+                        ? `Exporting battery to grid${status ? ` · ${(Math.abs(status.grid_power) / 1000).toFixed(1)} kW to grid` : ''}${optimizeStatus.estimated_finish ? ` · Est. finish: ${optimizeStatus.estimated_finish}` : ' · Calculating...'}`
                         : isPoweringHome
                         ? `Battery powering home during peak · ${status ? `${(status.home_power / 1000).toFixed(1)} kW home load` : ''} · Exporting surplus when available`
                         : isHolding

@@ -183,19 +183,23 @@ def init():
             if in_peak and saved_phase in ("dumping", "peak_hold"):
                 # Restore the exact phase from before restart
                 _state["phase"] = saved_phase
+                _think(f"Container restarted — resuming {saved_phase} phase during peak")
                 logger.info("GridMind Optimize restored: in peak hours (%s), resuming phase '%s'",
                             "weekday" if is_weekday else "weekend", saved_phase)
             elif in_peak:
                 _state["phase"] = "peak_hold"
+                _think("Container restarted during peak — entering hold phase")
                 logger.info("GridMind Optimize restored: in peak hours, entering peak_hold")
             elif saved_phase in ("peak_hold", "dumping", "complete"):
                 # Restarted after peak or on weekend — settings need restoring.
                 # Set phase so evaluate() triggers _end_peak() on next cycle.
                 _state["phase"] = saved_phase
+                _think(f"Container restarted — restoring settings from {saved_phase} phase")
                 logger.info("GridMind Optimize restored: not in peak (%s, hour=%d) with phase '%s', will restore settings",
                             "weekday" if is_weekday else "weekend", current_hour, saved_phase)
             else:
                 _state["phase"] = "idle"
+                _think("Container restarted — optimizer idle, waiting for peak")
                 logger.info("GridMind Optimize restored: outside peak hours (%s)",
                             "weekday" if is_weekday else "weekend")
         except Exception:
