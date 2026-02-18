@@ -639,18 +639,26 @@ async def evaluate():
     period_name = period_display.get(tou.get("period_name", ""), tou.get("period_name", "unknown"))
     _think(f"TOU check: currently {period_name}" + (" — in peak window" if in_peak else ""))
 
-    # Not in peak: restore settings if needed, otherwise idle
+    # Not in peak: restore settings if needed, otherwise idle/complete
     if not in_peak:
-        if _state["phase"] in ("peak_hold", "dumping", "complete"):
+        if _state["phase"] in ("peak_hold", "dumping"):
             _think("Peak ended — restoring normal operation")
             await _end_peak()
+        elif _state["phase"] == "complete":
+            # Already restored — stay in complete until next day's peak cycle.
+            # Reset to idle after midnight (new day) so we're ready for tomorrow.
+            if now.hour < _state["peak_start_hour"] - 2:
+                # Early enough in the day that the previous cycle is over
+                _set_phase("idle")
         elif _state["phase"] != "idle":
             _set_phase("idle")
 
         # Show time until peak if applicable
         peak_start = _get_peak_start_hour(now)
         is_weekday = now.weekday() < 5
-        if is_weekday and peak_start is not None:
+        if _state["phase"] == "complete":
+            _think("Today's peak cycle complete — normal operation restored")
+        elif is_weekday and peak_start is not None:
             peak_start_time = now.replace(hour=peak_start, minute=0, second=0)
             minutes_to_peak = int((peak_start_time - now).total_seconds() / 60)
             if minutes_to_peak > 0:
@@ -1022,22 +1030,35 @@ async def _end_peak():
     except Exception as e:
         logger.error("GridMind Optimize: Failed to restore grid settings: %s", e)
 
+    # Explicitly ensure grid charging is re-enabled (belt + suspenders)
+    try:
+        await set_grid_import_export(
+            disallow_charge_from_grid_with_solar_installed=False,
+            customer_preferred_export_rule=prev_export,
+        )
+        logger.info("GridMind Optimize: Ensured grid charging re-enabled, export=%s", prev_export)
+    except Exception as e:
+        logger.error("GridMind Optimize: Failed to re-enable grid charging: %s", e)
+
     try:
         await send_notification(
             "GridMind Optimize: Peak Ended",
-            f"Restored to {prev_mode} mode with {prev_reserve}% reserve.",
+            f"Restored to {prev_mode} mode with {prev_reserve}% reserve. Grid charging re-enabled.",
             "info",
         )
     except Exception:
         pass
 
-    _set_phase("idle")
+    _think(f"Peak cycle complete — restored {prev_mode} mode, {prev_reserve}% reserve, grid charging enabled")
+
+    # Set to "complete" phase (not idle) so dashboard shows cycle finished.
+    # Will reset to idle at midnight or when a new peak cycle starts.
+    _set_phase("complete")
     _state["dump_started_at"] = None
     _state["estimated_finish"] = None
     _state["_dump_paused"] = False
 
     # Clear pre-optimize state so stale values don't persist to the next cycle.
-    # If the container restarts before tomorrow's peak, init() won't load stale values.
     _state["pre_optimize_mode"] = None
     _state["pre_optimize_reserve"] = None
     _state["pre_optimize_export"] = None
