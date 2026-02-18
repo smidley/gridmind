@@ -127,7 +127,7 @@ def _parse_json_response(text: str) -> list | dict:
     return json.loads(text)
 
 
-# --- Cache ---
+# --- Cache + rate limiting ---
 
 _insights_cache: dict = {}
 _insights_cache_time: float = 0
@@ -140,6 +140,32 @@ ANOMALIES_CACHE_TTL = 1800  # 30 minutes
 _bill_cache: dict = {}
 _bill_cache_time: float = 0
 BILL_CACHE_TTL = 86400  # 24 hours
+
+# Prevent concurrent AI calls (free tiers have strict per-minute limits)
+import asyncio
+_ai_lock = asyncio.Lock()
+_last_ai_call: float = 0
+AI_MIN_GAP_SECONDS = 5  # Minimum gap between AI API calls
+
+
+async def _rate_limited_call(client, model: str, messages: list, temperature: float, max_tokens: int):
+    """Make an AI API call with rate limiting and serialization."""
+    global _last_ai_call
+    async with _ai_lock:
+        # Ensure minimum gap between calls
+        now = time.time()
+        wait = AI_MIN_GAP_SECONDS - (now - _last_ai_call)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _last_ai_call = time.time()
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return response
 
 
 # --- Insights ---
@@ -177,8 +203,8 @@ async def generate_insights(energy_data: list[dict], today_data: dict, forecast:
     context += 'Respond with a JSON array of insight objects: [{"title": "...", "body": "...", "type": "achievement|tip|warning|info"}]'
 
     try:
-        response = client.chat.completions.create(
-            model=model,
+        response = await _rate_limited_call(
+            client, model,
             messages=[
                 {"role": "system", "content": "You are a concise home energy advisor. Always respond with valid JSON only."},
                 {"role": "user", "content": context},
@@ -258,8 +284,8 @@ async def detect_anomalies(readings: list[dict], daily_summaries: list[dict]) ->
     context += 'Respond with a JSON array: [{"title": "...", "description": "...", "severity": "info|warning|critical", "metric": "solar|grid|battery|home"}]'
 
     try:
-        response = client.chat.completions.create(
-            model=model,
+        response = await _rate_limited_call(
+            client, model,
             messages=[
                 {"role": "system", "content": "You are a concise energy anomaly detector. Respond with valid JSON only. Only flag genuine anomalies."},
                 {"role": "user", "content": context},
@@ -372,8 +398,8 @@ async def estimate_monthly_bill(daily_summaries: list[dict], rate_info: dict | N
                 '"confidence": "medium", "note": "Brief explanation of estimate"}')
 
     try:
-        response = client.chat.completions.create(
-            model=model,
+        response = await _rate_limited_call(
+            client, model,
             messages=[
                 {"role": "system", "content": "You are a utility bill estimator. Respond with valid JSON only. Be realistic about typical utility fees and charges."},
                 {"role": "user", "content": context},
