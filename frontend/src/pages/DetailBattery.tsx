@@ -106,7 +106,7 @@ export default function DetailBattery() {
           <div className="card-header">Cycles</div>
           <div className="stat-value text-slate-600 dark:text-slate-300">
             {rs.battery_discharged_kwh > 0 && siteConfig?.total_capacity_kwh
-              ? (rs.battery_discharged_kwh / siteConfig.total_capacity_kwh).toFixed(2)
+              ? <AnimatedValue value={rs.battery_discharged_kwh / siteConfig.total_capacity_kwh} format={(v) => v.toFixed(2)} />
               : '—'}
           </div>
           <div className="stat-label">{rs.period_label || ''}</div>

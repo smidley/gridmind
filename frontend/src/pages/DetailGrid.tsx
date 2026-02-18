@@ -219,16 +219,16 @@ export default function DetailGrid() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="card">
             <div className="card-header">Export Credits</div>
-            <div className="stat-value text-emerald-500 dark:text-emerald-400">+${value.export_credits.toFixed(2)}</div>
+            <div className="stat-value text-emerald-500 dark:text-emerald-400">+$<AnimatedValue value={value.export_credits} format={(v) => v.toFixed(2)} /></div>
           </div>
           <div className="card">
             <div className="card-header">Import Costs</div>
-            <div className="stat-value text-red-500 dark:text-red-400">-${value.import_costs.toFixed(2)}</div>
+            <div className="stat-value text-red-500 dark:text-red-400">-$<AnimatedValue value={value.import_costs} format={(v) => v.toFixed(2)} /></div>
           </div>
           <div className="card">
             <div className="card-header">Net Value</div>
             <div className={`stat-value ${value.net_value >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
-              {value.net_value >= 0 ? '+' : '-'}${Math.abs(value.net_value).toFixed(2)}
+              {value.net_value >= 0 ? '+' : '-'}$<AnimatedValue value={Math.abs(value.net_value)} format={(v) => v.toFixed(2)} />
             </div>
           </div>
         </div>

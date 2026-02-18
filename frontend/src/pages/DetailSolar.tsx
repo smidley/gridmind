@@ -81,7 +81,7 @@ export default function DetailSolar() {
         <div className="card">
           <div className="card-header">Peak Output</div>
           <div className="stat-value text-amber-500/70 dark:text-amber-400/70">
-            {readings?.readings?.length > 0 ? formatPower(Math.max(...readings.readings.map((r: any) => r.solar_power || 0))) : '—'}
+            {readings?.readings?.length > 0 ? <AnimatedValue value={Math.max(...readings.readings.map((r: any) => r.solar_power || 0))} format={formatPower} /> : '—'}
           </div>
           <div className="stat-label">{rs.period_label || ''}</div>
         </div>
@@ -98,7 +98,7 @@ export default function DetailSolar() {
                  forecast.today.condition === 'partly_cloudy' ? <CloudSun className="w-5 h-5 text-amber-300" /> :
                  <Cloud className="w-5 h-5 text-slate-400" />}
               </div>
-              <div className="stat-value text-amber-400">{forecast.today.estimated_kwh} kWh</div>
+              <div className="stat-value text-amber-400"><AnimatedValue value={forecast.today.estimated_kwh} format={(v) => `${v.toFixed(1)} kWh`} /></div>
               <div className="stat-label">Estimated generation</div>
               <div className="flex gap-4 mt-3 text-sm text-slate-400">
                 <span>Peak: {(forecast.today.peak_watts / 1000).toFixed(1)} kW</span>
@@ -126,7 +126,7 @@ export default function DetailSolar() {
                  forecast.tomorrow.condition === 'partly_cloudy' ? <CloudSun className="w-5 h-5 text-blue-300" /> :
                  <Cloud className="w-5 h-5 text-slate-400" />}
               </div>
-              <div className="stat-value text-blue-400">{forecast.tomorrow.estimated_kwh} kWh</div>
+              <div className="stat-value text-blue-400"><AnimatedValue value={forecast.tomorrow.estimated_kwh} format={(v) => `${v.toFixed(1)} kWh`} /></div>
               <div className="stat-label">Estimated generation</div>
               <div className="flex gap-4 mt-3 text-sm text-slate-400">
                 <span>Peak: {(forecast.tomorrow.peak_watts / 1000).toFixed(1)} kW</span>

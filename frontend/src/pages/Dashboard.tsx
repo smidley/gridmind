@@ -707,7 +707,7 @@ export default function Dashboard() {
                 <div className="card">
                   <div className="card-header">Tomorrow's Forecast</div>
                   <div className="stat-value text-blue-400">
-                    {forecast.tomorrow.estimated_kwh} kWh
+                    <AnimatedValue value={forecast.tomorrow.estimated_kwh} format={(v) => `${v.toFixed(1)} kWh`} />
                   </div>
                   <div className="stat-label">
                     {forecast.tomorrow.condition === 'sunny' ? 'Sunny' :
@@ -748,9 +748,10 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className={`stat-value ${healthData.connectivity.storm_mode_active ? 'text-amber-400' : 'text-blue-400'}`}>
-                    {totalHours >= 24
-                      ? `${(totalHours / 24).toFixed(1)} days`
-                      : `${totalHours.toFixed(1)} hours`}
+                    <AnimatedValue
+                      value={totalHours >= 24 ? totalHours / 24 : totalHours}
+                      format={(v) => totalHours >= 24 ? `${v.toFixed(1)} days` : `${v.toFixed(1)} hours`}
+                    />
                   </div>
                   <div className="stat-label">
                     {healthData.connectivity.storm_mode_active
@@ -769,7 +770,7 @@ export default function Dashboard() {
                     <span className="card-header mb-0">Savings</span>
                   </div>
                   <div className="stat-value text-emerald-400">
-                    ${savingsData.total_savings.toLocaleString()}
+                    $<AnimatedValue value={savingsData.total_savings} format={(v) => v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} />
                   </div>
                   <div className="stat-label">
                     Total saved over {savingsData.days_tracked} days · ~${savingsData.avg_daily_savings}/day

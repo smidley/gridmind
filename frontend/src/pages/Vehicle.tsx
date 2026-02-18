@@ -301,7 +301,7 @@ export default function VehiclePage() {
               <div className="card">
                 <div className="card-header">Charge Rate</div>
                 <div className="stat-value text-emerald-500 dark:text-emerald-400">
-                  {cs.charger_power >= 1 ? `${cs.charger_power.toFixed(1)} kW` : `${Math.round(cs.charger_power * 1000)} W`}
+                  <AnimatedValue value={cs.charger_power >= 1 ? cs.charger_power : cs.charger_power * 1000} format={(v) => cs.charger_power >= 1 ? `${v.toFixed(1)} kW` : `${Math.round(v)} W`} />
                 </div>
                 <div className="stat-label">
                   {cs.charger_voltage}V &middot; {cs.charger_actual_current}A
@@ -311,7 +311,7 @@ export default function VehiclePage() {
               <div className="card">
                 <div className="card-header">Session</div>
                 <div className="stat-value text-amber-500 dark:text-amber-400">
-                  {cs.charge_energy_added.toFixed(1)} kWh
+                  <AnimatedValue value={cs.charge_energy_added} format={(v) => `${v.toFixed(1)} kWh`} />
                 </div>
                 <div className="stat-label">
                   +{Math.round(cs.charge_miles_added_rated)} mi
@@ -352,7 +352,7 @@ export default function VehiclePage() {
               <div className="card">
                 <div className="card-header">Last Session</div>
                 <div className="stat-value text-slate-500 dark:text-slate-400">
-                  {cs.charge_energy_added > 0 ? `${cs.charge_energy_added.toFixed(1)} kWh` : '—'}
+                  {cs.charge_energy_added > 0 ? <AnimatedValue value={cs.charge_energy_added} format={(v) => `${v.toFixed(1)} kWh`} /> : '—'}
                 </div>
                 <div className="stat-label">
                   {cs.charge_energy_added > 0
