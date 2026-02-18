@@ -37,7 +37,7 @@ PROVIDERS = {
     "gemini": {
         "name": "Google Gemini",
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "model": "gemini-2.0-flash",
+        "model": "gemini-2.0-flash-lite",
         "key_prefix": "AI",
         "free_tier": True,
         "key_url": "https://aistudio.google.com/apikey",
@@ -145,27 +145,41 @@ BILL_CACHE_TTL = 86400  # 24 hours
 import asyncio
 _ai_lock = asyncio.Lock()
 _last_ai_call: float = 0
-AI_MIN_GAP_SECONDS = 5  # Minimum gap between AI API calls
+_rate_limit_until: float = 0  # Backoff until this timestamp after a 429
+AI_MIN_GAP_SECONDS = 10  # Minimum gap between AI API calls
 
 
 async def _rate_limited_call(client, model: str, messages: list, temperature: float, max_tokens: int):
-    """Make an AI API call with rate limiting and serialization."""
-    global _last_ai_call
+    """Make an AI API call with rate limiting, serialization, and 429 backoff."""
+    global _last_ai_call, _rate_limit_until
     async with _ai_lock:
-        # Ensure minimum gap between calls
         now = time.time()
+
+        # If we hit a 429 recently, don't even try
+        if now < _rate_limit_until:
+            wait_remaining = int(_rate_limit_until - now)
+            raise Exception(f"AI rate limited — cooling down for {wait_remaining}s")
+
+        # Ensure minimum gap between calls
         wait = AI_MIN_GAP_SECONDS - (now - _last_ai_call)
         if wait > 0:
             await asyncio.sleep(wait)
         _last_ai_call = time.time()
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        return response
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response
+        except Exception as e:
+            if "429" in str(e) or "rate" in str(e).lower():
+                # Back off for 2 minutes on rate limit
+                _rate_limit_until = time.time() + 120
+                logger.warning("AI rate limited — backing off for 120s")
+            raise
 
 
 # --- Insights ---
