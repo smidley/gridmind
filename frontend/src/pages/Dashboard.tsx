@@ -793,8 +793,13 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                 {forecast.week.map((day: any) => {
-                  const dayName = new Date(day.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short' })
-                  const isToday = day.date === new Date().toISOString().slice(0, 10)
+                  // Use local date for day name and "Today" detection (not UTC)
+                  const [year, month, dayNum] = day.date.split('-').map(Number)
+                  const localDate = new Date(year, month - 1, dayNum)
+                  const dayName = localDate.toLocaleDateString([], { weekday: 'short' })
+                  const now = new Date()
+                  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+                  const isToday = day.date === todayStr
                   return (
                     <div key={day.date} className={`text-center p-2 rounded-lg ${
                       isToday ? 'bg-amber-500/10 ring-1 ring-amber-500/30' : 'bg-slate-100 dark:bg-slate-800/30'
