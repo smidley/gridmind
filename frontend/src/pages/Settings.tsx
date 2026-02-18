@@ -16,6 +16,8 @@ import {
   Trash2,
   Bell,
   Send,
+  Download,
+  HardDrive,
 } from 'lucide-react'
 import { useApi, apiFetch } from '../hooks/useApi'
 
@@ -269,6 +271,76 @@ function SystemCostConfig() {
         </button>
       </div>
       {success && <p className="text-xs text-emerald-400">{success}</p>}
+    </div>
+  )
+}
+
+
+/** Inline component for backup/restore */
+function BackupConfig() {
+  const { data: backupInfo } = useApi<any>('/backup/info')
+  const [downloading, setDownloading] = useState(false)
+
+  const downloadBackup = async () => {
+    setDownloading(true)
+    try {
+      const response = await fetch('/api/backup/export', { credentials: 'include' })
+      if (!response.ok) throw new Error('Backup failed')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'gridmind_backup.zip'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      console.error('Backup download failed:', e)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-1">
+        <HardDrive className="w-4 h-4 text-blue-400" />
+        <span className="card-header mb-0">Backup & Restore</span>
+      </div>
+      <p className="text-xs text-slate-500 mb-4">
+        Download a backup of your database, configuration, and Tesla tokens. Use this to migrate or restore your GridMind instance.
+      </p>
+
+      {backupInfo && (
+        <div className="space-y-2 mb-4">
+          {backupInfo.files?.map((f: any) => (
+            <div key={f.name} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-100 dark:bg-slate-800/60">
+              <div>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{f.name}</span>
+                <p className="text-slate-500 text-[10px]">{f.description}</p>
+              </div>
+              <span className="text-slate-500 shrink-0 ml-2">
+                {f.size_mb ? `${f.size_mb} MB` : f.size_kb ? `${f.size_kb} KB` : `${f.size_bytes} B`}
+              </span>
+            </div>
+          ))}
+          {backupInfo.total_size_mb != null && (
+            <div className="text-[10px] text-slate-500 text-right">
+              Total: {backupInfo.total_size_mb} MB
+            </div>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={downloadBackup}
+        disabled={downloading}
+        className="btn-primary text-sm px-4 py-2 flex items-center gap-2"
+      >
+        <Download className="w-4 h-4" />
+        {downloading ? 'Preparing backup...' : 'Download Backup'}
+      </button>
     </div>
   )
 }
@@ -1471,6 +1543,9 @@ export default function SettingsPage() {
         </p>
         <SystemCostConfig />
       </div>
+
+      {/* Backup & Restore */}
+      <BackupConfig />
 
       {/* OpenAI Configuration */}
       <div className="card">
