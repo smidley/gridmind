@@ -834,7 +834,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 mb-3">
                 <Brain className="w-4.5 h-4.5 text-violet-400" />
                 <span className="card-header mb-0">AI Insights</span>
-                <span className="text-[10px] text-slate-600">{aiInsights.model}</span>
+                <span className="text-[10px] text-slate-600">{aiInsights.provider || aiInsights.model}</span>
               </div>
               <div className="space-y-2">
                 {aiInsights.insights.map((insight: any, i: number) => (
