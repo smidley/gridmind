@@ -1,9 +1,11 @@
-"""AI insights, anomaly detection, and bill estimation routes."""
+"""AI insights, anomaly detection, bill estimation, and interactive Q&A routes."""
 
 import logging
+import json
 from datetime import datetime, timedelta, date
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -11,7 +13,7 @@ from database import async_session, EnergyReading, DailyEnergySummary
 from services import setup_store
 from services.ai_insights import (
     generate_insights, detect_anomalies, estimate_monthly_bill,
-    is_configured, get_provider_info, PROVIDERS,
+    is_configured, get_provider_info, PROVIDERS, _get_ai_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -243,6 +245,103 @@ async def ai_bill_estimate():
         pass
 
     return await estimate_monthly_bill(daily_data, rate_info)
+
+
+class AskRequest(BaseModel):
+    context: str  # The insight title + body
+    question: str  # The follow-up question
+
+
+# Pre-defined follow-up question templates by insight type
+FOLLOWUP_TEMPLATES = {
+    "achievement": [
+        "How can I maintain this level of performance?",
+        "How does this compare to typical homes in my area?",
+        "What contributed most to this achievement?",
+    ],
+    "tip": [
+        "What specific actions should I take?",
+        "How much could this save me per month?",
+        "When is the best time to implement this?",
+    ],
+    "warning": [
+        "What is causing this issue?",
+        "How urgent is this to address?",
+        "What steps can I take to fix it?",
+    ],
+    "info": [
+        "Can you explain this in more detail?",
+        "How does this affect my energy costs?",
+        "What should I watch for going forward?",
+    ],
+}
+
+
+@router.get("/insights-with-followups")
+async def ai_insights_with_followups():
+    """Get AI insights with pre-generated follow-up questions."""
+    result = await ai_insights()
+
+    if result.get("insights"):
+        for insight in result["insights"]:
+            insight_type = insight.get("type", "info")
+            insight["followup_questions"] = FOLLOWUP_TEMPLATES.get(insight_type, FOLLOWUP_TEMPLATES["info"])
+
+    return result
+
+
+@router.post("/ask")
+async def ai_ask(data: AskRequest):
+    """Stream an AI response to a follow-up question about an insight."""
+    if not is_configured():
+        raise HTTPException(status_code=400, detail="AI provider not configured")
+
+    client, model = _get_ai_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Failed to create AI client")
+
+    system_prompt = (
+        "You are a knowledgeable home energy advisor. The user is asking a follow-up question "
+        "about an energy insight from their solar + battery monitoring system. "
+        "Give a helpful, specific, and concise answer (2-4 sentences). "
+        "Reference specific numbers when possible. Be practical and actionable."
+    )
+
+    user_prompt = f"Original insight:\n{data.context}\n\nFollow-up question: {data.question}"
+
+    async def generate():
+        try:
+            stream = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.7,
+                max_tokens=300,
+                stream=True,
+            )
+
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    text = chunk.choices[0].delta.content
+                    yield f"data: {json.dumps({'text': text})}\n\n"
+
+            yield f"data: {json.dumps({'done': True})}\n\n"
+
+        except Exception as e:
+            logger.error("AI ask streaming error: %s", e)
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 async def _fetch_forecast_summary():

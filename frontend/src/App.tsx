@@ -17,6 +17,7 @@ import {
   Home,
   Battery,
   Workflow,
+  Brain,
 } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Rules from './pages/Rules'
@@ -31,6 +32,7 @@ import DetailBattery from './pages/DetailBattery'
 // DetailOptimize is now inline in the Dashboard optimize card (expandable)
 import VehiclePage from './pages/Vehicle'
 import Achievements from './pages/Achievements'
+import AIInsights from './pages/AIInsights'
 import Login from './pages/Login'
 import { useTheme } from './hooks/useTheme'
 import { apiFetch } from './hooks/useApi'
@@ -46,6 +48,7 @@ const navItems = [
   { to: '/rules', icon: Workflow, label: 'Automation' },
   { to: '/history', icon: History, label: 'History' },
   { to: '/achievements', icon: Trophy, label: 'Achievements' },
+  { to: '/ai', icon: Brain, label: 'AI Insights' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
@@ -174,7 +177,7 @@ export default function App() {
               className="flex items-center gap-2 text-xs text-stone-400 hover:text-stone-600 dark:text-slate-600 dark:hover:text-slate-400 transition-colors"
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>GridMind v1.9.0</span>
+              <span>GridMind v1.10.0</span>
             </a>
           </div>
         </nav>
@@ -189,6 +192,7 @@ export default function App() {
             <Route path="/rules" element={<Rules />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/achievements" element={<Achievements />} />
+            <Route path="/ai" element={<AIInsights />} />
             <Route path="/detail/solar" element={<DetailSolar />} />
             <Route path="/detail/grid" element={<DetailGrid />} />
             <Route path="/detail/home" element={<DetailHome />} />

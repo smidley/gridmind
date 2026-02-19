@@ -907,60 +907,25 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* AI Insights */}
-          {aiInsights?.insights?.length > 0 && (
-            <div className="card">
-              <div className="flex items-center gap-2 mb-3">
-                <Brain className="w-4.5 h-4.5 text-violet-400" />
-                <span className="card-header mb-0">AI Insights</span>
-                <span className="text-[10px] text-slate-600">{aiInsights.provider || aiInsights.model}</span>
-              </div>
-              <div className="space-y-2">
-                {aiInsights.insights.map((insight: any, i: number) => (
-                  <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800/30">
-                    {insight.type === 'achievement' ? (
-                      <Trophy className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    ) : insight.type === 'warning' ? (
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    ) : insight.type === 'tip' ? (
-                      <Lightbulb className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    ) : (
-                      <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">{insight.title}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{insight.body}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* AI Anomalies */}
-          {aiAnomalies?.anomalies?.length > 0 && (
-            <div className="space-y-2">
-              {aiAnomalies.anomalies.map((anomaly: any, i: number) => (
-                <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${
-                  anomaly.severity === 'critical'
-                    ? 'border-red-500/30 bg-red-500/5'
-                    : anomaly.severity === 'warning'
-                    ? 'border-amber-500/30 bg-amber-500/5'
-                    : 'border-blue-500/30 bg-blue-500/5'
-                }`}>
-                  <Brain className={`w-4 h-4 shrink-0 mt-0.5 ${
-                    anomaly.severity === 'critical' ? 'text-red-400' :
-                    anomaly.severity === 'warning' ? 'text-amber-400' : 'text-blue-400'
-                  }`} />
+          {/* AI Insights — compact link to full page */}
+          {(aiInsights?.insights?.length > 0 || aiAnomalies?.anomalies?.length > 0) && (
+            <div
+              className="card cursor-pointer hover:ring-1 hover:ring-blue-500/30 transition-all"
+              onClick={() => navigate('/ai')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Brain className="w-5 h-5 text-blue-400" />
                   <div>
-                    <p className={`text-sm font-medium ${
-                      anomaly.severity === 'critical' ? 'text-red-400' :
-                      anomaly.severity === 'warning' ? 'text-amber-400' : 'text-blue-400'
-                    }`}>{anomaly.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{anomaly.description}</p>
+                    <span className="text-sm font-bold text-stone-700 dark:text-slate-200">AI Insights</span>
+                    <p className="text-xs text-stone-500 dark:text-slate-500">
+                      {aiInsights?.insights?.length || 0} insights
+                      {aiAnomalies?.anomalies?.length > 0 ? ` · ${aiAnomalies.anomalies.length} alert${aiAnomalies.anomalies.length > 1 ? 's' : ''}` : ''}
+                    </p>
                   </div>
                 </div>
-              ))}
+                <span className="text-xs text-blue-400 font-medium">View &rarr;</span>
+              </div>
             </div>
           )}
 
