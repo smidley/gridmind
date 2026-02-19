@@ -25,6 +25,7 @@ import {
   BarChart3,
   CloudLightning,
   ChevronDown,
+  Trophy,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi, apiFetch } from '../hooks/useApi'
@@ -59,6 +60,7 @@ export default function Dashboard() {
   const { data: savingsData } = useApi<any>('/powerwall/health/savings')
   const { data: weather } = useApi<any>('/history/weather')
   const { data: gridMix } = useAutoRefresh<any>('/grid/energy-mix', 300000)  // 5 min
+  const { data: eventsData } = useAutoRefresh<any>('/events', 30000)  // Check events frequently
 
   // Only use polledStatus if it has actual Powerwall data (not an error response)
   const validPolled = polledStatus && 'battery_soc' in polledStatus ? polledStatus : null
@@ -234,6 +236,7 @@ export default function Dashboard() {
               status={status}
               tariff={tariff}
               gridMix={gridMix}
+              activeVppEvent={eventsData?.active}
               onNodeClick={(node) => {
                 const routes: Record<string, string> = {
                   solar: '/detail/solar',
@@ -384,24 +387,98 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* VPP Event Banner */}
+          {eventsData?.active && (() => {
+            const evt = eventsData.active
+            const activeEvent = optimizeStatus?.active_event
+            const exportedKwh = activeEvent ? (optimizeStatus?.event_export_start_kwh || 0) : 0
+            const earnings = exportedKwh * (evt.rate_per_kwh || 0)
+            return (
+              <div className="relative rounded-xl overflow-hidden" style={{
+                padding: '2px',
+                boxShadow: '0 0 20px rgba(124,58,237,0.15), 0 0 40px rgba(124,58,237,0.08)',
+              }}>
+                <style>{`
+                  @keyframes vppShimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+                `}</style>
+                <div className="absolute inset-0 rounded-xl" style={{
+                  background: 'linear-gradient(90deg, transparent, #7c3aed, #a855f7, #7c3aed, transparent)',
+                  backgroundSize: '200% 100%',
+                  animation: 'vppShimmer 2s linear infinite',
+                }} />
+                <div className="relative rounded-xl p-5 bg-violet-50 dark:bg-slate-900 overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center">
+                        <Zap className="w-6 h-6 text-violet-500 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-violet-600 dark:text-violet-400">{evt.name}</div>
+                        <p className="text-xs text-slate-500">
+                          {evt.start_time} – {evt.end_time} · Premium export active
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-violet-500" style={{ textShadow: '0 0 12px rgba(124,58,237,0.3)' }}>
+                        ${evt.rate_per_kwh?.toFixed(2)}<span className="text-sm font-normal text-violet-400">/kWh</span>
+                      </div>
+                      {exportedKwh > 0 && (
+                        <p className="text-xs text-violet-400 font-medium mt-0.5">
+                          {exportedKwh.toFixed(1)} kWh · <AnimatedValue value={earnings} format={(v) => `$${v.toFixed(2)}`} className="font-bold" /> earned
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Upcoming VPP Event notice */}
+          {!eventsData?.active && eventsData?.next && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/20">
+              <Zap className="w-4 h-4 text-violet-400 shrink-0" />
+              <div className="text-xs text-slate-500">
+                <span className="text-violet-400 font-medium">Upcoming VPP Event:</span>{' '}
+                {eventsData.next.name} · {eventsData.next.date} · {eventsData.next.start_time} – {eventsData.next.end_time} · ${eventsData.next.rate_per_kwh?.toFixed(2)}/kWh
+              </div>
+            </div>
+          )}
+
+          {/* Recently completed VPP Event celebration */}
+          {!eventsData?.active && eventsData?.recently_completed && (() => {
+            const evt = eventsData.recently_completed
+            return (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-violet-500/10 border border-violet-500/30">
+                <Trophy className="w-5 h-5 text-violet-400" />
+                <div>
+                  <span className="text-sm font-medium text-violet-400">VPP Event Complete!</span>
+                  <p className="text-xs text-slate-500">
+                    {evt.name} · Exported {evt.result?.exported_kwh} kWh · Earned <span className="text-violet-400 font-bold">${evt.result?.earnings?.toFixed(2)}</span>
+                  </p>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* GridMind Optimize Status */}
           {optimizeStatus && (() => {
             const phase = optimizeStatus.phase
             const enabled = optimizeStatus.enabled
             const isHolding = enabled && phase === 'peak_hold'
             const isComplete = enabled && phase === 'complete'
+            const isEventDump = enabled && phase === 'event_dump'
 
             // Distinguish actual exporting vs powering home during "dumping" phase
-            // grid_power < -50 means actually exporting to grid
-            // battery_power > 50 means battery is discharging (positive = discharging)
             const isExporting = enabled && phase === 'dumping' && status && status.grid_power < -50 && status.battery_power > 50
             const isPoweringHome = enabled && phase === 'dumping' && status && status.battery_power > 50 && status.grid_power >= -50
-            const isDumpPhase = enabled && phase === 'dumping'  // Phase is dumping regardless of live power
-            const isDumping = isExporting || isPoweringHome || isDumpPhase  // Include phase check
-            const isWaiting = enabled && !isDumping && !isHolding && !isComplete
+            const isDumpPhase = enabled && phase === 'dumping'
+            const isDumping = isExporting || isPoweringHome || isDumpPhase
+            const isWaiting = enabled && !isDumping && !isHolding && !isComplete && !isEventDump
 
-            const solidColor = isDumping ? '#f59e0b' : isPoweringHome ? '#06b6d4' : isHolding ? '#3b82f6' : '#10b981'
-            const glowColor = isDumping ? 'rgba(245,158,11,0.12)' : isPoweringHome ? 'rgba(6,182,212,0.10)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
+            const solidColor = isEventDump ? '#7c3aed' : isDumping ? '#f59e0b' : isPoweringHome ? '#06b6d4' : isHolding ? '#3b82f6' : '#10b981'
+            const glowColor = isEventDump ? 'rgba(124,58,237,0.15)' : isDumping ? 'rgba(245,158,11,0.12)' : isPoweringHome ? 'rgba(6,182,212,0.10)' : isHolding ? 'rgba(59,130,246,0.10)' : 'rgba(16,185,129,0.08)'
 
             const verbose = optimizeStatus.verbose || {}
             const thoughts = verbose.thoughts || []
@@ -509,7 +586,9 @@ export default function Dashboard() {
                 <div className="shrink-0">
                   {enabled ? (
                     <div className={`px-4 py-2 rounded-lg font-bold text-sm uppercase tracking-wider ${
-                      isDumping
+                      isEventDump
+                        ? 'bg-violet-500/20 text-violet-600 dark:text-violet-400 animate-pulse'
+                        : isDumping
                         ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
                         : isPoweringHome
                         ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400'
@@ -519,7 +598,8 @@ export default function Dashboard() {
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                         : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                     }`}>
-                      {isExporting ? 'Dumping to Grid'
+                      {isEventDump ? 'VPP Event'
+                        : isExporting ? 'Dumping to Grid'
                         : isPoweringHome ? 'Powering Home'
                         : isHolding ? 'Holding'
                         : isComplete ? 'Complete'

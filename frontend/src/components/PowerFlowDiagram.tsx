@@ -16,10 +16,16 @@ interface GridMixInfo {
   fossil_pct?: number
 }
 
+interface VppEventInfo {
+  name?: string
+  rate_per_kwh?: number
+}
+
 interface Props {
   status: PowerwallStatus
   tariff?: TariffInfo | null
   gridMix?: GridMixInfo | null
+  activeVppEvent?: VppEventInfo | null
   onNodeClick?: (node: 'solar' | 'battery' | 'home' | 'grid' | 'ev') => void
   evChargingWatts?: number  // Vehicle charger power in watts (0 or undefined = no EV / not charging)
   evSoc?: number            // Vehicle battery level 0-100
@@ -267,7 +273,7 @@ function ParticleCanvas({ paths, nodePositions }: { paths: FlowPath[]; nodePosit
   )
 }
 
-export default function PowerFlowDiagram({ status, tariff, gridMix, onNodeClick, evChargingWatts = 0, evSoc, evName }: Props) {
+export default function PowerFlowDiagram({ status, tariff, gridMix, activeVppEvent, onNodeClick, evChargingWatts = 0, evSoc, evName }: Props) {
   const solarActive = status.solar_power > 50
   const gridImporting = status.grid_power > 50
   const gridExporting = status.grid_power < -50
@@ -444,24 +450,41 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, onNodeClick,
       {/* Grid - bottom right */}
       <div className="absolute z-10" style={{ left: `${nodePositions.grid.x * 100}%`, top: `${nodePositions.grid.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
         <div onClick={() => onNodeClick?.('grid')} className={`${tileBase} ${
-          gridImporting ? 'border-red-400/40 bg-red-50 shadow-lg shadow-red-500/10 dark:bg-red-950/80 dark:shadow-red-500/20'
+          activeVppEvent && gridExporting ? 'border-violet-400/50 bg-violet-50 shadow-lg shadow-violet-500/20 dark:bg-violet-950/80 dark:shadow-violet-500/30'
+          : gridImporting ? 'border-red-400/40 bg-red-50 shadow-lg shadow-red-500/10 dark:bg-red-950/80 dark:shadow-red-500/20'
           : gridExporting ? 'border-emerald-400/40 bg-emerald-50 shadow-lg shadow-emerald-500/10 dark:bg-emerald-950/80 dark:shadow-emerald-500/20'
           : tileInactive
         }`} style={tileStyle}>
-          <Zap className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${gridImporting ? 'text-red-500 dark:text-red-400' : gridExporting ? 'text-emerald-500 dark:text-emerald-400' : 'text-stone-400 dark:text-slate-600'}`} />
+          <Zap className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${
+            activeVppEvent && gridExporting ? 'text-violet-500 dark:text-violet-400'
+            : gridImporting ? 'text-red-500 dark:text-red-400'
+            : gridExporting ? 'text-emerald-500 dark:text-emerald-400'
+            : 'text-stone-400 dark:text-slate-600'
+          }`} />
           <AnimatedValue
             value={Math.abs(status.grid_power)}
             format={formatPower}
             className={`${isMobile ? 'text-base' : 'text-xl'} font-bold ${
-              gridImporting ? 'text-red-600 dark:text-red-400' : gridExporting ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-400 dark:text-slate-600'
+              activeVppEvent && gridExporting ? 'text-violet-600 dark:text-violet-400'
+              : gridImporting ? 'text-red-600 dark:text-red-400'
+              : gridExporting ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-stone-400 dark:text-slate-600'
             }`}
           />
           <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-stone-400 dark:text-slate-500 font-medium uppercase tracking-wider mt-0.5`}>Grid</span>
           <span className={`${isMobile ? 'text-[8px]' : 'text-[9px]'} ${
-            gridImporting ? 'text-red-500/70 dark:text-red-400/70' : gridExporting ? 'text-emerald-500/70 dark:text-emerald-400/70' : 'text-stone-400 dark:text-slate-600'
+            activeVppEvent && gridExporting ? 'text-violet-500/80 dark:text-violet-400/80'
+            : gridImporting ? 'text-red-500/70 dark:text-red-400/70'
+            : gridExporting ? 'text-emerald-500/70 dark:text-emerald-400/70'
+            : 'text-stone-400 dark:text-slate-600'
           }`}>
-            {gridImporting ? 'Importing' : gridExporting ? 'Exporting' : 'Idle'}
+            {activeVppEvent && gridExporting ? 'VPP Export' : gridImporting ? 'Importing' : gridExporting ? 'Exporting' : 'Idle'}
           </span>
+          {activeVppEvent && gridExporting && (
+            <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} mt-0.5 px-1.5 py-0.5 rounded-full font-medium bg-violet-500/20 text-violet-400 animate-pulse`}>
+              ${activeVppEvent.rate_per_kwh?.toFixed(2)}/kWh
+            </span>
+          )}
           {gridImporting && gridMix?.configured && gridMix.clean_pct != null && (
             <span className={`${isMobile ? 'text-[7px]' : 'text-[9px]'} mt-0.5 px-1.5 py-0.5 rounded-full font-medium ${
               gridMix.clean_pct >= 80 ? 'bg-emerald-500/20 text-emerald-500'

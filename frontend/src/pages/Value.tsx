@@ -24,6 +24,7 @@ function formatHour(hour: number): string {
 }
 
 const TOU_COLORS: Record<string, string> = {
+  'VPP Event': '#7c3aed',
   'Peak': '#f87171',
   'Mid-Peak': '#fbbf24',
   'Off-Peak': '#34d399',
@@ -79,6 +80,7 @@ export default function ValuePage() {
   const { data: forecast } = useAutoRefresh<any>('/history/forecast', 60000)
   const { data: savings } = useAutoRefresh<any>('/powerwall/health/savings', 60000)
   const { data: billEstimate } = useApi<any>('/ai/bill-estimate')
+  const { data: vppStats } = useApi<any>('/events/stats')
 
   // Build hourly chart data
   const hourlyChart = value?.hourly_breakdown?.map((h: any) => ({
@@ -511,7 +513,7 @@ export default function ValuePage() {
                   <tbody>
                     {Object.entries(value.period_breakdown)
                       .sort(([a], [b]) => {
-                        const order: Record<string, number> = { 'Peak': 0, 'Mid-Peak': 1, 'Off-Peak': 2 }
+                        const order: Record<string, number> = { 'VPP Event': -1, 'Peak': 0, 'Mid-Peak': 1, 'Off-Peak': 2 }
                         return (order[a] ?? 3) - (order[b] ?? 3)
                       })
                       .map(([period, data]: [string, any]) => {
@@ -625,6 +627,58 @@ export default function ValuePage() {
               )}
             </div>
           )}
+          {/* VPP Earnings */}
+          {vppStats && vppStats.total_events > 0 && (
+            <div className="card border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-transparent">
+              <div className="flex items-center gap-2 mb-4">
+                <Zap className="w-4.5 h-4.5 text-violet-400" />
+                <span className="card-header mb-0">VPP Event Earnings</span>
+                <span className="text-[10px] bg-violet-500/15 text-violet-400 px-1.5 py-0.5 rounded font-medium">
+                  {vppStats.total_events} event{vppStats.total_events !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                  <div className="stat-value text-violet-400">
+                    <AnimatedValue value={vppStats.total_earnings} format={(v) => `$${v.toFixed(2)}`} />
+                  </div>
+                  <div className="stat-label">Total earned</div>
+                </div>
+                <div>
+                  <div className="stat-value text-violet-300">
+                    <AnimatedValue value={vppStats.total_exported_kwh} format={(v) => `${v.toFixed(1)}`} />
+                  </div>
+                  <div className="stat-label">kWh exported</div>
+                </div>
+                <div>
+                  <div className="stat-value text-violet-300">
+                    $<AnimatedValue value={vppStats.avg_rate_per_kwh} format={(v) => v.toFixed(2)} />
+                  </div>
+                  <div className="stat-label">Avg rate/kWh</div>
+                </div>
+              </div>
+
+              {vppStats.events?.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Event History</div>
+                  {vppStats.events.map((evt: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-100 dark:bg-slate-800/30">
+                      <div>
+                        <span className="text-slate-600 dark:text-slate-300">{evt.name}</span>
+                        <span className="text-slate-500 ml-2">{evt.date} · {evt.start_time}–{evt.end_time}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-violet-400">${evt.earnings.toFixed(2)}</span>
+                        <span className="text-slate-500 ml-2">{evt.exported_kwh} kWh @ ${evt.rate_per_kwh}/kWh</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* AI Monthly Bill Estimate */}
           {billEstimate && !billEstimate.error && billEstimate.estimated_total != null && (
             <div className="card">

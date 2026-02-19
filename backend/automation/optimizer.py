@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # State
 _state = {
     "enabled": False,
-    "phase": "idle",          # idle | peak_hold | dumping | complete
+    "phase": "idle",          # idle | event_dump | peak_hold | dumping | complete
     "peak_start_hour": 17,    # 5pm
     "peak_end_hour": 21,      # 9pm
     "buffer_minutes": 15,     # Safety buffer
@@ -38,6 +38,9 @@ _state = {
     "last_calculation": None,
     "pre_optimize_mode": None,
     "pre_optimize_reserve": None,
+    # VPP event dump
+    "active_event": None,          # Active VPP event dict
+    "event_export_start_kwh": 0,   # Grid export kWh at event start (for tracking)
     # Verbose thinking feed (last 8 plain-text lines)
     "thoughts": [],
     "last_evaluate_at": None,
@@ -72,6 +75,7 @@ def get_state() -> dict:
         "last_calculation": _state["last_calculation"],
         "tou_source": _state.get("_tou_source", "manual"),
         "dump_paused": _state.get("_dump_paused", False),
+        "active_event": _state.get("active_event"),
     }
 
     # Add live TOU period info so the dashboard can show weekend/off-peak status
@@ -550,6 +554,57 @@ async def _check_clean_grid_preference(status):
             logger.error("Failed to restore autonomous mode: %s", e)
 
 
+def _check_vpp_achievements(event_data: dict, exported_kwh: float, earnings: float):
+    """Check and award VPP-related achievements after an event completes."""
+    from api.routes_events import _get_events
+
+    all_events = _get_events()
+    completed = [e for e in all_events if e.get("status") == "completed" and e.get("result")]
+    total_events = len(completed)
+    total_exported = sum(e["result"]["exported_kwh"] for e in completed)
+    total_earnings = sum(e["result"]["earnings"] for e in completed)
+
+    achievements = setup_store.get("achievements", [])
+    earned_ids = {a.get("id") for a in achievements if isinstance(a, dict)}
+
+    from zoneinfo import ZoneInfo
+    try:
+        tz = ZoneInfo(setup_store.get_timezone())
+    except Exception:
+        tz = ZoneInfo("America/New_York")
+    now_str = datetime.now(tz).isoformat()
+
+    new_achievements = []
+
+    vpp_badges = [
+        ("vpp_grid_hero", "Grid Hero", "Participated in your first VPP event", total_events >= 1),
+        ("vpp_power_broker", "Power Broker", f"Earned ${earnings:.2f} from a single VPP event", earnings >= 50),
+        ("vpp_grid_guardian", "Grid Guardian", "Participated in 5 VPP events", total_events >= 5),
+        ("vpp_high_roller", "High Roller", f"Earned ${earnings:.2f} from a single VPP event", earnings >= 100),
+        ("vpp_virtual_power_plant", "Virtual Power Plant", f"Exported {total_exported:.1f} kWh across all VPP events", total_exported >= 100),
+        ("vpp_community_champion", "Community Champion", "Participated in 10 VPP events", total_events >= 10),
+        ("vpp_peak_performer", "Peak Performer", f"Exported at ${event_data.get('rate_per_kwh', 0):.2f}/kWh", event_data.get("rate_per_kwh", 0) >= 3.0),
+    ]
+
+    for badge_id, title, description, condition in vpp_badges:
+        if badge_id not in earned_ids and condition:
+            new_achievements.append({
+                "id": badge_id,
+                "title": title,
+                "description": description,
+                "category": "vpp",
+                "earned_at": now_str,
+                "event_name": event_data.get("name", "VPP Event"),
+                "event_date": event_data.get("date", ""),
+            })
+
+    if new_achievements:
+        achievements.extend(new_achievements)
+        setup_store.set("achievements", achievements)
+        for a in new_achievements:
+            logger.info("VPP Achievement earned: %s — %s", a["title"], a["description"])
+
+
 async def _check_stuck_reserve():
     """One-time check for a stuck reserve from a previous optimizer cycle.
 
@@ -615,6 +670,108 @@ async def evaluate():
         return
 
     _think(f"Battery at {status.battery_soc:.1f}% — solar {status.solar_power/1000:.1f} kW, home {status.home_power/1000:.1f} kW, grid {status.grid_power/1000:.1f} kW")
+
+    # --- VPP EVENT CHECK (highest priority) ---
+    from api.routes_events import get_active_event, mark_event_active, complete_event
+    active_event = get_active_event()
+
+    if active_event and _state["phase"] != "event_dump":
+        # VPP event just started — override everything
+        _think(f"VPP EVENT ACTIVE — {active_event['name']} at ${active_event['rate_per_kwh']:.2f}/kWh — maximum export priority!")
+        logger.info("GridMind Optimize: VPP event starting: %s at $%.2f/kWh",
+                     active_event["name"], active_event["rate_per_kwh"])
+
+        # Save current settings if not already saved
+        if not _state.get("pre_optimize_mode"):
+            try:
+                from tesla.commands import get_site_config
+                config = await get_site_config()
+                _state["pre_optimize_mode"] = config.get("operation_mode", "autonomous")
+                _state["pre_optimize_reserve"] = config.get("backup_reserve_percent", 20)
+                _state["pre_optimize_export"] = config.get("export_rule", "battery_ok")
+                _state["pre_optimize_grid_charging"] = not config.get("grid_charging_disabled", False)
+            except Exception:
+                _state["pre_optimize_mode"] = status.operation_mode
+                _state["pre_optimize_reserve"] = status.backup_reserve
+                _state["pre_optimize_export"] = "battery_ok"
+                _state["pre_optimize_grid_charging"] = True
+            setup_store.update({
+                "gridmind_optimize_pre_mode": _state["pre_optimize_mode"],
+                "gridmind_optimize_pre_reserve": _state["pre_optimize_reserve"],
+                "gridmind_optimize_pre_export": _state["pre_optimize_export"],
+                "gridmind_optimize_pre_grid_charging": _state.get("pre_optimize_grid_charging", True),
+            })
+
+        # Start event dump
+        _set_phase("event_dump")
+        _state["active_event"] = active_event
+        _state["event_export_start_kwh"] = 0  # Will track via readings
+        mark_event_active(active_event["id"])
+
+        from tesla.commands import set_operation_mode, set_backup_reserve, set_grid_import_export
+        try:
+            await set_operation_mode("autonomous")
+            await set_backup_reserve(_state["min_reserve_pct"])
+            await set_grid_import_export(customer_preferred_export_rule="battery_ok")
+        except Exception as e:
+            logger.error("VPP event: failed to set dump mode: %s", e)
+
+        from services.notifications import send_notification
+        try:
+            await send_notification(
+                f"VPP Event Started: {active_event['name']}",
+                f"Exporting battery at ${active_event['rate_per_kwh']:.2f}/kWh premium rate. "
+                f"Event runs {active_event['start_time']} - {active_event['end_time']}.",
+                "info",
+            )
+        except Exception:
+            pass
+        return
+
+    if _state["phase"] == "event_dump":
+        if active_event:
+            # Still in event — monitor and report
+            exported_kwh = max(-status.grid_power, 0) / 1000 * (2 / 60)  # Approx kWh in 2 min
+            rate = _state["active_event"]["rate_per_kwh"]
+            _state["event_export_start_kwh"] = _state.get("event_export_start_kwh", 0) + exported_kwh
+            earnings = _state["event_export_start_kwh"] * rate
+            _think(f"VPP event — exporting at ${rate:.2f}/kWh — ~{_state['event_export_start_kwh']:.1f} kWh exported, ~${earnings:.2f} earned")
+            return
+        else:
+            # Event ended — complete and restore
+            event_data = _state.get("active_event", {})
+            exported = _state.get("event_export_start_kwh", 0)
+            rate = event_data.get("rate_per_kwh", 0)
+            earnings = exported * rate
+
+            _think(f"VPP event complete! Exported {exported:.1f} kWh, earned ${earnings:.2f}")
+            logger.info("VPP event completed: %.1f kWh exported, $%.2f earned", exported, earnings)
+
+            if event_data.get("id"):
+                complete_event(event_data["id"], exported, earnings)
+
+            # Check VPP achievements
+            try:
+                _check_vpp_achievements(event_data, exported, earnings)
+            except Exception:
+                pass
+
+            _state["active_event"] = None
+            _state["event_export_start_kwh"] = 0
+
+            # Restore settings
+            await _end_peak()
+
+            from services.notifications import send_notification
+            try:
+                await send_notification(
+                    f"VPP Event Complete!",
+                    f"Exported {exported:.1f} kWh at ${rate:.2f}/kWh. Earned ${earnings:.2f}!",
+                    "info",
+                )
+            except Exception:
+                pass
+            return
 
     # Safety: if peak_hold/dumping has been active for over 6 hours, something is wrong.
     # No peak window is that long — force restore to prevent getting stuck.

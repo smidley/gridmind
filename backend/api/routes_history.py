@@ -576,8 +576,25 @@ async def get_energy_value(
 
     time_series = data.get("time_series", [])
 
+    # Load VPP events for rate override
+    vpp_events = setup_store.get("peak_events", [])
+    completed_or_active_events = [
+        e for e in vpp_events
+        if isinstance(e, dict) and e.get("status") in ("completed", "active") and e.get("date")
+    ]
+
     # Helper to determine TOU period for a given hour/day
-    def get_period_and_rate(hour: int, day_of_week: int, month: int, is_sell: bool = False):
+    # Checks VPP events FIRST — if the timestamp falls in an event window,
+    # returns VPP_EVENT with the event's premium rate (each event can differ).
+    def get_period_and_rate(hour: int, day_of_week: int, month: int, is_sell: bool = False, date_str: str = ""):
+        # Check VPP events first (highest priority, sell rate only)
+        if is_sell and date_str:
+            time_str = f"{hour:02d}:00"
+            for evt in completed_or_active_events:
+                if evt.get("date") == date_str:
+                    if evt.get("start_time", "") <= time_str < evt.get("end_time", ""):
+                        return "VPP_EVENT", evt.get("rate_per_kwh", 0)
+
         charges = sell_charges if is_sell else energy_charges
         for season_name, season_data in seasons.items():
             from_month = season_data.get("fromMonth", 1)
@@ -620,7 +637,7 @@ async def get_energy_value(
 
     # Hourly breakdown: accumulate per hour
     hourly_data: dict[int, dict] = {}
-    display_map = {"OFF_PEAK": "Off-Peak", "ON_PEAK": "Peak", "PARTIAL_PEAK": "Mid-Peak"}
+    display_map = {"OFF_PEAK": "Off-Peak", "ON_PEAK": "Peak", "PARTIAL_PEAK": "Mid-Peak", "VPP_EVENT": "VPP Event"}
 
     for entry in time_series:
         # Parse timestamp
@@ -635,8 +652,9 @@ async def get_energy_value(
         dow = ts_local.weekday()
         month = ts_local.month
 
-        _, buy_rate = get_period_and_rate(hour, dow, month, is_sell=False)
-        period_name, sell_rate = get_period_and_rate(hour, dow, month, is_sell=True)
+        date_str = ts_local.strftime("%Y-%m-%d")
+        _, buy_rate = get_period_and_rate(hour, dow, month, is_sell=False, date_str=date_str)
+        period_name, sell_rate = get_period_and_rate(hour, dow, month, is_sell=True, date_str=date_str)
 
         # Energy values in Wh from Tesla, convert to kWh
         exported = (entry.get("grid_energy_exported_from_solar", 0) +
