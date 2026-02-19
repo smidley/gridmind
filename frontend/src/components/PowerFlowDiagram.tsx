@@ -322,7 +322,7 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, activeVppEve
   const BATTERY_COLOR = 'rgb(96, 165, 250)'    // blue
   const GRID_COLOR_IMPORT = 'rgb(248, 113, 113)' // red
   const GRID_COLOR_EXPORT = 'rgb(52, 211, 153)'  // emerald
-  const EV_COLOR      = 'rgb(167, 139, 250)'    // violet
+  const EV_COLOR      = 'rgb(251, 146, 60)'     // orange
 
   const flowPaths: FlowPath[] = [
     // Solar -> Battery
@@ -392,17 +392,17 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, activeVppEve
         <div className="absolute z-10" style={{ left: `${nodePositions.ev.x * 100}%`, top: `${nodePositions.ev.y * 100}%`, transform: 'translate(-50%, -50%)' }}>
           <div onClick={() => onNodeClick?.('ev')} className={`${tileBase} ${
             evCharging
-              ? 'border-violet-400/40 bg-violet-50 shadow-lg shadow-violet-500/10 dark:bg-violet-950/80 dark:shadow-violet-500/20'
-              : 'border-violet-400/20 bg-violet-50/50 dark:border-violet-800/30 dark:bg-violet-950/40'
+              ? 'border-orange-400/40 bg-orange-50 shadow-lg shadow-orange-500/10 dark:bg-orange-950/80 dark:shadow-orange-500/20'
+              : 'border-orange-400/20 bg-orange-50/50 dark:border-orange-800/30 dark:bg-orange-950/40'
           }`} style={evTileStyle}>
-            <Car className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${evCharging ? 'text-violet-500 dark:text-violet-400' : 'text-violet-400/60 dark:text-violet-500/60'}`} />
-            <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${evCharging ? 'text-violet-600 dark:text-violet-400' : 'text-violet-500/70 dark:text-violet-400/70'}`}>
+            <Car className={`${isMobile ? 'w-4 h-4' : 'w-6 h-6'} mb-1 ${evCharging ? 'text-orange-500 dark:text-orange-400' : 'text-orange-400/60 dark:text-orange-500/60'}`} />
+            <span className={`${isMobile ? 'text-base' : 'text-xl'} font-bold tabular-nums ${evCharging ? 'text-orange-600 dark:text-orange-400' : 'text-orange-500/70 dark:text-orange-400/70'}`}>
               {evCharging ? formatPower(evChargingWatts) : evSoc !== undefined ? `${evSoc}%` : '—'}
             </span>
-            <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-violet-400/60 dark:text-violet-500/50 font-medium uppercase tracking-wider mt-0.5`}>
+            <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} text-orange-400/60 dark:text-orange-500/50 font-medium uppercase tracking-wider mt-0.5`}>
               {evName || 'EV'}
             </span>
-            {!isMobile && <span className={`text-[9px] ${evCharging ? 'text-violet-500/70 dark:text-violet-400/70' : 'text-violet-400/50 dark:text-violet-500/40'}`}>
+            {!isMobile && <span className={`text-[9px] ${evCharging ? 'text-orange-500/70 dark:text-orange-400/70' : 'text-orange-400/50 dark:text-orange-500/40'}`}>
               {evCharging
                 ? evSoc !== undefined ? `Charging · ${evSoc}%` : 'Charging'
                 : evSoc !== undefined ? `${evSoc}%` : '—'}

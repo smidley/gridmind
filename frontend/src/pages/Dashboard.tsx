@@ -329,9 +329,9 @@ export default function Dashboard() {
 
           {/* EV Tile */}
           {hasVehicle && (
-            <div className="card cursor-pointer hover:ring-1 hover:ring-violet-500/30 transition-all" onClick={() => navigate('/vehicle')}>
+            <div className="card cursor-pointer hover:ring-1 hover:ring-orange-500/30 transition-all" onClick={() => navigate('/vehicle')}>
               <div className="flex items-center gap-2 mb-2">
-                <Car className="w-4 h-4 text-violet-400" />
+                <Car className="w-4 h-4 text-orange-400" />
                 <span className="card-header mb-0">{vehicleInfo?.display_name || 'Vehicle'}</span>
               </div>
 

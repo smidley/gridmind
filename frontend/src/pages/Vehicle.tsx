@@ -156,7 +156,7 @@ export default function VehiclePage() {
           <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
             <ArrowLeft className="w-5 h-5 text-slate-500" />
           </button>
-          <Car className="w-6 h-6 text-violet-500" />
+          <Car className="w-6 h-6 text-orange-500" />
           <h2 className="text-2xl font-bold">Vehicle</h2>
         </div>
 
@@ -171,7 +171,7 @@ export default function VehiclePage() {
                 <button
                   key={v.id}
                   onClick={() => selectVehicle(v.id, v.display_name, v.vin)}
-                  className="w-full p-4 rounded-xl border border-slate-700 hover:border-violet-500/50 hover:bg-violet-500/5 transition-all text-left"
+                  className="w-full p-4 rounded-xl border border-slate-700 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all text-left"
                 >
                   <div className="font-medium">{v.display_name}</div>
                   <div className="text-xs text-slate-500 mt-1">
@@ -195,7 +195,7 @@ export default function VehiclePage() {
         <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors">
           <ArrowLeft className="w-5 h-5 text-slate-500" />
         </button>
-        <Car className="w-6 h-6 text-violet-500" />
+        <Car className="w-6 h-6 text-orange-500" />
         <h2 className="text-2xl font-bold">Vehicle</h2>
         {vehicle?.display_name && (
           <span className="text-sm text-slate-500">{vehicle.display_name}</span>
@@ -217,7 +217,7 @@ export default function VehiclePage() {
           <button
             onClick={() => doAction('/vehicle/wake').then(() => setTimeout(refetch, 5000))}
             disabled={actionLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-500/15 text-violet-500 hover:bg-violet-500/25 transition-colors shrink-0 ml-3"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors shrink-0 ml-3"
           >
             <Zap className="w-3.5 h-3.5" />
             Wake & Refresh
@@ -288,7 +288,7 @@ export default function VehiclePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="card">
             <div className="card-header">Battery Level</div>
-            <div className="stat-value text-violet-500 dark:text-violet-400"><AnimatedValue value={cs.battery_level} format={(v) => `${Math.round(v)}%`} /></div>
+            <div className="stat-value text-orange-500 dark:text-orange-400"><AnimatedValue value={cs.battery_level} format={(v) => `${Math.round(v)}%`} /></div>
             <div className="stat-label">of {cs.charge_limit_soc}% limit</div>
           </div>
           <div className="card">
@@ -572,7 +572,7 @@ export default function VehiclePage() {
                   }
                   setSliderLimit(null)
                 }}
-                className="w-full accent-violet-500"
+                className="w-full accent-orange-500"
               />
               <div className="flex justify-between text-[10px] text-slate-600">
                 <span>50%</span>
@@ -590,10 +590,10 @@ export default function VehiclePage() {
           className="w-full flex items-center justify-between"
         >
           <div className="flex items-center gap-2">
-            <Timer className="w-4 h-4 text-violet-500" />
+            <Timer className="w-4 h-4 text-orange-500" />
             <span className="card-header mb-0">Smart Charge Schedule</span>
             {sched.strategy !== 'off' && (
-              <span className="text-[10px] bg-violet-500/15 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded font-medium">
+              <span className="text-[10px] bg-orange-500/15 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-medium">
                 {sched.strategy === 'tou_aware' ? 'TOU-Aware' :
                  sched.strategy === 'solar_surplus' ? 'Solar Surplus' :
                  sched.strategy === 'departure' ? 'Departure' : 'Off'}
@@ -618,11 +618,11 @@ export default function VehiclePage() {
                   onClick={() => updateScheduleField('strategy', id)}
                   className={`p-3 rounded-xl border text-left transition-all ${
                     sched.strategy === id
-                      ? 'border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/30'
+                      ? 'border-orange-500/50 bg-orange-500/10 ring-1 ring-orange-500/30'
                       : 'border-slate-700 hover:border-slate-600'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 mb-1 ${sched.strategy === id ? 'text-violet-400' : 'text-slate-500'}`} />
+                  <Icon className={`w-4 h-4 mb-1 ${sched.strategy === id ? 'text-orange-400' : 'text-slate-500'}`} />
                   <div className="text-sm font-medium">{label}</div>
                   <div className="text-[10px] text-slate-500">{desc}</div>
                 </button>
@@ -749,7 +749,7 @@ export default function VehiclePage() {
                     <div className="relative">
                       <div className="flex h-8 rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-700">
                         <div
-                          className="bg-gradient-to-r from-violet-600 to-violet-500 flex items-center justify-center text-[10px] font-bold text-white"
+                          className="bg-gradient-to-r from-orange-600 to-orange-500 flex items-center justify-center text-[10px] font-bold text-white"
                           style={{ width: `${sched.grid_charge_limit}%` }}
                         >
                           Any source to {sched.grid_charge_limit}%
@@ -782,7 +782,7 @@ export default function VehiclePage() {
                               solar_charge_limit: solarVal,
                             }))
                           }}
-                          className="w-full accent-violet-500"
+                          className="w-full accent-orange-500"
                         />
                         <p className="text-[10px] text-slate-600 mt-1">Charge from any source (grid, solar, battery) up to this level</p>
                       </div>
@@ -841,7 +841,7 @@ export default function VehiclePage() {
                
                 formatter={(v: number) => [`${v}%`, 'SOC']}
               />
-              <Line type="monotone" dataKey="soc" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="soc" stroke="#f97316" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -960,7 +960,7 @@ export default function VehiclePage() {
                 : wc.state === 'Idle'
                 ? 'bg-slate-500/15 text-slate-400'
                 : wc.state === 'Complete'
-                ? 'bg-violet-500/15 text-violet-400'
+                ? 'bg-orange-500/15 text-orange-400'
                 : 'bg-slate-500/15 text-slate-500'
             }`}>
               {wc.state}

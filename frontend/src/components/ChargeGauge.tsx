@@ -80,10 +80,10 @@ export default function ChargeGauge({ soc, chargeLimit, chargingState, power, ra
         {/* Hybrid limit markers */}
         {hasHybridLimits && (
           <>
-            {/* Grid charge limit marker (violet) */}
+            {/* Grid charge limit marker (orange) */}
             <div
               className="absolute top-0 bottom-0"
-              style={{ left: `${gridChargeLimit}%`, width: '2px', backgroundColor: '#8b5cf6' }}
+              style={{ left: `${gridChargeLimit}%`, width: '2px', backgroundColor: '#f97316' }}
             />
             {/* Solar charge limit marker (amber) */}
             {(solarChargeLimit || 0) < 100 && (
@@ -131,7 +131,7 @@ export default function ChargeGauge({ soc, chargeLimit, chargingState, power, ra
         <div className="relative w-full h-5 mt-1">
           {/* Grid limit label */}
           <div className="absolute top-0 flex justify-center" style={{ left: `${Math.max((gridChargeLimit || 0) - 6, 0)}%`, width: '12%' }}>
-            <span className="text-[9px] text-violet-400 leading-none whitespace-nowrap">⚡ {gridChargeLimit}%</span>
+            <span className="text-[9px] text-orange-400 leading-none whitespace-nowrap">⚡ {gridChargeLimit}%</span>
           </div>
           {/* Solar limit label */}
           {(solarChargeLimit || 0) < 100 && (
@@ -171,7 +171,7 @@ export default function ChargeGauge({ soc, chargeLimit, chargingState, power, ra
       </div>
       {hasHybridLimits && (
         <div className="flex gap-3 text-[9px] text-slate-500 mt-1">
-          <span><span className="text-violet-400">⚡</span> Any source to {gridChargeLimit}%</span>
+          <span><span className="text-orange-400">⚡</span> Any source to {gridChargeLimit}%</span>
           <span><span className="text-amber-400">☀</span> Solar only to {solarChargeLimit}%</span>
         </div>
       )}
