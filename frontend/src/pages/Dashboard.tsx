@@ -581,6 +581,8 @@ export default function Dashboard() {
                         ? 'Peak period finished · Normal operation restored'
                         : optimizeStatus.current_tou_period && !optimizeStatus.tou_in_peak && !optimizeStatus.tou_has_peak_today
                         ? `Currently ${optimizeStatus.current_tou_period} · No peak period today`
+                        : optimizeStatus.current_tou_period && !optimizeStatus.tou_in_peak && optimizeStatus.tou_has_peak_today && optimizeStatus.next_vpp_event?.date === new Date().toLocaleDateString('en-CA')
+                        ? `Currently ${optimizeStatus.current_tou_period} · VPP event at ${fmt12(optimizeStatus.next_vpp_event.start_time)} · $${optimizeStatus.next_vpp_event.rate_per_kwh?.toFixed(2)}/kWh premium`
                         : optimizeStatus.current_tou_period && !optimizeStatus.tou_in_peak && optimizeStatus.tou_has_peak_today
                         ? `Currently ${optimizeStatus.current_tou_period} · Peak starts at ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'}`
                         : `Waiting for peak · ${optimizeStatus.peak_start_hour > 12 ? optimizeStatus.peak_start_hour - 12 : optimizeStatus.peak_start_hour}:00 ${optimizeStatus.peak_start_hour >= 12 ? 'PM' : 'AM'} – ${optimizeStatus.peak_end_hour > 12 ? optimizeStatus.peak_end_hour - 12 : optimizeStatus.peak_end_hour}:00 ${optimizeStatus.peak_end_hour >= 12 ? 'PM' : 'AM'}`

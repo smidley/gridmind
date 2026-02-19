@@ -78,6 +78,15 @@ def get_state() -> dict:
         "active_event": _state.get("active_event"),
     }
 
+    # Add next upcoming VPP event info
+    try:
+        from api.routes_events import get_next_event
+        next_evt = get_next_event()
+        if next_evt:
+            result["next_vpp_event"] = next_evt
+    except Exception:
+        pass
+
     # Add live TOU period info so the dashboard can show weekend/off-peak status
     if _state["enabled"]:
         try:
@@ -827,6 +836,30 @@ async def evaluate():
             _think("Weekend — no peak period today")
         else:
             _think("Off-peak — no actions needed")
+
+        # Check for upcoming VPP events and report in thinking feed
+        from api.routes_events import get_next_event
+        next_evt = get_next_event()
+        if next_evt:
+            evt_date = next_evt.get("date", "")
+            evt_start = next_evt.get("start_time", "")
+            evt_rate = next_evt.get("rate_per_kwh", 0)
+            today_str = now.strftime("%Y-%m-%d")
+            if evt_date == today_str:
+                # Event is today — calculate time until start
+                try:
+                    evt_h, evt_m = map(int, evt_start.split(":"))
+                    evt_start_dt = now.replace(hour=evt_h, minute=evt_m, second=0)
+                    mins_until = int((evt_start_dt - now).total_seconds() / 60)
+                    if mins_until > 0:
+                        t = f"{mins_until // 60}h {mins_until % 60}m" if mins_until >= 60 else f"{mins_until}m"
+                        hr = evt_h if evt_h <= 12 else evt_h - 12
+                        ampm = "PM" if evt_h >= 12 else "AM"
+                        _think(f"VPP event today at {hr}:{evt_m:02d} {ampm} — ${evt_rate:.2f}/kWh — {t} away — battery will dump at premium rate")
+                except Exception:
+                    _think(f"VPP event scheduled today — ${evt_rate:.2f}/kWh premium rate")
+            else:
+                _think(f"Next VPP event: {evt_date} — ${evt_rate:.2f}/kWh")
 
         # Clean grid preference: if grid is fossil-heavy, switch to self-consumption
         # to avoid importing dirty power (uses battery + solar instead)
