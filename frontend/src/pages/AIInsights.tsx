@@ -2,11 +2,10 @@ import { useState, useRef, useCallback } from 'react'
 import {
   Brain, Trophy, AlertTriangle, Lightbulb, Info, MessageCircle, Loader2,
 } from 'lucide-react'
-import { useApi, apiFetch } from '../hooks/useApi'
-import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import { useApi } from '../hooks/useApi'
 import AnimatedValue from '../components/AnimatedValue'
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+const API_BASE = '/api'
 
 interface Insight {
   title: string
