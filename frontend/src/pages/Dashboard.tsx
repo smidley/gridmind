@@ -25,7 +25,6 @@ import {
   BarChart3,
   CloudLightning,
   ChevronDown,
-  Trophy,
 } from 'lucide-react'
 import { useWebSocket, type PowerwallStatus } from '../hooks/useWebSocket'
 import { useApi, apiFetch } from '../hooks/useApi'
