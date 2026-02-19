@@ -1,5 +1,12 @@
 import { useState } from 'react'
 import { Plus, Power, PowerOff, Clock, Battery, Zap, Wifi, Sun, Trash2, BookOpen, Activity, Car, Timer } from 'lucide-react'
+
+function fmt12(time24: string): string {
+  const [h, m] = time24.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const hr = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${hr}:${String(m).padStart(2, '0')} ${ampm}`
+}
 import { useApi, apiFetch } from '../hooks/useApi'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import RuleBuilder from '../components/RuleBuilder'
@@ -168,7 +175,7 @@ function PeakEventsConfig() {
             <div key={evt.id} className="flex items-center justify-between p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
               <div>
                 <span className="text-sm font-medium text-violet-400">{evt.name}</span>
-                <p className="text-xs text-slate-500">{evt.date} · {evt.start_time} – {evt.end_time} · <span className="text-violet-400 font-medium">${evt.rate_per_kwh}/kWh</span></p>
+                <p className="text-xs text-slate-500">{evt.date} · {fmt12(evt.start_time)} – {fmt12(evt.end_time)} · <span className="text-violet-400 font-medium">${evt.rate_per_kwh}/kWh</span></p>
               </div>
               <button onClick={() => deleteEvent(evt.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300">
                 <Trash2 className="w-3 h-3" /> Cancel
@@ -185,7 +192,7 @@ function PeakEventsConfig() {
             <div key={evt.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800/30">
               <div>
                 <span className="text-sm text-slate-600 dark:text-slate-300">{evt.name}</span>
-                <p className="text-xs text-slate-500">{evt.date} · {evt.start_time} – {evt.end_time}</p>
+                <p className="text-xs text-slate-500">{evt.date} · {fmt12(evt.start_time)} – {fmt12(evt.end_time)}</p>
               </div>
               {evt.result && (
                 <div className="text-right">

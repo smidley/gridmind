@@ -34,6 +34,13 @@ import BatteryGauge from '../components/BatteryGauge'
 import SolarGoal from '../components/SolarGoal'
 import AnimatedValue from '../components/AnimatedValue'
 
+function fmt12(time24: string): string {
+  const [h, m] = time24.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const hr = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${hr}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
 function formatEnergy(kwh: number): string {
   if (kwh >= 100) return `${Math.round(kwh)} kWh`
   if (kwh >= 10) return `${kwh.toFixed(1)} kWh`
@@ -414,7 +421,7 @@ export default function Dashboard() {
                       <div>
                         <div className="text-sm font-bold text-violet-600 dark:text-violet-400">{evt.name}</div>
                         <p className="text-xs text-slate-500">
-                          {evt.start_time} – {evt.end_time} · Premium export active
+                          {fmt12(evt.start_time)} – {fmt12(evt.end_time)} · Premium export active
                         </p>
                       </div>
                     </div>
@@ -440,7 +447,7 @@ export default function Dashboard() {
               <Zap className="w-4 h-4 text-violet-400 shrink-0" />
               <div className="text-xs text-slate-500">
                 <span className="text-violet-400 font-medium">Upcoming VPP Event:</span>{' '}
-                {eventsData.next.name} · {eventsData.next.date} · {eventsData.next.start_time} – {eventsData.next.end_time} · ${eventsData.next.rate_per_kwh?.toFixed(2)}/kWh
+                {eventsData.next.name} · {eventsData.next.date} · {fmt12(eventsData.next.start_time)} – {fmt12(eventsData.next.end_time)} · ${eventsData.next.rate_per_kwh?.toFixed(2)}/kWh
               </div>
             </div>
           )}

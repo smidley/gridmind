@@ -666,7 +666,7 @@ export default function ValuePage() {
                     <div key={i} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-100 dark:bg-slate-800/30">
                       <div>
                         <span className="text-slate-600 dark:text-slate-300">{evt.name}</span>
-                        <span className="text-slate-500 ml-2">{evt.date} · {evt.start_time}–{evt.end_time}</span>
+                        <span className="text-slate-500 ml-2">{evt.date} · {(() => { const [h,m] = (evt.start_time||'').split(':').map(Number); return `${h===0?12:h>12?h-12:h}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`; })()}–{(() => { const [h,m] = (evt.end_time||'').split(':').map(Number); return `${h===0?12:h>12?h-12:h}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`; })()}</span>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-violet-400">${evt.earnings.toFixed(2)}</span>
