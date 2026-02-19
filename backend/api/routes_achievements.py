@@ -426,6 +426,46 @@ async def get_achievements():
         days_running >= 365, f"{days_running} days tracked" if days_running >= 365 else "", day_365_date,
     ))
 
+    # --- VPP Events ---
+
+    vpp_events = setup_store.get("peak_events", [])
+    completed_vpp = [e for e in vpp_events if isinstance(e, dict) and e.get("status") == "completed" and e.get("result")]
+    vpp_count = len(completed_vpp)
+    vpp_total_exported = sum(e["result"].get("exported_kwh", 0) for e in completed_vpp)
+    vpp_total_earnings = sum(e["result"].get("earnings", 0) for e in completed_vpp)
+    vpp_max_earnings = max((e["result"].get("earnings", 0) for e in completed_vpp), default=0)
+    vpp_max_rate = max((e.get("rate_per_kwh", 0) for e in completed_vpp), default=0)
+    vpp_first_date = completed_vpp[0].get("date", "") if completed_vpp else ""
+
+    achievements.append(_achievement(
+        "vpp_grid_hero", "Grid Hero", "Participate in your first VPP event", "vpp", "zap",
+        vpp_count >= 1, f"First event: {vpp_first_date}" if vpp_count >= 1 else "", vpp_first_date,
+    ))
+    achievements.append(_achievement(
+        "vpp_power_broker", "Power Broker", "Earn $50+ from a single VPP event", "vpp", "dollar",
+        vpp_max_earnings >= 50, f"${vpp_max_earnings:.2f} from one event" if vpp_max_earnings >= 50 else "",
+    ))
+    achievements.append(_achievement(
+        "vpp_grid_guardian", "Grid Guardian", "Participate in 5 VPP events", "vpp", "shield",
+        vpp_count >= 5, f"{vpp_count} events completed" if vpp_count >= 5 else "",
+    ))
+    achievements.append(_achievement(
+        "vpp_high_roller", "High Roller", "Earn $100+ from a single VPP event", "vpp", "dollar",
+        vpp_max_earnings >= 100, f"${vpp_max_earnings:.2f} from one event" if vpp_max_earnings >= 100 else "",
+    ))
+    achievements.append(_achievement(
+        "vpp_virtual_power_plant", "Virtual Power Plant", "Export 100+ kWh across all VPP events", "vpp", "zap",
+        vpp_total_exported >= 100, f"{vpp_total_exported:.1f} kWh total" if vpp_total_exported >= 100 else "",
+    ))
+    achievements.append(_achievement(
+        "vpp_community_champion", "Community Champion", "Participate in 10 VPP events", "vpp", "shield",
+        vpp_count >= 10, f"{vpp_count} events completed" if vpp_count >= 10 else "",
+    ))
+    achievements.append(_achievement(
+        "vpp_peak_performer", "Peak Performer", "Export at a rate above $3.00/kWh", "vpp", "zap",
+        vpp_max_rate >= 3.0, f"${vpp_max_rate:.2f}/kWh" if vpp_max_rate >= 3.0 else "",
+    ))
+
     earned_count = sum(1 for a in achievements if a["earned"])
 
     return {
