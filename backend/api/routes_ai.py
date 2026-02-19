@@ -172,6 +172,9 @@ async def ai_anomalies():
     except Exception:
         user_tz = ZoneInfo("America/New_York")
 
+    # Exclude grid_status — grid outages are handled by the dedicated health
+    # alerts system with proper duration tracking. Sending it to the AI causes
+    # false "Grid Outage" anomalies from brief status blips.
     readings = [
         {
             "timestamp": (r.timestamp.replace(tzinfo=ZoneInfo("UTC")).astimezone(user_tz)).strftime("%Y-%m-%d %I:%M %p"),
@@ -180,7 +183,6 @@ async def ai_anomalies():
             "battery_w": r.battery_power,
             "home_w": r.home_power,
             "soc": r.battery_soc,
-            "grid_status": r.grid_status,
         }
         for r in readings_raw
     ]

@@ -290,7 +290,8 @@ async def detect_anomalies(readings: list[dict], daily_summaries: list[dict]) ->
     context += "  * High grid imports on days with low solar (weather-dependent, not a fault)\n"
     context += "  * Normal daily/weekly variation in consumption (±50% is normal)\n"
     context += "  * Solar producing 0 at night (obviously — solar only works during daylight hours)\n"
-    context += "- ONLY report: equipment malfunctions, sustained grid outages (>30 min), solar producing 0 during midday sun, consumption doubling with no explanation\n"
+    context += "- Grid outages are tracked separately — do NOT report grid connection issues.\n"
+    context += "- ONLY report: solar producing 0 during midday sun, consumption doubling with no explanation, battery not charging when it should be\n"
     context += "- If nothing is genuinely unusual, return an EMPTY array []. An empty result is the BEST result.\n\n"
 
     context += f"=== Baseline (avg over {n} days) ===\n"
