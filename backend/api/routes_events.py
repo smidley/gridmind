@@ -211,6 +211,13 @@ async def create_event(data: EventCreate):
     if data.rate_per_kwh <= 0:
         raise HTTPException(status_code=400, detail="Rate must be positive.")
 
+    from zoneinfo import ZoneInfo
+    tz_name = setup_store.get_timezone()
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("America/New_York")
+
     event = {
         "id": f"evt_{uuid.uuid4().hex[:12]}",
         "name": data.name.strip() or "VPP Peak Event",
@@ -219,7 +226,7 @@ async def create_event(data: EventCreate):
         "end_time": data.end_time,
         "rate_per_kwh": data.rate_per_kwh,
         "status": "scheduled",
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now(tz).isoformat(),
         "result": None,
     }
 

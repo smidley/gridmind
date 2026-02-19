@@ -22,7 +22,8 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
   optimize: { label: 'GridMind Optimize', color: 'cyan' },
   clean_energy: { label: 'Clean Energy', color: 'teal' },
   financial: { label: 'Financial', color: 'green' },
-  ev: { label: 'EV / Vehicle', color: 'violet' },
+  ev: { label: 'EV / Vehicle', color: 'orange' },
+  vpp: { label: 'VPP Events', color: 'violet' },
   system: { label: 'System', color: 'slate' },
 }
 
@@ -47,6 +48,7 @@ const COLOR_CLASSES: Record<string, { earned: string; glow: string; icon: string
   teal:    { earned: 'border-teal-500/40',    glow: 'shadow-teal-500/20',    icon: 'text-teal-400',    text: 'text-teal-400',    bg: 'bg-teal-500/10',    border: 'border-teal-500/20' },
   emerald: { earned: 'border-emerald-500/40', glow: 'shadow-emerald-500/20', icon: 'text-emerald-400', text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
   green:   { earned: 'border-green-500/40',   glow: 'shadow-green-500/20',   icon: 'text-green-400',   text: 'text-green-400',   bg: 'bg-green-500/10',   border: 'border-green-500/20' },
+  orange:  { earned: 'border-orange-500/40',  glow: 'shadow-orange-500/20',  icon: 'text-orange-400',  text: 'text-orange-400',  bg: 'bg-orange-500/10',  border: 'border-orange-500/20' },
   violet:  { earned: 'border-violet-500/40',  glow: 'shadow-violet-500/20',  icon: 'text-violet-400',  text: 'text-violet-400',  bg: 'bg-violet-500/10',  border: 'border-violet-500/20' },
   slate:   { earned: 'border-slate-500/40',   glow: 'shadow-slate-500/20',   icon: 'text-slate-400',   text: 'text-slate-400',   bg: 'bg-slate-500/10',   border: 'border-slate-500/20' },
 }
