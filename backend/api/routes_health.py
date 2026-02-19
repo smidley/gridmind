@@ -236,6 +236,8 @@ async def powerwall_alerts():
         return {"alerts": [], "checked_at": now.isoformat()}
 
     # Detect grid outages (transitions from connected to islanded)
+    # Require at least 2 minutes of islanded status to filter out brief blips
+    # caused by mode changes or API hiccups
     prev_grid = None
     outage_start = None
     for r in readings:
@@ -244,18 +246,23 @@ async def powerwall_alerts():
             outage_start = r.timestamp
         elif prev_grid == "islanded" and gs == "connected" and outage_start:
             duration_min = (r.timestamp - outage_start).total_seconds() / 60
-            alerts.append({
-                "type": "grid_outage",
-                "severity": "warning" if duration_min < 30 else "critical",
-                "message": f"Grid outage for {duration_min:.0f} minutes",
-                "started": outage_start.isoformat(),
-                "ended": r.timestamp.isoformat(),
-                "duration_minutes": round(duration_min, 1),
-            })
+            if duration_min >= 2:  # Ignore blips under 2 minutes
+                alerts.append({
+                    "type": "grid_outage",
+                    "severity": "warning" if duration_min < 30 else "critical",
+                    "message": f"Grid outage for {duration_min:.0f} minutes",
+                    "started": outage_start.isoformat(),
+                    "ended": r.timestamp.isoformat(),
+                    "duration_minutes": round(duration_min, 1),
+                })
             outage_start = None
         prev_grid = gs
 
-    # If still islanded
+    # If still islanded (only if it's been more than 2 minutes)
+    if outage_start and prev_grid == "islanded":
+        duration_min = (now - outage_start).total_seconds() / 60
+        if duration_min < 2:
+            outage_start = None  # Too short, ignore
     if outage_start and prev_grid == "islanded":
         duration_min = (now - outage_start).total_seconds() / 60
         alerts.append({

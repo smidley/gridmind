@@ -52,7 +52,7 @@ async def get_live_status() -> PowerwallStatus:
         solar_power=response.get("solar_power", 0),
         grid_power=response.get("grid_power", 0),
         home_power=response.get("load_power", 0),
-        grid_status="connected" if response.get("grid_status", "") == "Active" else "islanded",
+        grid_status="connected" if response.get("grid_status", "") in ("Active", "Unknown", "") else "islanded",
         operation_mode=operation_mode,
         backup_reserve=backup_reserve,
         storm_mode=storm_mode,
