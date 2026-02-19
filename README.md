@@ -6,13 +6,13 @@
 
 <p align="center">
   <strong>Smart energy automation and real-time monitoring</strong><br>
-  Real-time power flow · EV charging · Solar forecasting · Smart export optimization<br>
+  Real-time power flow · EV charging · Solar forecasting · Smart export optimization · AI insights<br>
   <a href="https://buymeacoffee.com/smidley">
     <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-yellow?style=flat&logo=buy-me-a-coffee" alt="Buy Me a Coffee" />
   </a>
-  <img src="https://img.shields.io/badge/version-1.3.1-blue" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.10.0-blue" alt="Version" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
-  <img src="https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey" alt="Platform" />
+  <img src="https://img.shields.io/badge/platform-amd64-lightgrey" alt="Platform" />
 </p>
 
 ---
@@ -70,11 +70,30 @@ Then follow the setup wizard in Settings. **All configuration is done through th
 
 ### Real-Time Dashboard
 
-An animated canvas-based power flow diagram shows energy moving between Solar, Battery, Home, Grid, and your EV in real-time. Particle count, size, and speed scale with actual wattage. Daily totals, battery gauge with SOC-tier colors, TOU rate indicator, solar goal ring, and today's net value — all at a glance.
+An animated canvas-based power flow diagram shows energy moving between Solar, Battery, Home, Grid, and your EV in real-time. Particle count, size, and speed scale with actual wattage. Click any node to navigate to its detail page. All numeric values animate with smooth count-up transitions. Live pulse indicators show data is streaming.
+
+### GridMind Optimize
+
+Smart peak export strategy that maximizes your TOU export credits:
+- **Peak Hold**: Holds battery in self-consumption during peak to avoid grid imports at peak rates
+- **Smart Dump Timing**: Calculates the optimal moment to start exporting based on battery SOC, rolling average home load, and time remaining — finishes right before peak ends
+- **Load Protection**: If home load causes grid imports during a dump, automatically pauses export to serve the home first, then resumes
+- **Decision Engine**: Click the optimize card to expand an inline thinking feed showing the optimizer's real-time reasoning
+- **Complete Restore**: Properly restores reserve, mode, grid charging, and export settings after each cycle
+
+### VPP Peak Events
+
+Schedule utility demand response / Virtual Power Plant events for premium export rates:
+- Enter date, time window, and premium rate per kWh
+- Optimizer treats VPP events as **highest priority** — overrides all normal TOU logic
+- Purple-themed visuals across the entire UI during active events
+- Live earnings counter on the Dashboard
+- Per-event rate tracking in value calculations
+- Achievement badges for participation milestones
 
 ### EV Charging Integration
 
-Discover your Tesla vehicle automatically. Monitor charge state, range, and power in real-time. Start/stop charging and adjust the charge limit from the web UI. See exactly where your charging power comes from (Solar, Battery, or Grid) with a live proportional breakdown. Track "Miles on Sunshine" — how many miles you've charged from solar energy.
+Discover your Tesla vehicle automatically. Monitor charge state, range, and power in real-time. Start/stop charging and adjust the charge limit from the web UI. Track "Miles on Sunshine."
 
 **Smart Charge Scheduling:**
 | Strategy | How it works |
@@ -84,49 +103,67 @@ Discover your Tesla vehicle automatically. Monitor charge state, range, and powe
 | **Departure Planner** | Calculates optimal start time for your target SOC by departure |
 | **Hybrid Limit** | Any source to 80%, then solar-only to 100% (configurable) |
 
-### Wall Connector
+### AI Insights
 
-Live status of your Tesla Gen 3 Wall Connector: power output, connection state, health monitoring, serial number, and fault detection. Works even while your vehicle is asleep — no need to wake the car to see charging status.
+Dedicated AI Insights page with interactive follow-up questions. Choose from **three AI providers**:
+- **Google Gemini** (free tier)
+- **Groq** (free tier)
+- **OpenAI** (paid)
 
-### GridMind Optimize
+Features:
+- **Energy Insights**: 3-5 specific, actionable observations based on 7-day trends
+- **Anomaly Detection**: Flags genuine issues (not normal patterns like optimizer dumps or EV charging)
+- **Monthly Bill Estimate**: AI-projected monthly electricity bill including energy charges, export credits, fixed fees, and taxes
+- **Interactive Follow-ups**: Click any insight to see follow-up questions; click a question to get a streaming AI response in real-time
 
-Smart peak export strategy that maximizes your TOU export credits. Holds battery during peak hours, calculates the optimal moment to export based on battery SOC, home load, and time remaining, then dumps to grid at max rate. The dashboard shows a live "How It's Thinking" panel with the calculation breakdown.
+### Grid Energy Mix
+
+Real-time grid fuel source data from the EIA API:
+- Stacked bar chart showing hourly fuel breakdown (hydro, wind, solar, gas, coal, etc.)
+- Clean energy percentage with colored badge on the Grid power flow tile when importing
+- Clean Energy % trend line with current hour highlighted
+- Clean grid preference: automatically switches to self-consumption when grid is fossil-heavy
+
+### TOU Rate Schedule
+
+Visual 24-hour rate schedule on the Grid page showing Off-Peak, Mid-Peak, and Peak periods as a color-coded bar with the current hour highlighted. Shows weekday and weekend schedules.
 
 ### Solar Forecasting
 
 Free 7-day solar forecast via Open-Meteo using Global Tilted Irradiance (GTI) calibrated to your panel tilt and azimuth. Forecast vs actual overlay chart. Tomorrow's prediction with weather conditions.
 
-### Powerwall Health
+### Battery Health
 
-Battery capacity estimation from charge cycles, round-trip efficiency tracking, peak power trends, and degradation monitoring over time. Grid outage detection, low SOC alerts, firmware update alerts, and Storm Watch notifications. Lifetime statistics with daily throughput charts. Full hardware inventory.
-
-### AI Insights (Optional)
-
-Add your OpenAI API key to get AI-powered energy observations, optimization tips, and anomaly detection. Uses gpt-4o-mini (~$0.01/day). Completely optional — all features work without it.
+Battery capacity estimation from charge cycles (using local-time-aware cycle detection), round-trip efficiency tracking, peak power trends, and degradation monitoring. Grid outage detection with debouncing, low SOC alerts (suppressed during optimizer dumps), and Storm Watch notifications.
 
 ### Energy Value
 
-Track your financial performance: export credits, import costs, net value, solar savings. Hourly value timeline, cumulative curve with TOU period bands, export timing heatmap, and detailed TOU period summary.
+Track financial performance: export credits, import costs, net value, solar savings. Hourly value timeline with TOU period bands. VPP event earnings tracked separately with per-event breakdown. GridMind Optimize savings calculated from historical data. Lifetime system value with break-even tracking.
 
 ### Achievements
 
-22 badges across 6 categories: Solar milestones, Battery cycles, Grid independence, Financial goals, EV solar miles, and System uptime. Progress bar and earned/locked badge grid.
+Badges across multiple categories: Solar milestones, Battery cycles, Grid independence, Financial goals, EV solar miles, System uptime, and **VPP Events** (Grid Hero, Power Broker, etc.).
 
 ### Automation
 
-Create rules with triggers (time, SOC, load, solar, grid status) and actions (set mode, reserve, storm mode, grid charging, export rule, notifications). 7 preset templates included.
+Create rules with triggers and actions. 7 preset templates included. VPP Peak Events scheduling with premium rate export.
+
+### Backup & Restore
+
+Download a ZIP backup of your database, configuration, and Tesla tokens from Settings.
 
 ### Additional Features
 
-- **Light/Dark Mode** — Auto-follows OS, manual toggle
+- **Light/Dark Mode** — Warm stone palette (light) / cool slate palette (dark)
+- **Animated Values** — All numbers count up on page load and smoothly transition on updates
+- **Live Pulse Indicators** — Green dots signal live data streaming
+- **Clickable Power Flow** — Click any node to navigate to its detail page
 - **Off-Grid Mode** — Simulate grid disconnect with one click
-- **Time Range Selector** — View data for Today, 1h, 12h, 24h, or 7d on all detail pages
-- **Power Source Breakdown** — See Solar/Battery/Grid percentages with stacked chart toggle
-- **Notifications** — Email (SMTP) and webhooks (Slack/Discord) — configured in the web UI
-- **App Authentication** — Password login with rate limiting for secure remote access
-- **Mobile Responsive** — Bottom nav bar with expandable menu, scales to any screen size
-- **Auto-Refresh** — Data refreshes instantly when you unlock your phone or switch tabs
-- **PWA Support** — Install as a native app on iOS/Android with offline capability
+- **Time Range Selector** — Today, 1h, 12h, 24h, 7d on all detail pages
+- **Notifications** — Email (SMTP) and webhooks (Slack/Discord)
+- **App Authentication** — Password login with rate limiting
+- **Mobile Responsive** — PWA support, installable on iOS/Android
+- **Auto-Refresh** — Data refreshes on tab visibility change
 
 ## Setup Guide
 
@@ -142,7 +179,7 @@ Create rules with triggers (time, SOC, load, solar, grid status) and actions (se
    - **For EV features** (optional): also enable `Vehicle Information` and `Vehicle Charging Management`
 3. Save your **Client ID** and **Client Secret**
 
-> **Running on a server (Unraid, etc.)?** Use your server's URL for the redirect URI (e.g., `https://gridmind.yourdomain.com/auth/callback`). Tesla only allows `http://` for localhost — remote servers need HTTPS via a reverse proxy. See [Unraid Installation](#unraid-installation) below.
+> **Running on a server (Unraid, etc.)?** Use your server's URL for the redirect URI (e.g., `https://gridmind.yourdomain.com/auth/callback`). Tesla only allows `http://` for localhost — remote servers need HTTPS via a reverse proxy.
 
 ### Step 2: Enter Credentials
 
@@ -178,11 +215,13 @@ Tesla requires a public key at a public URL. GridMind generates the key pair for
 
 Go to the **Vehicle** page and select your Tesla. Charge monitoring, controls, and the dashboard EV node will activate.
 
-> **Need to add vehicle scopes later?** Revoke GridMind at [tesla.com/teslaaccount](https://www.tesla.com/teslaaccount) → Security → Third-Party Apps, then re-authenticate.
-
 ### Step 7: Enable Authentication (Recommended)
 
-Go to **Settings** → **App Authentication** and set a username/password. Required if accessing GridMind over the internet.
+Go to **Settings** → **App Authentication** and set a username/password.
+
+### Step 8: AI Insights (Optional)
+
+Go to **Settings** → **AI Insights** and select a provider. Gemini and Groq offer free tiers with generous limits.
 
 ## Unraid Installation
 
@@ -200,7 +239,7 @@ Go to **Settings** → **App Authentication** and set a username/password. Requi
 4. Add **Path**: Host `/mnt/user/appdata/gridmind` → Container `/app/data` (RW)
 5. Click **Apply**
 
-> **Important**: For OAuth, set up HTTPS via Nginx Proxy Manager or similar. Tesla requires HTTPS for non-localhost redirect URIs. Use your HTTPS domain as the redirect URI in both the Tesla Developer App and GridMind Settings.
+> **Important**: For OAuth, set up HTTPS via Nginx Proxy Manager or similar. Tesla requires HTTPS for non-localhost redirect URIs.
 
 ## Data Persistence
 
@@ -208,13 +247,13 @@ All data is stored in the Docker volume at `/app/data/`:
 
 | File                | Contents                                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------------------------ |
-| `setup.json`        | All settings: Tesla credentials, location, solar config, vehicle, schedules, notifications, OpenAI key |
+| `setup.json`        | All settings: Tesla credentials, location, solar config, vehicle, schedules, notifications, AI config, VPP events |
 | `tesla_tokens.json` | OAuth access and refresh tokens                                                                        |
 | `gridmind.db`       | SQLite: energy readings, vehicle charge history, automation rules, forecasts, achievements             |
 | `private-key.pem`   | EC private key for Fleet API                                                                           |
 | `public-key.pem`    | EC public key (hosted on your domain)                                                                  |
 
-**Back up `/app/data/` to preserve all settings and history.**
+**Back up `/app/data/` to preserve all settings and history.** A backup can also be downloaded from Settings.
 
 ## Development
 
@@ -235,8 +274,21 @@ npm run dev  # http://localhost:5173
 
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy (async SQLite), APScheduler
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Recharts
-- **Deployment**: Docker (multi-stage), GitHub Actions CI (GHCR, multi-arch)
-- **APIs**: Tesla Fleet API, Open-Meteo, OpenAI (optional)
+- **AI**: OpenAI SDK (supports OpenAI, Google Gemini, Groq via base_url)
+- **Deployment**: Docker (multi-stage), GitHub Actions CI (GHCR)
+- **APIs**: Tesla Fleet API, Open-Meteo, EIA (grid energy mix), AI providers
+
+## Color Reference
+
+| Element | Color | Usage |
+|---|---|---|
+| Solar | Amber | Generation, forecasts |
+| Battery | Blue | SOC, charge/discharge |
+| Home | Cyan | Consumption, load |
+| Grid Import | Red | Importing from grid |
+| Grid Export | Emerald | Exporting to grid |
+| EV / Vehicle | Orange | Charging, vehicle status |
+| VPP Events | Purple | Premium export events |
 
 ## Support
 

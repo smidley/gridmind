@@ -51,19 +51,22 @@ backend/
 ├── automation/
 │   ├── engine.py                # APScheduler jobs: collector(30s), rules(1m), optimizer(2m),
 │   │                              vehicle_collector(30s), charge_scheduler(2m), forecast(6h)
-│   ├── optimizer.py             # GridMind Optimize: peak hold → dump strategy
+│   ├── optimizer.py             # GridMind Optimize: idle | event_dump | peak_hold | dumping | complete
 │   │                              Phase persisted to setup_store. Pre-optimize settings saved.
 │   ├── charge_scheduler.py      # EV smart scheduling: TOU-aware, solar surplus, departure
 │   ├── rules.py                 # Trigger/condition evaluation
 │   └── actions.py               # Executable actions (set mode, reserve, notify, etc.)
+│   # partial_peak_arb.py removed (feature didn't add value)
 ├── services/
 │   ├── collector.py             # Powerwall data collection → DB + WebSocket broadcast
 │   ├── vehicle_collector.py     # Vehicle charge data (adaptive polling: 2m/10m/30m/60m)
-│   ├── ai_insights.py           # OpenAI insights + anomaly detection (gpt-4o-mini)
+│   ├── ai_insights.py           # Multi-provider AI: insights, anomalies, bill estimate (OpenAI/Gemini/Groq)
 │   ├── weather.py               # Open-Meteo: 7-day solar forecast (GTI) + weather codes
 │   ├── notifications.py         # Email (SMTP) + webhooks (Slack/Discord) — reads from setup_store
 │   ├── app_auth.py              # Password auth: bcrypt hash, JWT sessions, rate limiting
 │   ├── setup_store.py           # JSON persistent config (/app/data/setup.json)
+│   ├── grid_mix.py              # EIA API: grid fuel source mix, clean/fossil percentages
+│   ├── battery_capacity.py      # Centralized battery capacity from Tesla API
 │   ├── mode_manager.py          # Conflict prevention between controllers
 │   └── geocoding.py             # Nominatim address lookup
 └── api/
@@ -72,8 +75,11 @@ backend/
     ├── routes_history.py        # Readings, daily, today, value, forecast, range-stats, weather
     ├── routes_vehicle.py        # Vehicle status, controls, schedule, WC, charge-source, solar-miles
     ├── routes_health.py         # Powerwall health, throughput, alerts, capacity, savings
-    ├── routes_ai.py             # AI insights config, insights, anomalies
-    ├── routes_achievements.py   # 22 badges evaluated from existing data
+    ├── routes_ai.py             # AI config, insights, anomalies, bill estimate, streaming Q&A
+    ├── routes_achievements.py   # Badges evaluated from data + VPP achievements
+    ├── routes_events.py         # VPP Peak Events CRUD + active/next/stats
+    ├── routes_backup.py         # Backup export (ZIP) + info
+    ├── routes_notification_templates.py  # Predefined notification rule templates
     └── routes_rules.py          # Automation rules CRUD
 ```
 
@@ -84,7 +90,8 @@ frontend/src/
 │                                  auth check, theme toggle, logout
 ├── pages/
 │   ├── Dashboard.tsx            # Power flow, tiles, EV tile, optimizer card, forecast,
-│   │                              backup/savings cards, AI insights, storm alert, status bar
+│   │                              backup/savings cards, AI insights, storm alert, status bar,
+│   │                              VPP event banner, optimizer thinking feed, animated values
 │   ├── DetailSolar.tsx          # Solar: time range, production chart, forecast cards (today/tomorrow),
 │   │                              vs-actual, tomorrow hourly, cloud cover, 7-day weather, system info
 │   ├── DetailHome.tsx           # Home: time range, power sources bar + stacked chart toggle,
@@ -94,11 +101,12 @@ frontend/src/
 │   │                              alerts, throughput chart, hardware inventory)
 │   ├── Vehicle.tsx              # EV: charge gauge with hybrid limits, detailed status inference,
 │   │                              Tesla schedule display, solar miles, charge source, WC status,
-│   │                              smart schedule config, stale data/wake handling
+│   │                              smart schedule config, stale data/wake handling (orange color scheme)
 │   ├── Value.tsx                # Financial: hourly timeline, cumulative curve, heatmap, TOU table
 │   ├── Rules.tsx                # Automation: rules list, optimizer/EV schedule status cards
 │   ├── Achievements.tsx         # 22 badges in 6 categories
 │   ├── History.tsx              # Historical data charts
+│   ├── AIInsights.tsx           # AI insights page with interactive follow-up streaming
 │   ├── Settings.tsx             # Tesla creds, location, solar config, auth, notifications, OpenAI,
 │   │                              controls, optimize, offgrid, buy me a coffee
 │   └── Login.tsx                # Login page (shown when auth enabled)
@@ -112,6 +120,7 @@ frontend/src/
 │   ├── TimeRangeSelector.tsx    # Pill bar: Today, 1h, 12h, 24h, 7d + formatChartTime helper
 │   ├── RuleBuilder.tsx          # Automation rule creation form
 │   ├── AutomationPresets.tsx    # 7 preset automation templates
+│   ├── AnimatedValue.tsx        # requestAnimationFrame number counting with ease-out
 │   └── MoneyGoal.tsx            # Monetary goal ring
 └── hooks/
     ├── useWebSocket.ts          # SINGLETON WebSocketManager class via useSyncExternalStore
@@ -158,6 +167,25 @@ frontend/src/
 - Frontend: App.tsx checks auth on load, shows Login.tsx if needed
 - All fetch calls use `credentials: 'include'`
 
+### AI Provider Abstraction
+- Supports OpenAI, Google Gemini, Groq via OpenAI SDK with base_url override
+- Only one provider active at a time, configured in setup_store (ai_provider + ai_api_key)
+- Auto-migrates old openai_api_key on first access
+- Rate limited: asyncio.Lock + 10s gap + 120s backoff on 429
+- Follow-up questions stream via SSE (POST /ai/ask)
+
+### VPP Peak Events
+- Stored in setup_store under peak_events key
+- Event lifecycle: scheduled → active → completed
+- event_dump phase is HIGHEST PRIORITY in optimizer (checked before TOU)
+- VPP_EVENT rate type integrates into get_period_and_rate() value calculations
+- Purple (#7c3aed) color scheme across all UI
+
+### Color Scheme
+- Solar: amber, Battery: blue, Home: cyan, Grid import: red, Grid export: emerald
+- EV/Vehicle: orange, VPP Events: violet/purple
+- Light mode: warm stone palette, Dark mode: cool slate palette
+
 ### Version Bumping
 Update 3 files: `backend/config.py`, `frontend/src/App.tsx` (sidebar footer), `frontend/package.json`
 
@@ -201,12 +229,27 @@ Update 3 files: `backend/config.py`, `frontend/src/App.tsx` (sidebar footer), `f
 - Light/dark mode with full theme support
 - Auto-refresh on page visibility (phone unlock)
 - Buy Me a Coffee integration
+- Multi-provider AI (OpenAI, Gemini, Groq) with interactive follow-up streaming
+- AI monthly bill estimate
+- AI Insights dedicated page with follow-up Q&A
+- VPP Peak Events (schedule, optimizer integration, purple UI, achievements)
+- Grid energy mix from EIA API with hourly chart and clean % indicators
+- TOU rate schedule visual chart
+- Animated values (count-up on load, smooth transitions)
+- Live pulse indicators
+- Clickable power flow nodes
+- Smart load protection during dumps
+- Backup & restore from Settings
+- Notification rule templates
+- Battery health with local-time cycle detection
+- Optimizer verbose thinking feed
 
 ### Remaining Backlog
 1. **Multi-user accounts** — User registration, per-user data isolation, per-user Tesla/Enphase tokens
 2. **Enphase integration** — Solar monitoring via Enphase Cloud API for non-Tesla homes
 3. **Multi-site support** — Manage multiple homes/solar systems from one instance
 4. **Multi-user SaaS architecture** — Cloud-hosted option with shared developer app, Stripe billing
+5. **PGE API integration** — Pull real bill data from Portland General Electric API (portlandgeneral-api library)
 
 ### Known Issues / Areas for Improvement
 - Chart grid lines (`stroke="#1e293b"`) don't adapt to light mode
