@@ -164,9 +164,17 @@ async def ai_anomalies():
         )
         summaries_raw = result.scalars().all()
 
+    # Convert UTC timestamps to local time so the AI sees correct times
+    from zoneinfo import ZoneInfo
+    user_tz_name = setup_store.get_timezone()
+    try:
+        user_tz = ZoneInfo(user_tz_name)
+    except Exception:
+        user_tz = ZoneInfo("America/New_York")
+
     readings = [
         {
-            "timestamp": r.timestamp.isoformat(),
+            "timestamp": (r.timestamp.replace(tzinfo=ZoneInfo("UTC")).astimezone(user_tz)).strftime("%Y-%m-%d %I:%M %p"),
             "solar_w": r.solar_power,
             "grid_w": r.grid_power,
             "battery_w": r.battery_power,
