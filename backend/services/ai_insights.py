@@ -196,16 +196,23 @@ async def generate_insights(energy_data: list[dict], today_data: dict, forecast:
     if not client:
         return {"insights": [], "error": "AI provider not configured"}
 
-    context = "You are an energy advisor for a home with solar panels and a battery storage system.\n"
-    context += "Analyze this energy data and provide 3-5 concise, actionable insights.\n"
-    context += "Focus on patterns, achievements, and optimization opportunities.\n"
-    context += "Keep each insight to 1-2 sentences. Be specific with numbers.\n\n"
+    context = "You are an expert energy advisor analyzing data from a home with solar panels and battery storage.\n\n"
+    context += "RULES:\n"
+    context += "- Provide 3-4 genuinely useful, non-obvious insights. Quality over quantity.\n"
+    context += "- Compare today against the 7-day trend. Highlight real deviations, not normal behavior.\n"
+    context += "- DO NOT mention the battery reaching 100% — this happens daily and is not an insight.\n"
+    context += "- DO NOT confuse instantaneous power (watts) with daily energy totals (kWh). The 'solar_power_w' field is the CURRENT reading, not today's total. Use 'solar_kwh' from the daily summary for totals.\n"
+    context += "- DO NOT call a value 'high' or 'low' without comparing it to the 7-day average.\n"
+    context += "- The battery is intentionally discharged to near-empty during peak hours by an optimizer — this is normal, not an anomaly.\n"
+    context += "- Be specific: use actual numbers and percentages. Avoid vague advice like 'optimize your usage'.\n"
+    context += "- Focus on: cost savings opportunities, unusual consumption patterns, solar performance vs forecast, week-over-week trends.\n"
+    context += "- Keep each insight to 1-2 sentences.\n\n"
 
-    context += "=== Today's Energy ===\n"
+    context += "=== Today's Energy (daily totals from summary) ===\n"
     context += json.dumps(today_data, indent=2, default=str) + "\n\n"
 
     if energy_data:
-        context += "=== Last 7 Days (daily summaries) ===\n"
+        context += "=== Last 7 Days (daily summaries — use these for trends) ===\n"
         for d in energy_data[-7:]:
             context += json.dumps(d, indent=2, default=str) + "\n"
         context += "\n"
@@ -271,10 +278,14 @@ async def detect_anomalies(readings: list[dict], daily_summaries: list[dict]) ->
     avg_export = sum(d.get("grid_exported_kwh", 0) or 0 for d in daily_summaries) / n if n else 0
     avg_consumed = sum(d.get("home_consumed_kwh", 0) or 0 for d in daily_summaries) / n if n else 0
 
-    context = "You are an energy anomaly detector for a home with solar panels and battery storage.\n"
-    context += "Compare today's data against the historical baseline and recent readings.\n"
-    context += "Flag any unusual patterns, spikes, or deviations. Only report genuine anomalies.\n"
-    context += "If nothing is unusual, return an empty array.\n\n"
+    context = "You are an energy anomaly detector for a home with solar panels and battery storage.\n\n"
+    context += "RULES:\n"
+    context += "- Only flag GENUINE anomalies that deviate significantly from the baseline (>30% deviation).\n"
+    context += "- The battery is intentionally deep-discharged during peak hours by an optimizer — discharge to 5% is NORMAL, not an anomaly.\n"
+    context += "- Home consumption spikes are normal when an EV is charging (can add 7+ kW).\n"
+    context += "- Solar production varies with weather — a cloudy day is not an anomaly.\n"
+    context += "- If nothing is genuinely unusual, return an EMPTY array []. Do not fabricate anomalies.\n"
+    context += "- Only report things that would actually concern a homeowner.\n\n"
 
     context += f"=== Baseline (avg over {n} days) ===\n"
     context += f"Avg solar: {avg_solar:.1f} kWh/day\n"
