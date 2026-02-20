@@ -381,7 +381,7 @@ async def evaluate():
     wc_power = getattr(energy_status, "wall_connector_power", 0) if energy_status else 0
     wc_state = getattr(energy_status, "wall_connector_state", 0) if energy_status else 0
     wc_connected = wc_state > 2
-    wc_charging = wc_power > 50
+    wc_charging = wc_state >= 5 and wc_power > 50
 
     # If WC shows car isn't plugged in, skip — nothing to schedule
     if not wc_connected and not wc_charging:

@@ -747,7 +747,7 @@ async def evaluate():
             _think(f"VPP event — exporting at ${rate:.2f}/kWh — ~{_state['event_export_start_kwh']:.1f} kWh exported, ~${earnings:.2f} earned")
             return
         else:
-            # Event ended — complete and restore
+            # Event ended — complete it
             event_data = _state.get("active_event", {})
             exported = _state.get("event_export_start_kwh", 0)
             rate = event_data.get("rate_per_kwh", 0)
@@ -759,7 +759,6 @@ async def evaluate():
             if event_data.get("id"):
                 complete_event(event_data["id"], exported, earnings)
 
-            # Check VPP achievements
             try:
                 _check_vpp_achievements(event_data, exported, earnings)
             except Exception:
@@ -768,16 +767,23 @@ async def evaluate():
             _state["active_event"] = None
             _state["event_export_start_kwh"] = 0
 
-            # Restore settings
-            await _end_peak()
+            # Check if still in peak — if so, continue optimizing instead of restoring
+            tou_after_event = _get_tou_peak_info(now)
+            if tou_after_event["in_peak"]:
+                _think("VPP event ended but still in peak — continuing to hold/export battery")
+                logger.info("VPP event ended during peak — transitioning to peak_hold (reserve stays at %d%%)", _state["min_reserve_pct"])
+                _state["_peak_end_minutes"] = tou_after_event.get("peak_end_minutes")
+                _set_phase("peak_hold")
+            else:
+                _think("VPP event ended outside peak — restoring normal operation")
+                await _end_peak()
 
             from services.notifications import send_notification
             try:
-                await send_notification(
-                    f"VPP Event Complete!",
-                    f"Exported {exported:.1f} kWh at ${rate:.2f}/kWh. Earned ${earnings:.2f}!",
-                    "info",
-                )
+                msg = f"Exported {exported:.1f} kWh at ${rate:.2f}/kWh. Earned ${earnings:.2f}!"
+                if tou_after_event["in_peak"]:
+                    msg += " Still in peak hours — continuing battery optimization."
+                await send_notification("VPP Event Complete!", msg, "info")
             except Exception:
                 pass
             return

@@ -78,12 +78,13 @@ export default function Dashboard() {
   const vehicleInfo = vehicleStatus?.vehicle
   const hasVehicle = vehicleCS != null
 
-  // Wall Connector power comes from Powerwall live_status (updates every 30s, even when car is asleep).
-  // Use it as the primary EV charging power source since it's always fresh.
-  // Vehicle API data can be 60+ min stale when the car is asleep.
+  // Wall Connector state codes: 0-1=idle, 2=online, 4=plugged in, 5+=actively charging
+  // Use state to determine charging, not power alone — WC can report phantom power when
+  // the car is plugged in but not charging.
   const wcPower = status?.wall_connector_power || 0
-  const wcCharging = wcPower > 50
-  const evChargingW = wcCharging
+  const wcState = status?.wall_connector_state || 0
+  const wcActivelyCharging = wcState >= 5 && wcPower > 50
+  const evChargingW = wcActivelyCharging
     ? wcPower
     : (hasVehicle && vehicleCS.charging_state === 'Charging')
       ? (vehicleCS.charger_power || 0) * 1000

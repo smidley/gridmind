@@ -283,10 +283,11 @@ export default function PowerFlowDiagram({ status, tariff, gridMix, activeVppEve
   const evCharging = evChargingWatts > 50
   const showEv = evSoc !== undefined || evCharging
 
-  // Tesla's home_power (load_power) includes Wall Connector power.
+  // Tesla's home_power (load_power) includes Wall Connector power when EV is charging.
   // Subtract EV charging watts to show actual home-only consumption.
-  const actualHomePower = evCharging
-    ? Math.max(status.home_power - evChargingWatts, 0)
+  // Only subtract if EV is genuinely charging AND load_power > EV power (sanity check).
+  const actualHomePower = evCharging && status.home_power > evChargingWatts
+    ? status.home_power - evChargingWatts
     : status.home_power
   const homeActive = actualHomePower > 50
 
