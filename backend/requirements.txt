@@ -12,5 +12,5 @@ python-multipart==0.0.22
 aiosmtplib==3.0.2
 PyJWT==2.11.0
 bcrypt==5.0.0
-openai==1.66.3
+openai==2.21.0
 pytest==8.3.4
