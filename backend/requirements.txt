@@ -9,7 +9,7 @@ pydantic==2.12.5
 pydantic-settings==2.7.1
 websockets==14.1
 python-multipart==0.0.22
-aiosmtplib==3.0.2
+aiosmtplib==5.1.0
 PyJWT==2.11.0
 bcrypt==5.0.0
 openai==1.66.3
