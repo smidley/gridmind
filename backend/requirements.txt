@@ -4,7 +4,7 @@ sqlalchemy==2.0.36
 aiosqlite==0.22.1
 apscheduler==3.11.0
 httpx==0.28.1
-python-dotenv==1.0.1
+python-dotenv==1.2.1
 pydantic==2.12.5
 pydantic-settings==2.7.1
 websockets==14.1
