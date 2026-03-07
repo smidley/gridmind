@@ -13,4 +13,4 @@ aiosmtplib==5.1.0
 PyJWT==2.11.0
 bcrypt==5.0.0
 openai==2.21.0
-pytest==8.3.4
+pytest==9.0.2
